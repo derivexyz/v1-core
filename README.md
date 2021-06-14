@@ -9,8 +9,8 @@ Contract ABIs can be found in the `abis` directory.
 Documentation for all system contracts [can be found here](docs/contracts).
 
 ## Architecture overview:
-![](docs/img/LyraProtocolContracts.png?raw=true)
+![](docs/img/LyraProtocolContracts.jpg?raw=true)
 
 ## UML
 
-![](docs/uml/lyra.png?raw=true)
+![](docs/uml/lyra.png)
