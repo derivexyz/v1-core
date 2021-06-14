@@ -1,0 +1,145 @@
+{
+  "contractName": "TestSynthetix",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "exchangeForAddress",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "sourceCurrencyKey",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "sourceAmount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "destinationCurrencyKey",
+          "type": "bytes32"
+        }
+      ],
+      "name": "Exchange",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "ticker",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "contract ITestERC20",
+          "name": "baseAsset",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "market",
+          "type": "address"
+        }
+      ],
+      "name": "addBaseAsset",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "sourceCurrencyKey",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "sourceAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "destinationCurrencyKey",
+          "type": "bytes32"
+        }
+      ],
+      "name": "exchange",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountReceived",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "exchangeForAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "sourceCurrencyKey",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "sourceAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "destinationCurrencyKey",
+          "type": "bytes32"
+        }
+      ],
+      "name": "exchangeOnBehalf",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountReceived",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract LyraGlobals",
+          "name": "_globals",
+          "type": "address"
+        },
+        {
+          "internalType": "contract ITestERC20",
+          "name": "_quoteAsset",
+          "type": "address"
+        }
+      ],
+      "name": "init",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+}

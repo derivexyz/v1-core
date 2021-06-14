@@ -1,0 +1,525 @@
+{
+  "contractName": "OptionGreekCache",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "int256",
+          "name": "netDelta",
+          "type": "int256"
+        },
+        {
+          "indexed": false,
+          "internalType": "int256",
+          "name": "netStdVega",
+          "type": "int256"
+        }
+      ],
+      "name": "GlobalCacheUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "listingId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "int256",
+          "name": "newCallExposure",
+          "type": "int256"
+        },
+        {
+          "indexed": false,
+          "internalType": "int256",
+          "name": "newPutExposure",
+          "type": "int256"
+        }
+      ],
+      "name": "ListingExposureUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "listingId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "int256",
+          "name": "callDelta",
+          "type": "int256"
+        },
+        {
+          "indexed": false,
+          "internalType": "int256",
+          "name": "putDelta",
+          "type": "int256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "vega",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "baseIv",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "skew",
+          "type": "uint256"
+        }
+      ],
+      "name": "ListingGreeksUpdated",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "MAX_ACCEPTABLE_PERCENT",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MAX_LISTINGS_PER_BOARD",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MIN_ACCEPTABLE_PERCENT",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "PRICE_SCALING_PERIOD",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "boardId",
+          "type": "uint256"
+        }
+      ],
+      "name": "addBoard",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "boardCaches",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "expiry",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "iv",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minUpdatedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minUpdatedAtPrice",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxUpdatedAtPrice",
+          "type": "uint256"
+        },
+        {
+          "internalType": "int256",
+          "name": "netDelta",
+          "type": "int256"
+        },
+        {
+          "internalType": "int256",
+          "name": "netStdVega",
+          "type": "int256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "globalCache",
+      "outputs": [
+        {
+          "internalType": "int256",
+          "name": "netDelta",
+          "type": "int256"
+        },
+        {
+          "internalType": "int256",
+          "name": "netStdVega",
+          "type": "int256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minUpdatedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minUpdatedAtPrice",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxUpdatedAtPrice",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minExpiryTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract LyraGlobals",
+          "name": "_globals",
+          "type": "address"
+        },
+        {
+          "internalType": "contract OptionMarket",
+          "name": "_optionMarket",
+          "type": "address"
+        },
+        {
+          "internalType": "contract OptionMarketPricer",
+          "name": "_optionPricer",
+          "type": "address"
+        },
+        {
+          "internalType": "contract BlackScholes",
+          "name": "_blackScholes",
+          "type": "address"
+        }
+      ],
+      "name": "init",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "boardCacheId",
+          "type": "uint256"
+        }
+      ],
+      "name": "isBoardCacheStale",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "isGlobalCacheStale",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "listingCaches",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "strike",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "skew",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "boardId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "int256",
+          "name": "callDelta",
+          "type": "int256"
+        },
+        {
+          "internalType": "int256",
+          "name": "putDelta",
+          "type": "int256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "stdVega",
+          "type": "uint256"
+        },
+        {
+          "internalType": "int256",
+          "name": "callExposure",
+          "type": "int256"
+        },
+        {
+          "internalType": "int256",
+          "name": "putExposure",
+          "type": "int256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "updatedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "updatedAtPrice",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "liveBoards",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "boardCacheId",
+          "type": "uint256"
+        }
+      ],
+      "name": "removeBoard",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "updateAllStaleBoards",
+      "outputs": [
+        {
+          "internalType": "int256",
+          "name": "",
+          "type": "int256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "boardCacheId",
+          "type": "uint256"
+        }
+      ],
+      "name": "updateBoardCachedGreeks",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "int256",
+              "name": "rateAndCarry",
+              "type": "int256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "spotPrice",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct LyraGlobals.GreekCacheGlobals",
+          "name": "greekCacheGlobals",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint256",
+          "name": "listingCacheId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "int256",
+          "name": "newCallExposure",
+          "type": "int256"
+        },
+        {
+          "internalType": "int256",
+          "name": "newPutExposure",
+          "type": "int256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "iv",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "skew",
+          "type": "uint256"
+        }
+      ],
+      "name": "updateListingCacheAndGetPrice",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "optionPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "int256",
+              "name": "preTradeAmmNetStdVega",
+              "type": "int256"
+            },
+            {
+              "internalType": "int256",
+              "name": "postTradeAmmNetStdVega",
+              "type": "int256"
+            },
+            {
+              "internalType": "int256",
+              "name": "callDelta",
+              "type": "int256"
+            }
+          ],
+          "internalType": "struct OptionMarketPricer.Pricing",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+}

@@ -1,0 +1,191 @@
+{
+  "contractName": "BlackScholes",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "int256",
+          "name": "x",
+          "type": "int256"
+        }
+      ],
+      "name": "abs",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "x",
+          "type": "uint256"
+        }
+      ],
+      "name": "exp",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "int256",
+          "name": "x",
+          "type": "int256"
+        }
+      ],
+      "name": "exp",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "timeToExpirySec",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "volatilityDecimal",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "spotDecimal",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "strikeDecimal",
+          "type": "uint256"
+        },
+        {
+          "internalType": "int256",
+          "name": "rateDecimal",
+          "type": "int256"
+        }
+      ],
+      "name": "optionPrices",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "call",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "put",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "timeToExpirySec",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "volatilityDecimal",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "spotDecimal",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "strikeDecimal",
+          "type": "uint256"
+        },
+        {
+          "internalType": "int256",
+          "name": "rateDecimal",
+          "type": "int256"
+        }
+      ],
+      "name": "pricesDeltaStdVega",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "callPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "putPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "int256",
+              "name": "callDelta",
+              "type": "int256"
+            },
+            {
+              "internalType": "int256",
+              "name": "putDelta",
+              "type": "int256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "stdVega",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct BlackScholes.PricesDeltaStdVega",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "x",
+          "type": "uint256"
+        }
+      ],
+      "name": "sqrt",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "y",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ]
+}

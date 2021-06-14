@@ -1,0 +1,583 @@
+{
+  "contractName": "TestPoolHedger",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newCollateral",
+          "type": "uint256"
+        }
+      ],
+      "name": "CollateralSetTo",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "LongDecreased",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "purchaseAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "LongIncreased",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "int256",
+          "name": "netDelta",
+          "type": "int256"
+        }
+      ],
+      "name": "PositionUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountQuote",
+          "type": "uint256"
+        }
+      ],
+      "name": "QuoteReturnedToLP",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newShortBuffer",
+          "type": "uint256"
+        }
+      ],
+      "name": "ShortBufferSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "shortId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ShortInitialized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newShort",
+          "type": "uint256"
+        }
+      ],
+      "name": "ShortSetTo",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "spotPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "quoteKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "baseKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "contract ISynthetix",
+              "name": "synthetix",
+              "type": "address"
+            },
+            {
+              "internalType": "contract ICollateralShort",
+              "name": "short",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "quoteBaseFeeRate",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "baseQuoteFeeRate",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct LyraGlobals.ExchangeGlobals",
+          "name": "exchangeGlobals",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "callTransferQuoteToHedge",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "spotPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "quoteKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "baseKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "contract ISynthetix",
+              "name": "synthetix",
+              "type": "address"
+            },
+            {
+              "internalType": "contract ICollateralShort",
+              "name": "short",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "quoteBaseFeeRate",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "baseQuoteFeeRate",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct LyraGlobals.ExchangeGlobals",
+          "name": "exchangeGlobals",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "decreaseLongExt",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "endRound",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getCurrentHedgedNetDelta",
+      "outputs": [
+        {
+          "internalType": "int256",
+          "name": "",
+          "type": "int256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract ICollateralShort",
+          "name": "short",
+          "type": "address"
+        }
+      ],
+      "name": "getShortPosition",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "shortBalance",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "collateral",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract ICollateralShort",
+          "name": "short",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "spotPrice",
+          "type": "uint256"
+        }
+      ],
+      "name": "getValueQuote",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "value",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "hedgeDelta",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "spotPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "quoteKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "baseKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "contract ISynthetix",
+              "name": "synthetix",
+              "type": "address"
+            },
+            {
+              "internalType": "contract ICollateralShort",
+              "name": "short",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "quoteBaseFeeRate",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "baseQuoteFeeRate",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct LyraGlobals.ExchangeGlobals",
+          "name": "exchangeGlobals",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "increaseLongExt",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract LyraGlobals",
+          "name": "_globals",
+          "type": "address"
+        },
+        {
+          "internalType": "contract OptionMarket",
+          "name": "_optionMarket",
+          "type": "address"
+        },
+        {
+          "internalType": "contract OptionGreekCache",
+          "name": "_optionGreekCache",
+          "type": "address"
+        },
+        {
+          "internalType": "contract LiquidityPool",
+          "name": "_liquidityPool",
+          "type": "address"
+        },
+        {
+          "internalType": "contract IERC20",
+          "name": "_quoteAsset",
+          "type": "address"
+        },
+        {
+          "internalType": "contract IERC20",
+          "name": "_baseAsset",
+          "type": "address"
+        }
+      ],
+      "name": "init",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "initShort",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "reopenShort",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "newShortBuffer",
+          "type": "uint256"
+        }
+      ],
+      "name": "setShortBuffer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "spotPrice",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "quoteKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "baseKey",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "contract ISynthetix",
+              "name": "synthetix",
+              "type": "address"
+            },
+            {
+              "internalType": "contract ICollateralShort",
+              "name": "short",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "quoteBaseFeeRate",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "baseQuoteFeeRate",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct LyraGlobals.ExchangeGlobals",
+          "name": "exchangeGlobals",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint256",
+          "name": "desiredShort",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "currentShort",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "currentCollateral",
+          "type": "uint256"
+        }
+      ],
+      "name": "setShortToExt",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "shortBuffer",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "shortId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "shortingInitialized",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "int256",
+          "name": "netDelta",
+          "type": "int256"
+        }
+      ],
+      "name": "updatePositionExt",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+}
