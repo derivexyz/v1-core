@@ -1,0 +1,24 @@
+# Summary
+* contracts
+  * [BlackScholes](docs/contracts/blackscholes.md)
+  * [LiquidityCertificate](docs/contracts/liquiditycertificate.md)
+  * [LiquidityPool](docs/contracts/liquiditypool.md)
+  * [LyraGlobals](docs/contracts/lyraglobals.md)
+  * [OptionGreekCache](docs/contracts/optiongreekcache.md)
+  * [OptionMarket](docs/contracts/optionmarket.md)
+  * [OptionMarketPricer](docs/contracts/optionmarketpricer.md)
+  * [OptionToken](docs/contracts/optiontoken.md)
+  * [PoolHedger](docs/contracts/poolhedger.md)
+  * [ShortCollateral](docs/contracts/shortcollateral.md)
+  * openzeppelin-l2
+    * [Address](docs/contracts/openzeppelin-l2/address.md)
+    * [ERC1155](docs/contracts/openzeppelin-l2/erc1155.md)
+    * [ERC721](docs/contracts/openzeppelin-l2/erc721.md)
+  * periphery
+    * [LyraMarketsRegistry](docs/contracts/periphery/lyramarketsregistry.md)
+    * [MultistepSwapper](docs/contracts/periphery/multistepswapper.md)
+    * [OptionMarketSafeSlippage](docs/contracts/periphery/optionmarketsafeslippage.md)
+    * [OptionMarketViewer](docs/contracts/periphery/optionmarketviewer.md)
+  * synthetix
+    * [SafeDecimalMath](docs/contracts/synthetix/safedecimalmath.md)
+    * [SignedSafeDecimalMath](docs/contracts/synthetix/signedsafedecimalmath.md)

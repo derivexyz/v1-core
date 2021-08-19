@@ -1,12 +1,8 @@
 # `OptionMarketPricer`
 
-A collection of pricing logic for the OptionMarket. Retrieves globals from LyraGlobals and uses them, along
+Logic for working out the price of an option. Includes the IV impact of the trade, the fee components and
 
-with pricing returned from OptionGreekCache to determine the cost and fee of the options being purchased; also
-
-provides the scale for adjusting iv/skew in the OptionMarket. It is also responsible for passing the new call/put
-
-exposure for a listing through to the OptionGreekCache.
+premium.
 
 ## Modifiers:
 
@@ -42,9 +38,7 @@ Initialize the contract.
 
 ### Function `ivImpactForTrade(struct OptionMarket.OptionListing listing, struct OptionMarket.Trade trade, struct LyraGlobals.PricingGlobals pricingGlobals, uint256 boardBaseIv) → uint256, uint256 public`
 
-Calculates the impact a trade has on the base IV of the
-
-OptionBoard and the skew of the OptionListing.
+Calculates the impact a trade has on the base IV of the OptionBoard and the skew of the OptionListing.
 
 #### Parameters:
 
@@ -58,9 +52,7 @@ OptionBoard and the skew of the OptionListing.
 
 ### Function `updateCacheAndGetTotalCost(struct OptionMarket.OptionListing listing, struct OptionMarket.Trade trade, struct LyraGlobals.PricingGlobals pricingGlobals, uint256 boardBaseIv) → uint256 totalCost, uint256 newBaseIv, uint256 newSkew external`
 
-Acts as the entry point for the OptionMarket into the
-
-pricing logic when a trade is performed.
+The entry point for the OptionMarket into the pricing logic when a trade is performed.
 
 #### Parameters:
 
@@ -74,7 +66,7 @@ pricing logic when a trade is performed.
 
 ### Function `getPremium(struct OptionMarket.Trade trade, struct OptionMarketPricer.Pricing pricing, struct LyraGlobals.PricingGlobals pricingGlobals) → uint256 premium public`
 
-Calculates the premium for a trade.
+Calculates the final premium for a trade.
 
 #### Parameters:
 
@@ -86,9 +78,9 @@ Calculates the premium for a trade.
 
 ### Function `getVegaUtil(struct OptionMarket.Trade trade, struct OptionMarketPricer.Pricing pricing, struct LyraGlobals.PricingGlobals pricingGlobals) → uint256 vegaUtil public`
 
-Calculates vega utilisation to be used as part of the trade fee.
+Calculates vega utilisation to be used as part of the trade fee. If the trade reduces net standard vega, this
 
-If the trade reduces net standard vega, it is omitted from the fee.
+component is omitted from the fee.
 
 #### Parameters:
 

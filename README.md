@@ -1,16 +1,20 @@
-# Lyra - Contract Docs
+# Lyra - Smart Contracts
+## Documentation
 
-This repo contains addresses of the most recent deployments of the Lyra Protocol contracts, along with all relevant contract ABIs and supporting documentation.
+[Documentation](https://docs.lyra.finance/implementation/lyra-protocol-architecture)
 
-Contract addresses can be found in the `addresses` directory. They are split into json files for each network, as well as `real` and `test` indicating whether the contracts interface with Synthetix deployments, or use our mocked implementations. 
+## Development
 
-Contract ABIs can be found in the `abis` directory.
+Run `yarn install` to install dependencies 
 
-Documentation for all system contracts [can be found here](docs/contracts).
+### To update API docs and UML diagram
+```bash
+$ yarn docgen
+```
 
-## Architecture overview:
-![](docs/img/LyraProtocolContracts.jpg?raw=true)
+### To run unit tests
 
-## UML
-
-![](docs/uml/lyra.png)
+```bash
+$ yarn compile
+$ yarn test
+```

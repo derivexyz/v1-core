@@ -1,0 +1,13 @@
+# folders
+artifacts/
+build/
+cache/
+dist/
+lib/
+node_modules/
+typechain/
+contracts/mocks/
+contracts/test/
+
+# files
+package.json

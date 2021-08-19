@@ -1,6 +1,8 @@
 # `LiquidityCertificate`
 
-TODO - Add contract description.
+An ERC721 token which represents a share of the LiquidityPool.
+
+It is minted when users deposit, and burned when users withdraw.
 
 ## Modifiers:
 
@@ -8,7 +10,9 @@ TODO - Add contract description.
 
 ## Functions:
 
-- `constructor(string _name, string _symbol, address _liquidityPool) (public)`
+- `constructor(string _name, string _symbol) (public)`
+
+- `init(address _liquidityPool) (external)`
 
 - `certificates(address owner) (external)`
 
@@ -38,15 +42,19 @@ TODO - Add contract description.
 
 ### Modifier `onlyLiquidityPool()`
 
-### Function `constructor(string _name, string _symbol, address _liquidityPool) public`
-
-Initializes the contract.
+### Function `constructor(string _name, string _symbol) public`
 
 #### Parameters:
 
 - `_name`: Token collection name
 
 - `_symbol`: Token collection symbol
+
+### Function `init(address _liquidityPool) external`
+
+Initialize the contract.
+
+#### Parameters:
 
 - `_liquidityPool`: LiquidityPool address
 
@@ -84,7 +92,7 @@ Returns certificate's `burnableAt`.
 
 ### Function `certificateData(uint256 certificateId) → struct LiquidityCertificate.CertificateData external`
 
-Returns certificate's data.
+Returns a certificate's data.
 
 #### Parameters:
 
@@ -135,6 +143,8 @@ liquidity to the new certificate.
 - `percentageSplit`: The percentage of liquidity assigned to the new certificate.
 
 ### Function `_beforeTokenTransfer(address, address, uint256 tokenId) internal`
+
+Hook that is called before any token transfer. This includes minting and burning.
 
 ### Event `CertificateDataModified(uint256 certificateId, uint256 liquidity, uint256 enteredAt, uint256 burnableAt)`
 

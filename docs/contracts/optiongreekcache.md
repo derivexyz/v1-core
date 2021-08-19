@@ -1,38 +1,10 @@
 # `OptionGreekCache`
 
-A system for caching greeks for listings and boards that exist in OptionMarket. This is required to help reduce
+Aggregates the netDelta and netStdVega of the OptionMarket by iterating over current listings.
 
-gas costs dramatically for trades occurring at a high frequency. This will also permit partial updates of the system
+Needs to be called by an external actor as it's not feasible to do all the computation during the trade flow and
 
-in the case of a large number of boards/listings being present on the system, allowing an external party to update
-
-all the greeks separately, before permitting trades to occur.
-
-As greeks are fairly stable the further from expiry an option is, and given the price hasn't moved much, we consider
-
-the cache to be out of date using the following formula:
-
-safeTimePeriod = 30 days; // Arbitrary number of days
-
-acceptablePriceMovement = 5%; // This is completely arbitrary, lower is safer
-
-if (timeToExpiry < safeTimePeriod) {
-
- acceptablePriceMovement = acceptablePriceMovement * timeToExpiry / safeTimePeriod
-
-}
-
-This can also work as an indirect mechanism to limit trading in cases of large price swings, as the cache will be out
-
-of date more often.
-
-The optionMarket is the source of truth for which boards make up the netDelta/netStdVega positions, OptionMarket
-
-will call addBoard and removeBoard when boards are added or removed.
-
-Note: these positions are from the perspective of the user's net positions, hence when returned to the pricing module
-
-they are inverted.
+because delta/vega change over time and with movements in asset price and volatility.
 
 ## Modifiers:
 
@@ -44,9 +16,19 @@ they are inverted.
 
 - `init(contract LyraGlobals _globals, contract OptionMarket _optionMarket, contract OptionMarketPricer _optionPricer, contract BlackScholes _blackScholes) (external)`
 
+- `setStaleCacheParameters(uint256 _staleUpdateDuration, uint256 _priceScalingPeriod, uint256 _maxAcceptablePercent, uint256 _minAcceptablePercent) (external)`
+
 - `addBoard(uint256 boardId) (external)`
 
-- `removeBoard(uint256 boardCacheId) (external)`
+- `removeBoard(uint256 boardId) (external)`
+
+- `setBoardIv(uint256 boardId, uint256 newIv) (external)`
+
+- `setListingSkew(uint256 listingId, uint256 newSkew) (external)`
+
+- `addListingToBoard(uint256 boardId, uint256 listingId) (external)`
+
+- `_addNewListingToListingCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 listingId) (internal)`
 
 - `getOptionMarketListing(uint256 listingId) (internal)`
 
@@ -84,6 +66,8 @@ they are inverted.
 
 - `getCurrentPrice() (internal)`
 
+- `getGlobalNetDelta() (external)`
+
 ## Events:
 
 - `ListingGreeksUpdated(uint256 listingId, int256 callDelta, int256 putDelta, uint256 vega, uint256 price, uint256 baseIv, uint256 skew)`
@@ -108,6 +92,8 @@ Initialize the contract.
 
 - `_optionPricer`: OptionMarketPricer address
 
+### Function `setStaleCacheParameters(uint256 _staleUpdateDuration, uint256 _priceScalingPeriod, uint256 _maxAcceptablePercent, uint256 _minAcceptablePercent) external`
+
 ### Function `addBoard(uint256 boardId) external`
 
 Adds a new OptionBoardCache.
@@ -118,7 +104,7 @@ Called by the OptionMarket when an OptionBoard is added.
 
 - `boardId`: The id of the OptionBoard.
 
-### Function `removeBoard(uint256 boardCacheId) external`
+### Function `removeBoard(uint256 boardId) external`
 
 Removes an OptionBoardCache.
 
@@ -126,7 +112,47 @@ Called by the OptionMarket when an OptionBoard is liquidated.
 
 #### Parameters:
 
-- `boardCacheId`: The id of the OptionBoard.
+- `boardId`: The id of the OptionBoard.
+
+### Function `setBoardIv(uint256 boardId, uint256 newIv) external`
+
+modifies an OptionBoard's baseIv
+
+#### Parameters:
+
+- `boardId`: The id of the OptionBoard.
+
+- `newIv`: The baseIv of the OptionBoard.
+
+### Function `setListingSkew(uint256 listingId, uint256 newSkew) external`
+
+modifies an OptionListing's skew
+
+#### Parameters:
+
+- `listingId`: The id of the OptionListing.
+
+- `newSkew`: The skew of the OptionListing.
+
+### Function `addListingToBoard(uint256 boardId, uint256 listingId) external`
+
+Add a new listing to the listingCaches and the listingId to the boardCache
+
+#### Parameters:
+
+- `boardId`: The id of the Board
+
+- `listingId`: The id of the OptionListing.
+
+### Function `_addNewListingToListingCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 listingId) internal`
+
+Add a new listing to the listingCaches
+
+#### Parameters:
+
+- `boardCache`: The OptionBoardCache object the listing is being added to
+
+- `listingId`: The id of the OptionListing.
 
 ### Function `getOptionMarketListing(uint256 listingId) → struct OptionMarket.OptionListing internal`
 
@@ -271,6 +297,10 @@ Returns the difference in seconds between two dates.
 ### Function `getCurrentPrice() → uint256 internal`
 
 Get the price of the baseAsset for the OptionMarket.
+
+### Function `getGlobalNetDelta() → int256 external`
+
+Get the current cached global netDelta value.
 
 ### Event `ListingGreeksUpdated(uint256 listingId, int256 callDelta, int256 putDelta, uint256 vega, uint256 price, uint256 baseIv, uint256 skew)`
 

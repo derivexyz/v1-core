@@ -1,18 +1,12 @@
 # `LyraGlobals`
 
-Contract holds onto all modifiable variables for the system. Also retrieves current spot price and fee rates
+Manages variables across all OptionMarkets, along with managing access to Synthetix.
 
-for a given currency pair.
+Groups access to variables needed during a trade to reduce the gas costs associated with repetitive
 
-Although this mixes two different systems, it was required to minimise gas costs from calling between contracts. In a
+inter-contract calls.
 
-similar vein, a number of globals are bunched and retrieved together to minimise the number of calls made between
-
-contracts.
-
-In general the governance contract should be the owner of this.
-
-TODO: verify all paths are actually paused when isPaused is set
+The OptionMarket contract address is used as the key to access the variables for the market.
 
 ## Functions:
 
@@ -39,6 +33,8 @@ TODO: verify all paths are actually paused when isPaused is set
 - `setRateAndCarry(address _contractAddress, int256 _rateAndCarry) (public)`
 
 - `setMinDelta(address _contractAddress, int256 _minDelta) (public)`
+
+- `setVolatilityCutoff(address _contractAddress, uint256 _volatilityCutoff) (public)`
 
 - `setQuoteKey(address _contractAddress, bytes32 _quoteKey) (public)`
 
@@ -80,6 +76,8 @@ TODO: verify all paths are actually paused when isPaused is set
 
 - `MinDeltaSet(address _contractAddress, int256 _minDelta)`
 
+- `VolatilityCutoffSet(address _contractAddress, uint256 _volatilityCutoff)`
+
 - `QuoteKeySet(address _contractAddress, bytes32 _quoteKey)`
 
 - `BaseKeySet(address _contractAddress, bytes32 _baseKey)`
@@ -120,11 +118,11 @@ Pauses the contract.
 
 #### Parameters:
 
-- `_isPaused`: Should the contract be paused or not?
+- `_isPaused`: Whether getting globals will revert or not.
 
 ### Function `setTradingCutoff(address _contractAddress, uint256 _tradingCutoff) public`
 
-Set the time at which the OptionMarket will cease trading before expiry.
+Set the time when the OptionMarket will cease trading before expiry.
 
 #### Parameters:
 
@@ -204,13 +202,23 @@ Set the rate for the OptionMarket.
 
 ### Function `setMinDelta(address _contractAddress, int256 _minDelta) public`
 
-Set the minimum Delta option that the OptionMarket will trade.
+Set the minimum Delta that the OptionMarket will trade.
 
 #### Parameters:
 
 - `_contractAddress`: The address of the OptionMarket.
 
-- `_minDelta`: THe minimum delta value.
+- `_minDelta`: The minimum delta value.
+
+### Function `setVolatilityCutoff(address _contractAddress, uint256 _volatilityCutoff) public`
+
+Set the minimum volatility option that the OptionMarket will trade.
+
+#### Parameters:
+
+- `_contractAddress`: The address of the OptionMarket.
+
+- `_volatilityCutoff`: The minimum volatility value.
 
 ### Function `setQuoteKey(address _contractAddress, bytes32 _quoteKey) public`
 
@@ -254,7 +262,7 @@ so the price of sUSD is always $1.00, and is never stale.
 
 ### Function `getPricingGlobals(address _contractAddress) → struct LyraGlobals.PricingGlobals external`
 
-Returns the PricingGlobals.
+Returns a PricingGlobals struct for a given market address.
 
 #### Parameters:
 
@@ -282,11 +290,9 @@ Returns the ExchangeGlobals.
 
 Returns the globals needed to perform a trade.
 
-The purpose of this function is to provide all the necessary
+The purpose of this function is to provide all the necessary variables in 1 call. Note that GreekCacheGlobals are a
 
-variables in 1 call. Note GreekCacheGlobals are a subset of PricingGlobals,
-
-so we generate that struct when needed.
+subset of PricingGlobals, so we generate that struct when OptionMarketPricer calls OptionGreekCache.
 
 #### Parameters:
 
@@ -337,6 +343,10 @@ Emitted when rate and carry is set.
 ### Event `MinDeltaSet(address _contractAddress, int256 _minDelta)`
 
 Emitted when min delta is set.
+
+### Event `VolatilityCutoffSet(address _contractAddress, uint256 _volatilityCutoff)`
+
+Emitted when volatility cutoff is set.
 
 ### Event `QuoteKeySet(address _contractAddress, bytes32 _quoteKey)`
 

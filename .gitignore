@@ -1,1 +1,12 @@
-.idea
+.idea/
+node_modules/
+**/.DS_Store
+#Hardhat files
+cache/
+cache-ovm/
+artifacts/
+artifacts-ovm/
+typechain/
+coverage/
+coverage.json
+.env.private*
