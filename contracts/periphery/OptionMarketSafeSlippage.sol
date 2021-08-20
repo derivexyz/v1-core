@@ -1,15 +1,15 @@
 //SPDX-License-Identifier: ISC
-pragma solidity ^0.7.6;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 // Libraries
 import "../synthetix/SafeDecimalMath.sol";
 
-// Contracts and interfaces
-import "../OptionMarket.sol";
-import "../OptionToken.sol";
-
+// Interfaces
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155Holder.sol";
+import "../interfaces/IOptionMarket.sol";
+import "../interfaces/IOptionToken.sol";
 
 /**
  * @title OptionMarketSafeSlippage
@@ -22,8 +22,8 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
   using SafeDecimalMath for uint;
 
   // the OptionMarket contract
-  OptionMarket internal optionMarket;
-  OptionToken internal optionToken;
+  IOptionMarket internal optionMarket;
+  IOptionToken internal optionToken;
   IERC20 internal quoteAsset;
   IERC20 internal baseAsset;
 
@@ -41,8 +41,8 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
    * @param _baseAsset The baseAsset contract address
    */
   function init(
-    OptionMarket _optionMarket,
-    OptionToken _optionToken,
+    IOptionMarket _optionMarket,
+    IOptionToken _optionToken,
     IERC20 _quoteAsset,
     IERC20 _baseAsset
   ) external {
@@ -68,16 +68,16 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
    */
   function openPosition(
     uint _listingId,
-    OptionMarket.TradeType tradeType,
+    IOptionMarket.TradeType tradeType,
     uint amount,
     uint maxCost,
     uint minCost
   ) external {
-    if (tradeType == OptionMarket.TradeType.LONG_CALL) {
+    if (tradeType == IOptionMarket.TradeType.LONG_CALL) {
       require(quoteAsset.transferFrom(msg.sender, address(this), maxCost));
-    } else if (tradeType == OptionMarket.TradeType.LONG_PUT) {
+    } else if (tradeType == IOptionMarket.TradeType.LONG_PUT) {
       require(quoteAsset.transferFrom(msg.sender, address(this), maxCost));
-    } else if (tradeType == OptionMarket.TradeType.SHORT_CALL) {
+    } else if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
       require(baseAsset.transferFrom(msg.sender, address(this), amount));
     } else {
       (, uint strike, , , , , , ) = optionMarket.optionListings(_listingId);
@@ -113,7 +113,7 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
    */
   function closePosition(
     uint _listingId,
-    OptionMarket.TradeType tradeType,
+    IOptionMarket.TradeType tradeType,
     uint amount,
     uint maxCost,
     uint minCost
@@ -126,7 +126,7 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
       "OptionMarketSafeSlippage: Close"
     );
 
-    if (tradeType == OptionMarket.TradeType.SHORT_CALL) {
+    if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
       require(quoteAsset.transferFrom(msg.sender, address(this), maxCost));
     }
 

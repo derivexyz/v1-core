@@ -9,22 +9,22 @@ contract TestPoolHedger is PoolHedger {
     _hedgeDelta(expectedHedge);
   }
 
-  function increaseLongExt(LyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount) external {
+  function increaseLongExt(ILyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount) external {
     // Last field is optional, only for event
     increaseLong(exchangeGlobals, amount, 0);
   }
 
-  function decreaseLongExt(LyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount) external {
+  function decreaseLongExt(ILyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount) external {
     // Last field is optional, only for event
     decreaseLong(exchangeGlobals, amount, 0);
   }
 
-  function callTransferQuoteToHedge(LyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount) external {
+  function callTransferQuoteToHedge(ILyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount) external {
     liquidityPool.transferQuoteToHedge(exchangeGlobals, amount);
   }
 
   function setShortToExt(
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals,
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals,
     uint desiredShort,
     uint currentShort,
     uint currentCollateral

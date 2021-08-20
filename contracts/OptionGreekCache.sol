@@ -4,86 +4,53 @@ pragma experimental ABIEncoderV2;
 
 // Libraries
 import "./synthetix/SafeDecimalMath.sol";
+import "./synthetix/SignedSafeDecimalMath.sol";
 
 // Inherited
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./BlackScholes.sol";
-import "./LyraGlobals.sol";
-import "./OptionMarket.sol";
-import "./OptionMarketPricer.sol";
+import "./interfaces/IBlackScholes.sol";
+import "./interfaces/ILyraGlobals.sol";
+import "./interfaces/IOptionMarket.sol";
+import "./interfaces/IOptionMarketPricer.sol";
+import "./interfaces/IOptionGreekCache.sol";
 
 /**
  * @title OptionGreekCache
  * @author Lyra
  * @dev Aggregates the netDelta and netStdVega of the OptionMarket by iterating over current listings.
- * Needs to be called by an external actor as it's not feasible to do all the computation during the trade flow and
+ * Needs to be called by an external override actor as it's not feasible to do all the computation during the trade flow and
  * because delta/vega change over time and with movements in asset price and volatility.
  */
-contract OptionGreekCache is Ownable {
+contract OptionGreekCache is IOptionGreekCache, Ownable {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
   using SignedSafeMath for int;
   using SignedSafeDecimalMath for int;
 
-  struct OptionListingCache {
-    uint id;
-    uint strike;
-    uint skew;
-    uint boardId;
-    int callDelta;
-    int putDelta;
-    uint stdVega;
-    int callExposure; // long - short
-    int putExposure; // long - short
-    uint updatedAt;
-    uint updatedAtPrice;
-  }
-
-  struct OptionBoardCache {
-    uint id;
-    uint expiry;
-    uint iv;
-    uint[] listings;
-    uint minUpdatedAt; // This should be the minimum value of all the listings
-    uint minUpdatedAtPrice;
-    uint maxUpdatedAtPrice;
-    int netDelta;
-    int netStdVega;
-  }
-
-  struct GlobalCache {
-    int netDelta;
-    int netStdVega;
-    uint minUpdatedAt; // This should be the minimum value of all the listings
-    uint minUpdatedAtPrice;
-    uint maxUpdatedAtPrice;
-    uint minExpiryTimestamp;
-  }
-
-  LyraGlobals internal globals;
-  OptionMarket internal optionMarket;
-  OptionMarketPricer internal optionPricer;
-  BlackScholes internal blackScholes;
+  ILyraGlobals internal globals;
+  IOptionMarket internal optionMarket;
+  IOptionMarketPricer internal optionPricer;
+  IBlackScholes internal blackScholes;
 
   // Limit due to gas constraints when updating
-  uint public constant MAX_LISTINGS_PER_BOARD = 10;
+  uint public constant override MAX_LISTINGS_PER_BOARD = 10;
 
   // For calculating if the cache is stale based on spot price
   // These values can be quite wide as per listing updates occur whenever a trade does.
-  uint public staleUpdateDuration = 2 days;
-  uint public priceScalingPeriod = 7 days;
-  uint public maxAcceptablePercent = (1e18 / 100) * 20; // 20%
-  uint public minAcceptablePercent = (1e18 / 100) * 10; // 10%
+  uint public override staleUpdateDuration = 2 days;
+  uint public override priceScalingPeriod = 7 days;
+  uint public override maxAcceptablePercent = (1e18 / 100) * 20; // 20%
+  uint public override minAcceptablePercent = (1e18 / 100) * 10; // 10%
 
   bool internal initialized;
 
-  uint[] public liveBoards; // Should be a clone of OptionMarket.liveBoards
-  mapping(uint => OptionListingCache) public listingCaches;
-  mapping(uint => OptionBoardCache) public boardCaches;
-  GlobalCache public globalCache;
+  uint[] public override liveBoards; // Should be a clone of OptionMarket.liveBoards
+  mapping(uint => OptionListingCache) public override listingCaches;
+  mapping(uint => OptionBoardCache) public override boardCaches;
+  GlobalCache public override globalCache;
 
   constructor() Ownable() {}
 
@@ -95,10 +62,10 @@ contract OptionGreekCache is Ownable {
    * @param _optionPricer OptionMarketPricer address
    */
   function init(
-    LyraGlobals _globals,
-    OptionMarket _optionMarket,
-    OptionMarketPricer _optionPricer,
-    BlackScholes _blackScholes
+    ILyraGlobals _globals,
+    IOptionMarket _optionMarket,
+    IOptionMarketPricer _optionPricer,
+    IBlackScholes _blackScholes
   ) external {
     require(!initialized, "Contract already initialized");
     globals = _globals;
@@ -113,7 +80,7 @@ contract OptionGreekCache is Ownable {
     uint _priceScalingPeriod,
     uint _maxAcceptablePercent,
     uint _minAcceptablePercent
-  ) external onlyOwner {
+  ) external override onlyOwner {
     require(_staleUpdateDuration >= 2 hours, "staleUpdateDuration too low");
     require(_maxAcceptablePercent >= _minAcceptablePercent, "maxAcceptablePercent must be >= min");
     require(_minAcceptablePercent >= (1e18 / 100) * 1, "minAcceptablePercent too low");
@@ -123,6 +90,13 @@ contract OptionGreekCache is Ownable {
     minAcceptablePercent = _minAcceptablePercent;
     maxAcceptablePercent = _maxAcceptablePercent;
     staleUpdateDuration = _staleUpdateDuration;
+
+    emit StaleCacheParametersUpdated(
+      priceScalingPeriod,
+      minAcceptablePercent,
+      maxAcceptablePercent,
+      staleUpdateDuration
+    );
   }
 
   ////
@@ -135,7 +109,7 @@ contract OptionGreekCache is Ownable {
    *
    * @param boardId The id of the OptionBoard.
    */
-  function addBoard(uint boardId) external onlyOptionMarket {
+  function addBoard(uint boardId) external override onlyOptionMarket {
     // Load in board from OptionMarket, adding net positions to global count
     (, uint expiry, uint iv, ) = optionMarket.optionBoards(boardId);
     uint[] memory listings = optionMarket.getBoardListings(boardId);
@@ -161,7 +135,7 @@ contract OptionGreekCache is Ownable {
    *
    * @param boardId The id of the OptionBoard.
    */
-  function removeBoard(uint boardId) external onlyOptionMarket {
+  function removeBoard(uint boardId) external override onlyOptionMarket {
     // Remove board from cache, removing net positions from global count
     OptionBoardCache memory boardCache = boardCaches[boardId];
     globalCache.netDelta = globalCache.netDelta.sub(boardCache.netDelta);
@@ -187,7 +161,7 @@ contract OptionGreekCache is Ownable {
    * @param boardId The id of the OptionBoard.
    * @param newIv The baseIv of the OptionBoard.
    */
-  function setBoardIv(uint boardId, uint newIv) external onlyOptionMarket {
+  function setBoardIv(uint boardId, uint newIv) external override onlyOptionMarket {
     // Remove board from cache, removing net positions from global count
     OptionBoardCache storage boardCache = boardCaches[boardId];
     boardCache.iv = newIv;
@@ -199,7 +173,7 @@ contract OptionGreekCache is Ownable {
    * @param listingId The id of the OptionListing.
    * @param newSkew The skew of the OptionListing.
    */
-  function setListingSkew(uint listingId, uint newSkew) external onlyOptionMarket {
+  function setListingSkew(uint listingId, uint newSkew) external override onlyOptionMarket {
     // Remove board from cache, removing net positions from global count
     OptionListingCache storage listingCache = listingCaches[listingId];
     listingCache.skew = newSkew;
@@ -211,7 +185,7 @@ contract OptionGreekCache is Ownable {
    * @param boardId The id of the Board
    * @param listingId The id of the OptionListing.
    */
-  function addListingToBoard(uint boardId, uint listingId) external onlyOptionMarket {
+  function addListingToBoard(uint boardId, uint listingId) external override onlyOptionMarket {
     OptionBoardCache storage boardCache = boardCaches[boardId];
     require(boardCache.listings.length + 1 <= MAX_LISTINGS_PER_BOARD, "too many listings for board");
     _addNewListingToListingCache(boardCache, listingId);
@@ -224,7 +198,7 @@ contract OptionGreekCache is Ownable {
    * @param listingId The id of the OptionListing.
    */
   function _addNewListingToListingCache(OptionBoardCache storage boardCache, uint listingId) internal {
-    OptionMarket.OptionListing memory listing = getOptionMarketListing(listingId);
+    IOptionMarket.OptionListing memory listing = getOptionMarketListing(listingId);
 
     // This is only called when a new board or a new listing is added, so exposure values will be 0
     OptionListingCache storage listingCache = listingCaches[listing.id];
@@ -241,10 +215,10 @@ contract OptionGreekCache is Ownable {
    *
    * @param listingId The id of the OptionListing.
    */
-  function getOptionMarketListing(uint listingId) internal view returns (OptionMarket.OptionListing memory) {
+  function getOptionMarketListing(uint listingId) internal view returns (IOptionMarket.OptionListing memory) {
     (uint id, uint strike, uint skew, uint longCall, uint shortCall, uint longPut, uint shortPut, uint boardId) =
       optionMarket.optionListings(listingId);
-    return OptionMarket.OptionListing(id, strike, skew, longCall, shortCall, longPut, shortPut, boardId);
+    return IOptionMarket.OptionListing(id, strike, skew, longCall, shortCall, longPut, shortPut, boardId);
   }
 
   ////
@@ -254,9 +228,9 @@ contract OptionGreekCache is Ownable {
   /**
    * @notice Updates all stale boards.
    */
-  function updateAllStaleBoards() external returns (int) {
+  function updateAllStaleBoards() external override returns (int) {
     // Check all boards to see if they are stale
-    LyraGlobals.GreekCacheGlobals memory greekCacheGlobals = globals.getGreekCacheGlobals(address(optionMarket));
+    ILyraGlobals.GreekCacheGlobals memory greekCacheGlobals = globals.getGreekCacheGlobals(address(optionMarket));
     _updateAllStaleBoards(greekCacheGlobals);
     return globalCache.netDelta;
   }
@@ -266,7 +240,7 @@ contract OptionGreekCache is Ownable {
    *
    * @param greekCacheGlobals The GreekCacheGlobals.
    */
-  function _updateAllStaleBoards(LyraGlobals.GreekCacheGlobals memory greekCacheGlobals) internal {
+  function _updateAllStaleBoards(ILyraGlobals.GreekCacheGlobals memory greekCacheGlobals) internal {
     for (uint i = 0; i < liveBoards.length; i++) {
       uint boardId = liveBoards[i];
       if (_isBoardCacheStale(boardId, greekCacheGlobals.spotPrice)) {
@@ -281,7 +255,7 @@ contract OptionGreekCache is Ownable {
    *
    * @param boardCacheId The id of the OptionBoardCache.
    */
-  function updateBoardCachedGreeks(uint boardCacheId) external {
+  function updateBoardCachedGreeks(uint boardCacheId) external override {
     _updateBoardCachedGreeks(globals.getGreekCacheGlobals(address(optionMarket)), boardCacheId);
   }
 
@@ -291,7 +265,7 @@ contract OptionGreekCache is Ownable {
    * @param greekCacheGlobals The GreekCacheGlobals.
    * @param boardCacheId The id of the OptionBoardCache.
    */
-  function _updateBoardCachedGreeks(LyraGlobals.GreekCacheGlobals memory greekCacheGlobals, uint boardCacheId)
+  function _updateBoardCachedGreeks(ILyraGlobals.GreekCacheGlobals memory greekCacheGlobals, uint boardCacheId)
     internal
   {
     OptionBoardCache storage boardCache = boardCaches[boardCacheId];
@@ -325,13 +299,13 @@ contract OptionGreekCache is Ownable {
    * @param skew The new skew of the OptionListingCache.
    */
   function updateListingCacheAndGetPrice(
-    LyraGlobals.GreekCacheGlobals memory greekCacheGlobals,
+    ILyraGlobals.GreekCacheGlobals memory greekCacheGlobals,
     uint listingCacheId,
     int newCallExposure,
     int newPutExposure,
     uint iv,
     uint skew
-  ) external onlyOptionMarketPricer returns (OptionMarketPricer.Pricing memory) {
+  ) external override onlyOptionMarketPricer returns (IOptionMarketPricer.Pricing memory) {
     require(!_isGlobalCacheStale(greekCacheGlobals.spotPrice), "Global cache is stale");
     OptionListingCache storage listingCache = listingCaches[listingCacheId];
     OptionBoardCache storage boardCache = boardCaches[listingCache.boardId];
@@ -347,7 +321,7 @@ contract OptionGreekCache is Ownable {
     // The AMM's net std vega is opposite to the global sum of user's std vega
     int preTradeAmmNetStdVega = -globalCache.netStdVega;
 
-    OptionMarketPricer.Pricing memory pricing =
+    IOptionMarketPricer.Pricing memory pricing =
       _updateListingCachedGreeks(
         greekCacheGlobals,
         listingCache,
@@ -372,14 +346,14 @@ contract OptionGreekCache is Ownable {
    * @param returnCallPrice If true, return the call price, otherwise return the put price.
    */
   function _updateListingCachedGreeks(
-    LyraGlobals.GreekCacheGlobals memory greekCacheGlobals,
+    ILyraGlobals.GreekCacheGlobals memory greekCacheGlobals,
     OptionListingCache storage listingCache,
     OptionBoardCache storage boardCache,
     bool returnCallPrice,
     int newCallExposure,
     int newPutExposure
-  ) internal returns (OptionMarketPricer.Pricing memory pricing) {
-    BlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
+  ) internal returns (IOptionMarketPricer.Pricing memory pricing) {
+    IBlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
       blackScholes.pricesDeltaStdVega(
         timeToMaturitySeconds(boardCache.expiry),
         boardCache.iv.multiplyDecimal(listingCache.skew),
@@ -447,7 +421,7 @@ contract OptionGreekCache is Ownable {
   /**
    * @notice Checks if the GlobalCache is stale.
    */
-  function isGlobalCacheStale() external view returns (bool) {
+  function isGlobalCacheStale() external view override returns (bool) {
     // Check all boards to see if they are stale
     uint currentPrice = getCurrentPrice();
     return _isGlobalCacheStale(currentPrice);
@@ -478,7 +452,7 @@ contract OptionGreekCache is Ownable {
    *
    * @param boardCacheId The OptionBoardCache id.
    */
-  function isBoardCacheStale(uint boardCacheId) external view returns (bool) {
+  function isBoardCacheStale(uint boardCacheId) external view override returns (bool) {
     uint spotPrice = getCurrentPrice();
     return _isBoardCacheStale(boardCacheId, spotPrice);
   }
@@ -628,7 +602,7 @@ contract OptionGreekCache is Ownable {
   /**
    * @dev Get the current cached global netDelta value.
    */
-  function getGlobalNetDelta() external view returns (int) {
+  function getGlobalNetDelta() external view override returns (int) {
     return globalCache.netDelta;
   }
 
@@ -641,6 +615,16 @@ contract OptionGreekCache is Ownable {
     require(msg.sender == address(optionPricer), "Only optionPricer permitted");
     _;
   }
+
+  /**
+   * @dev Emitted when stale cache parameters are updated.
+   */
+  event StaleCacheParametersUpdated(
+    uint priceScalingPeriod,
+    uint minAcceptablePercent,
+    uint maxAcceptablePercent,
+    uint staleUpdateDuration
+  );
 
   /**
    * @dev Emitted when the cache of an OptionListing is updated.

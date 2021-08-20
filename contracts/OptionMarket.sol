@@ -13,6 +13,7 @@ import "./OptionToken.sol";
 import "./OptionGreekCache.sol";
 import "./LyraGlobals.sol";
 import "./ShortCollateral.sol";
+import "./interfaces/IOptionToken.sol";
 
 /**
  * @title OptionMarket
@@ -20,63 +21,16 @@ import "./ShortCollateral.sol";
  * @dev An AMM which allows users to trade options. Supports both buying and selling options, which determine the value
  * for the listing's IV. Also allows for auto cash settling options as at expiry.
  */
-contract OptionMarket {
+contract OptionMarket is IOptionMarket {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
 
-  struct OptionListing {
-    uint id;
-    uint strike;
-    uint skew;
-    uint longCall;
-    uint shortCall;
-    uint longPut;
-    uint shortPut;
-    uint boardId;
-  }
-
-  struct OptionBoard {
-    uint id;
-    uint expiry;
-    uint iv;
-    bool frozen;
-    uint[] listingIds;
-  }
-
-  struct Trade {
-    bool isBuy;
-    uint amount;
-    uint vol;
-    uint expiry;
-    LiquidityPool.Liquidity liquidity;
-  }
-
-  enum TradeType {LONG_CALL, SHORT_CALL, LONG_PUT, SHORT_PUT}
-
-  enum Error {
-    TransferOwnerToZero,
-    InvalidBoardId,
-    InvalidBoardIdOrNotFrozen,
-    InvalidListingIdOrNotFrozen,
-    StrikeSkewLengthMismatch,
-    BoardMaxExpiryReached,
-    CannotStartNewRoundWhenBoardsExist,
-    ZeroAmountOrInvalidTradeType,
-    BoardFrozenOrTradingCutoffReached,
-    QuoteTransferFailed,
-    BaseTransferFailed,
-    BoardNotExpired,
-    BoardAlreadyLiquidated,
-    OnlyOwner,
-    Last
-  }
-
-  LyraGlobals internal globals;
-  LiquidityPool internal liquidityPool;
-  OptionMarketPricer internal optionPricer;
-  OptionGreekCache internal greekCache;
-  ShortCollateral internal shortCollateral;
-  OptionToken internal optionToken;
+  ILyraGlobals internal globals;
+  ILiquidityPool internal liquidityPool;
+  IOptionMarketPricer internal optionPricer;
+  IOptionGreekCache internal greekCache;
+  IShortCollateral internal shortCollateral;
+  IOptionToken internal optionToken;
   IERC20 internal quoteAsset;
   IERC20 internal baseAsset;
 
@@ -87,11 +41,11 @@ contract OptionMarket {
   uint internal nextBoardId = 1;
   uint[] internal liveBoards;
 
-  uint public maxExpiryTimestamp;
-  mapping(uint => OptionBoard) public optionBoards;
-  mapping(uint => OptionListing) public optionListings;
-  mapping(uint => uint) public boardToPriceAtExpiry;
-  mapping(uint => uint) public listingToEthReturnedRatio;
+  uint public override maxExpiryTimestamp;
+  mapping(uint => OptionBoard) public override optionBoards;
+  mapping(uint => OptionListing) public override optionListings;
+  mapping(uint => uint) public override boardToPriceAtExpiry;
+  mapping(uint => uint) public override listingToBaseReturnedRatio;
 
   constructor() {
     owner = msg.sender;
@@ -108,12 +62,12 @@ contract OptionMarket {
    * @param _baseAsset Base asset address
    */
   function init(
-    LyraGlobals _globals,
-    LiquidityPool _liquidityPool,
-    OptionMarketPricer _optionPricer,
-    OptionGreekCache _greekCache,
-    ShortCollateral _shortCollateral,
-    OptionToken _optionToken,
+    ILyraGlobals _globals,
+    ILiquidityPool _liquidityPool,
+    IOptionMarketPricer _optionPricer,
+    IOptionGreekCache _greekCache,
+    IShortCollateral _shortCollateral,
+    IOptionToken _optionToken,
     IERC20 _quoteAsset,
     IERC20 _baseAsset,
     string[] memory _errorMessages
@@ -142,7 +96,7 @@ contract OptionMarket {
    * @dev Transfer this contract ownership to `newOwner`.
    * @param newOwner The address of the new contract owner.
    */
-  function transferOwnership(address newOwner) external onlyOwner {
+  function transferOwnership(address newOwner) external override onlyOwner {
     _require(newOwner != address(0), Error.TransferOwnerToZero);
     emit OwnershipTransferred(owner, newOwner);
     owner = newOwner;
@@ -153,7 +107,7 @@ contract OptionMarket {
    * @param boardId The id of the OptionBoard.
    * @param frozen Whether the board will be frozen or not.
    */
-  function setBoardFrozen(uint boardId, bool frozen) external onlyOwner {
+  function setBoardFrozen(uint boardId, bool frozen) external override onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
     _require(board.id == boardId, Error.InvalidBoardId);
     optionBoards[boardId].frozen = frozen;
@@ -165,7 +119,7 @@ contract OptionMarket {
    * @param boardId The id of the OptionBoard.
    * @param baseIv The new baseIv value.
    */
-  function setBoardBaseIv(uint boardId, uint baseIv) external onlyOwner {
+  function setBoardBaseIv(uint boardId, uint baseIv) external override onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
     _require(board.id == boardId && board.frozen, Error.InvalidBoardIdOrNotFrozen);
     board.iv = baseIv;
@@ -178,7 +132,7 @@ contract OptionMarket {
    * @param listingId The id of the listing being modified.
    * @param skew The new skew value.
    */
-  function setListingSkew(uint listingId, uint skew) external onlyOwner {
+  function setListingSkew(uint listingId, uint skew) external override onlyOwner {
     OptionListing storage listing = optionListings[listingId];
     OptionBoard memory board = optionBoards[listing.boardId];
     _require(listing.id == listingId && board.frozen, Error.InvalidListingIdOrNotFrozen);
@@ -202,7 +156,7 @@ contract OptionMarket {
     uint baseIV,
     uint[] memory strikes,
     uint[] memory skews
-  ) external onlyOwner returns (uint) {
+  ) external override onlyOwner returns (uint) {
     // strike and skew length must match and must have at least 1
     _require(strikes.length == skews.length && strikes.length > 0, Error.StrikeSkewLengthMismatch);
     // We do not support expiry more than 10 weeks out, as it locks collateral for the entire duration
@@ -243,7 +197,7 @@ contract OptionMarket {
     uint boardId,
     uint strike,
     uint skew
-  ) external onlyOwner {
+  ) external override onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
     _require(board.id == boardId, Error.InvalidBoardId);
 
@@ -274,7 +228,7 @@ contract OptionMarket {
   /**
    * @dev Returns the list of live board ids.
    */
-  function getLiveBoards() external view returns (uint[] memory _liveBoards) {
+  function getLiveBoards() external view override returns (uint[] memory _liveBoards) {
     _liveBoards = new uint[](liveBoards.length);
     for (uint i = 0; i < liveBoards.length; i++) {
       _liveBoards[i] = liveBoards[i];
@@ -286,7 +240,7 @@ contract OptionMarket {
    *
    * @param boardId The id of the relevant OptionBoard.
    */
-  function getBoardListings(uint boardId) external view returns (uint[] memory) {
+  function getBoardListings(uint boardId) external view override returns (uint[] memory) {
     uint[] memory listingIds = new uint[](optionBoards[boardId].listingIds.length);
     for (uint i = 0; i < optionBoards[boardId].listingIds.length; i++) {
       listingIds[i] = optionBoards[boardId].listingIds[i];
@@ -309,7 +263,7 @@ contract OptionMarket {
     uint _listingId,
     TradeType tradeType,
     uint amount
-  ) external returns (uint totalCost) {
+  ) external override returns (uint totalCost) {
     _require(int(amount) > 0 && uint(TradeType.SHORT_PUT) >= uint(tradeType), Error.ZeroAmountOrInvalidTradeType);
 
     bool isLong = tradeType == TradeType.LONG_CALL || tradeType == TradeType.LONG_PUT;
@@ -380,7 +334,7 @@ contract OptionMarket {
     uint _listingId,
     TradeType tradeType,
     uint amount
-  ) external returns (uint totalCost) {
+  ) external override returns (uint totalCost) {
     _require(int(amount) > 0 && uint(TradeType.SHORT_PUT) >= uint(tradeType), Error.ZeroAmountOrInvalidTradeType);
 
     bool isLong = tradeType == TradeType.LONG_CALL || tradeType == TradeType.LONG_PUT;
@@ -464,7 +418,7 @@ contract OptionMarket {
    *
    * @param boardId The id of the relevant OptionBoard.
    */
-  function liquidateExpiredBoard(uint boardId) external {
+  function liquidateExpiredBoard(uint boardId) external override {
     OptionBoard memory board = optionBoards[boardId];
     _require(board.expiry <= block.timestamp, Error.BoardNotExpired);
     bool popped = false;
@@ -493,7 +447,7 @@ contract OptionMarket {
    */
   function _liquidateExpiredBoard(OptionBoard memory board) internal {
     LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-      globals.getExchangeGlobals(address(this), LyraGlobals.ExchangeType.ALL);
+      globals.getExchangeGlobals(address(this), ILyraGlobals.ExchangeType.ALL);
 
     uint totalUserLongProfitQuote;
     uint totalBoardLongCallCollateral;
@@ -519,9 +473,9 @@ contract OptionMarket {
         // Per unit of shortCalls
         uint amountReservedBase =
           (exchangeGlobals.spotPrice - listing.strike)
-            .divideDecimal(SafeDecimalMath.UNIT - exchangeGlobals.baseQuoteFeeRate)
+            .divideDecimal(SafeDecimalMath.UNIT.sub(exchangeGlobals.baseQuoteFeeRate))
             .divideDecimal(exchangeGlobals.spotPrice);
-        // This is impossible unless the eth price has gone up ~900%+
+        // This is impossible unless the baseAsset price has gone up ~900%+
         if (amountReservedBase > SafeDecimalMath.UNIT) {
           amountReservedBase = SafeDecimalMath.UNIT;
         }
@@ -529,9 +483,9 @@ contract OptionMarket {
         totalAMMShortCallProfitBase = totalAMMShortCallProfitBase.add(
           amountReservedBase.multiplyDecimal(listing.shortCall)
         );
-        listingToEthReturnedRatio[listing.id] = SafeDecimalMath.UNIT - amountReservedBase;
+        listingToBaseReturnedRatio[listing.id] = SafeDecimalMath.UNIT.sub(amountReservedBase);
       } else {
-        listingToEthReturnedRatio[listing.id] = SafeDecimalMath.UNIT;
+        listingToBaseReturnedRatio[listing.id] = SafeDecimalMath.UNIT;
       }
 
       if (exchangeGlobals.spotPrice < listing.strike) {
@@ -566,7 +520,7 @@ contract OptionMarket {
    *
    * @param listingId The id of the relevant OptionListing.
    */
-  function settleOptions(uint listingId, TradeType tradeType) external {
+  function settleOptions(uint listingId, TradeType tradeType) external override {
     uint amount = optionToken.balanceOf(msg.sender, listingId + uint(tradeType));
 
     shortCollateral.processSettle(
@@ -576,7 +530,7 @@ contract OptionMarket {
       amount,
       optionListings[listingId].strike,
       boardToPriceAtExpiry[optionListings[listingId].boardId],
-      listingToEthReturnedRatio[listingId]
+      listingToBaseReturnedRatio[listingId]
     );
 
     optionToken.burn(msg.sender, listingId + uint(tradeType), amount);

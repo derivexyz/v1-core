@@ -13,7 +13,7 @@ import "./interfaces/IExchanger.sol";
 import "./interfaces/ICollateralShort.sol";
 import "./interfaces/ISynthetix.sol";
 import "./interfaces/IExchangeRates.sol";
-import "./LiquidityPool.sol";
+import "./interfaces/ILiquidityPool.sol";
 
 /**
  * @title LyraGlobals
@@ -23,66 +23,32 @@ import "./LiquidityPool.sol";
  * inter-contract calls.
  * The OptionMarket contract address is used as the key to access the variables for the market.
  */
-contract LyraGlobals is Ownable {
+contract LyraGlobals is ILyraGlobals, Ownable {
   using SafeDecimalMath for uint;
 
-  enum ExchangeType {BASE_QUOTE, QUOTE_BASE, ALL}
-
-  /**
-   * @dev Structs to help reduce the number of calls between other contracts and this one
-   * Grouped in usage for a particular contract/use case
-   */
-  struct ExchangeGlobals {
-    uint spotPrice;
-    bytes32 quoteKey;
-    bytes32 baseKey;
-    ISynthetix synthetix;
-    ICollateralShort short;
-    uint quoteBaseFeeRate;
-    uint baseQuoteFeeRate;
-  }
-
-  struct GreekCacheGlobals {
-    int rateAndCarry;
-    uint spotPrice;
-  }
-
-  struct PricingGlobals {
-    uint optionPriceFeeCoefficient;
-    uint spotPriceFeeCoefficient;
-    uint vegaFeeCoefficient;
-    uint vegaNormFactor;
-    uint standardSize;
-    uint skewAdjustmentFactor;
-    int rateAndCarry;
-    int minDelta;
-    uint volatilityCutoff;
-    uint spotPrice;
-  }
-
-  ISynthetix public synthetix;
-  IExchanger public exchanger;
-  IExchangeRates public exchangeRates;
-  ICollateralShort public collateralShort;
+  ISynthetix public override synthetix;
+  IExchanger public override exchanger;
+  IExchangeRates public override exchangeRates;
+  ICollateralShort public override collateralShort;
 
   /// @dev Pause the whole system. Note; this will not pause settling previously expired options.
-  bool public isPaused = false;
+  bool public override isPaused = false;
 
   /// @dev Don't sell options this close to expiry
-  mapping(address => uint) public tradingCutoff;
+  mapping(address => uint) public override tradingCutoff;
 
   // Variables related to calculating premium/fees
-  mapping(address => uint) public optionPriceFeeCoefficient;
-  mapping(address => uint) public spotPriceFeeCoefficient;
-  mapping(address => uint) public vegaFeeCoefficient;
-  mapping(address => uint) public vegaNormFactor;
-  mapping(address => uint) public standardSize;
-  mapping(address => uint) public skewAdjustmentFactor;
-  mapping(address => int) public rateAndCarry;
-  mapping(address => int) public minDelta;
-  mapping(address => uint) public volatilityCutoff;
-  mapping(address => bytes32) public quoteKey;
-  mapping(address => bytes32) public baseKey;
+  mapping(address => uint) public override optionPriceFeeCoefficient;
+  mapping(address => uint) public override spotPriceFeeCoefficient;
+  mapping(address => uint) public override vegaFeeCoefficient;
+  mapping(address => uint) public override vegaNormFactor;
+  mapping(address => uint) public override standardSize;
+  mapping(address => uint) public override skewAdjustmentFactor;
+  mapping(address => int) public override rateAndCarry;
+  mapping(address => int) public override minDelta;
+  mapping(address => uint) public override volatilityCutoff;
+  mapping(address => bytes32) public override quoteKey;
+  mapping(address => bytes32) public override baseKey;
 
   constructor() Ownable() {}
 
@@ -99,7 +65,7 @@ contract LyraGlobals is Ownable {
     IExchanger _exchanger,
     IExchangeRates _exchangeRates,
     ICollateralShort _collateralShort
-  ) external onlyOwner {
+  ) external override onlyOwner {
     synthetix = _synthetix;
     exchanger = _exchanger;
     exchangeRates = _exchangeRates;
@@ -123,7 +89,7 @@ contract LyraGlobals is Ownable {
     PricingGlobals memory pricingGlobals,
     bytes32 _quoteKey,
     bytes32 _baseKey
-  ) external onlyOwner {
+  ) external override onlyOwner {
     setTradingCutoff(_contractAddress, _tradingCutoff);
     setOptionPriceFeeCoefficient(_contractAddress, pricingGlobals.optionPriceFeeCoefficient);
     setSpotPriceFeeCoefficient(_contractAddress, pricingGlobals.spotPriceFeeCoefficient);
@@ -143,7 +109,7 @@ contract LyraGlobals is Ownable {
    *
    * @param _isPaused Whether getting globals will revert or not.
    */
-  function setPaused(bool _isPaused) external onlyOwner {
+  function setPaused(bool _isPaused) external override onlyOwner {
     isPaused = _isPaused;
 
     emit Paused(isPaused);
@@ -155,7 +121,7 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _tradingCutoff The time to stop trading.
    */
-  function setTradingCutoff(address _contractAddress, uint _tradingCutoff) public onlyOwner {
+  function setTradingCutoff(address _contractAddress, uint _tradingCutoff) public override onlyOwner {
     require(_tradingCutoff >= 6 hours && _tradingCutoff <= 14 days, "tradingCutoff value out of range");
     tradingCutoff[_contractAddress] = _tradingCutoff;
     emit TradingCutoffSet(_contractAddress, _tradingCutoff);
@@ -167,7 +133,12 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _optionPriceFeeCoefficient The option price fee coefficient.
    */
-  function setOptionPriceFeeCoefficient(address _contractAddress, uint _optionPriceFeeCoefficient) public onlyOwner {
+  function setOptionPriceFeeCoefficient(address _contractAddress, uint _optionPriceFeeCoefficient)
+    public
+    override
+    onlyOwner
+  {
+    require(_optionPriceFeeCoefficient <= 5e17, "optionPriceFeeCoefficient value out of range");
     optionPriceFeeCoefficient[_contractAddress] = _optionPriceFeeCoefficient;
     emit OptionPriceFeeCoefficientSet(_contractAddress, _optionPriceFeeCoefficient);
   }
@@ -178,7 +149,12 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _spotPriceFeeCoefficient The spot price fee coefficient.
    */
-  function setSpotPriceFeeCoefficient(address _contractAddress, uint _spotPriceFeeCoefficient) public onlyOwner {
+  function setSpotPriceFeeCoefficient(address _contractAddress, uint _spotPriceFeeCoefficient)
+    public
+    override
+    onlyOwner
+  {
+    require(_spotPriceFeeCoefficient <= 1e17, "optionPriceFeeCoefficient value out of range");
     spotPriceFeeCoefficient[_contractAddress] = _spotPriceFeeCoefficient;
     emit SpotPriceFeeCoefficientSet(_contractAddress, _spotPriceFeeCoefficient);
   }
@@ -189,7 +165,8 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _vegaFeeCoefficient The vega fee coefficient.
    */
-  function setVegaFeeCoefficient(address _contractAddress, uint _vegaFeeCoefficient) public onlyOwner {
+  function setVegaFeeCoefficient(address _contractAddress, uint _vegaFeeCoefficient) public override onlyOwner {
+    require(_vegaFeeCoefficient <= 100000e18, "optionPriceFeeCoefficient value out of range");
     vegaFeeCoefficient[_contractAddress] = _vegaFeeCoefficient;
     emit VegaFeeCoefficientSet(_contractAddress, _vegaFeeCoefficient);
   }
@@ -200,7 +177,8 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _vegaNormFactor The vega normalisation factor.
    */
-  function setVegaNormFactor(address _contractAddress, uint _vegaNormFactor) public onlyOwner {
+  function setVegaNormFactor(address _contractAddress, uint _vegaNormFactor) public override onlyOwner {
+    require(_vegaNormFactor <= 10e18, "optionPriceFeeCoefficient value out of range");
     vegaNormFactor[_contractAddress] = _vegaNormFactor;
     emit VegaNormFactorSet(_contractAddress, _vegaNormFactor);
   }
@@ -211,7 +189,8 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _standardSize The size of an average trade.
    */
-  function setStandardSize(address _contractAddress, uint _standardSize) public onlyOwner {
+  function setStandardSize(address _contractAddress, uint _standardSize) public override onlyOwner {
+    require(_standardSize >= 1e15 && _standardSize <= 100000e18, "standardSize value out of range");
     standardSize[_contractAddress] = _standardSize;
     emit StandardSizeSet(_contractAddress, _standardSize);
   }
@@ -222,7 +201,7 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _skewAdjustmentFactor The skew adjustment factor.
    */
-  function setSkewAdjustmentFactor(address _contractAddress, uint _skewAdjustmentFactor) public onlyOwner {
+  function setSkewAdjustmentFactor(address _contractAddress, uint _skewAdjustmentFactor) public override onlyOwner {
     require(_skewAdjustmentFactor <= 10e18, "skewAdjustmentFactor value out of range");
     skewAdjustmentFactor[_contractAddress] = _skewAdjustmentFactor;
     emit SkewAdjustmentFactorSet(_contractAddress, _skewAdjustmentFactor);
@@ -234,7 +213,7 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _rateAndCarry The rate.
    */
-  function setRateAndCarry(address _contractAddress, int _rateAndCarry) public onlyOwner {
+  function setRateAndCarry(address _contractAddress, int _rateAndCarry) public override onlyOwner {
     require(_rateAndCarry <= 3e18 && _rateAndCarry >= -3e18, "rateAndCarry value out of range");
     rateAndCarry[_contractAddress] = _rateAndCarry;
     emit RateAndCarrySet(_contractAddress, _rateAndCarry);
@@ -246,7 +225,7 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _minDelta The minimum delta value.
    */
-  function setMinDelta(address _contractAddress, int _minDelta) public onlyOwner {
+  function setMinDelta(address _contractAddress, int _minDelta) public override onlyOwner {
     require(_minDelta >= 0 && _minDelta <= 2e17, "minDelta value out of range");
     minDelta[_contractAddress] = _minDelta;
     emit MinDeltaSet(_contractAddress, _minDelta);
@@ -258,7 +237,8 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _volatilityCutoff The minimum volatility value.
    */
-  function setVolatilityCutoff(address _contractAddress, uint _volatilityCutoff) public onlyOwner {
+  function setVolatilityCutoff(address _contractAddress, uint _volatilityCutoff) public override onlyOwner {
+    require(_volatilityCutoff <= 2e18, "volatilityCutoff value out of range");
     volatilityCutoff[_contractAddress] = _volatilityCutoff;
     emit VolatilityCutoffSet(_contractAddress, _volatilityCutoff);
   }
@@ -269,7 +249,7 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _quoteKey The key of the quoteAsset.
    */
-  function setQuoteKey(address _contractAddress, bytes32 _quoteKey) public onlyOwner {
+  function setQuoteKey(address _contractAddress, bytes32 _quoteKey) public override onlyOwner {
     quoteKey[_contractAddress] = _quoteKey;
     emit QuoteKeySet(_contractAddress, _quoteKey);
   }
@@ -280,7 +260,7 @@ contract LyraGlobals is Ownable {
    * @param _contractAddress The address of the OptionMarket.
    * @param _baseKey The key of the baseAsset.
    */
-  function setBaseKey(address _contractAddress, bytes32 _baseKey) public onlyOwner {
+  function setBaseKey(address _contractAddress, bytes32 _baseKey) public override onlyOwner {
     baseKey[_contractAddress] = _baseKey;
     emit BaseKeySet(_contractAddress, _baseKey);
   }
@@ -292,7 +272,7 @@ contract LyraGlobals is Ownable {
    *
    * @param _contractAddress The address of the OptionMarket.
    */
-  function getSpotPriceForMarket(address _contractAddress) external view returns (uint) {
+  function getSpotPriceForMarket(address _contractAddress) external view override returns (uint) {
     return getSpotPrice(baseKey[_contractAddress]);
   }
 
@@ -303,7 +283,7 @@ contract LyraGlobals is Ownable {
    *
    * @param to The key of the synthetic asset.
    */
-  function getSpotPrice(bytes32 to) public view returns (uint) {
+  function getSpotPrice(bytes32 to) public view override returns (uint) {
     (uint rate, bool invalid) = exchangeRates.rateAndInvalid(to);
     require(!invalid && rate != 0, "rate is invalid");
     return rate;
@@ -314,8 +294,13 @@ contract LyraGlobals is Ownable {
    *
    * @param _contractAddress The address of the OptionMarket.
    */
-  function getPricingGlobals(address _contractAddress) external view returns (PricingGlobals memory) {
-    require(!isPaused, "contracts are paused");
+  function getPricingGlobals(address _contractAddress)
+    external
+    view
+    override
+    notPaused
+    returns (PricingGlobals memory)
+  {
     return
       PricingGlobals({
         optionPriceFeeCoefficient: optionPriceFeeCoefficient[_contractAddress],
@@ -336,8 +321,13 @@ contract LyraGlobals is Ownable {
    *
    * @param _contractAddress The address of the OptionMarket.
    */
-  function getGreekCacheGlobals(address _contractAddress) external view returns (GreekCacheGlobals memory) {
-    require(!isPaused, "contracts are paused");
+  function getGreekCacheGlobals(address _contractAddress)
+    external
+    view
+    override
+    notPaused
+    returns (GreekCacheGlobals memory)
+  {
     return
       GreekCacheGlobals({
         rateAndCarry: rateAndCarry[_contractAddress],
@@ -354,9 +344,10 @@ contract LyraGlobals is Ownable {
   function getExchangeGlobals(address _contractAddress, ExchangeType exchangeType)
     public
     view
+    override
+    notPaused
     returns (ExchangeGlobals memory exchangeGlobals)
   {
-    require(!isPaused, "contracts are paused");
     exchangeGlobals = ExchangeGlobals({
       spotPrice: 0,
       quoteKey: quoteKey[_contractAddress],
@@ -395,13 +386,14 @@ contract LyraGlobals is Ownable {
   function getGlobalsForOptionTrade(address _contractAddress, bool isBuy)
     external
     view
+    override
+    notPaused
     returns (
       PricingGlobals memory pricingGlobals,
       ExchangeGlobals memory exchangeGlobals,
       uint tradeCutoff
     )
   {
-    require(!isPaused, "contracts are paused");
     // exchangeGlobals aren't necessary apart from long calls, but since they are the most expensive transaction
     // we add this overhead to other types of calls, to save gas on long calls.
     exchangeGlobals = getExchangeGlobals(_contractAddress, isBuy ? ExchangeType.QUOTE_BASE : ExchangeType.BASE_QUOTE);
@@ -420,7 +412,10 @@ contract LyraGlobals is Ownable {
     tradeCutoff = tradingCutoff[_contractAddress];
   }
 
-  // Events
+  modifier notPaused {
+    require(!isPaused, "contracts are paused");
+    _;
+  }
 
   /** Emitted when globals are set.
    */

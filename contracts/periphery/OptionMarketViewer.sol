@@ -2,9 +2,11 @@
 pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
-import "../OptionMarket.sol";
-import "../BlackScholes.sol";
+import "../interfaces/IOptionMarket.sol";
+import "../interfaces/IBlackScholes.sol";
 import "../synthetix/SafeDecimalMath.sol";
+import "../interfaces/IOptionToken.sol";
+import "../interfaces/IOptionGreekCache.sol";
 
 /**
  * @title OptionMarketViewer
@@ -50,13 +52,13 @@ contract OptionMarketViewer {
     uint putPrice;
   }
 
-  LyraGlobals public globals;
-  OptionMarket public optionMarket;
-  OptionMarketPricer public optionMarketPricer;
-  OptionGreekCache public greekCache;
-  OptionToken public optionToken;
-  LiquidityPool public liquidityPool;
-  BlackScholes public blackScholes;
+  ILyraGlobals public globals;
+  IOptionMarket public optionMarket;
+  IOptionMarketPricer public optionMarketPricer;
+  IOptionGreekCache public greekCache;
+  IOptionToken public optionToken;
+  ILiquidityPool public liquidityPool;
+  IBlackScholes public blackScholes;
 
   bool initialized = false;
 
@@ -73,13 +75,13 @@ contract OptionMarketViewer {
    * @param _blackScholes BlackScholes contract address
    */
   function init(
-    LyraGlobals _globals,
-    OptionMarket _optionMarket,
-    OptionMarketPricer _optionMarketPricer,
-    OptionGreekCache _greekCache,
-    OptionToken _optionToken,
-    LiquidityPool _liquidityPool,
-    BlackScholes _blackScholes
+    ILyraGlobals _globals,
+    IOptionMarket _optionMarket,
+    IOptionMarketPricer _optionMarketPricer,
+    IOptionGreekCache _greekCache,
+    IOptionToken _optionToken,
+    ILiquidityPool _liquidityPool,
+    IBlackScholes _blackScholes
   ) external {
     require(!initialized, "Contract already initialized");
 
@@ -97,25 +99,25 @@ contract OptionMarketViewer {
   /**
    * @dev Gets the OptionBoard struct from the OptionMarket
    */
-  function getBoard(uint boardId) public view returns (OptionMarket.OptionBoard memory) {
+  function getBoard(uint boardId) public view returns (IOptionMarket.OptionBoard memory) {
     (uint id, uint expiry, uint iv, ) = optionMarket.optionBoards(boardId);
     uint[] memory listings = optionMarket.getBoardListings(boardId);
-    return OptionMarket.OptionBoard(id, expiry, iv, false, listings);
+    return IOptionMarket.OptionBoard(id, expiry, iv, false, listings);
   }
 
   /**
    * @dev Gets the OptionListing struct from the OptionMarket
    */
-  function getListing(uint listingId) public view returns (OptionMarket.OptionListing memory) {
+  function getListing(uint listingId) public view returns (IOptionMarket.OptionListing memory) {
     (uint id, uint strike, uint skew, uint longCall, uint shortCall, uint longPut, uint shortPut, uint boardId) =
       optionMarket.optionListings(listingId);
-    return OptionMarket.OptionListing(id, strike, skew, longCall, shortCall, longPut, shortPut, boardId);
+    return IOptionMarket.OptionListing(id, strike, skew, longCall, shortCall, longPut, shortPut, boardId);
   }
 
   /**
    * @dev Gets the OptionListingCache struct from the OptionGreekCache
    */
-  function getListingCache(uint listingId) internal view returns (OptionGreekCache.OptionListingCache memory) {
+  function getListingCache(uint listingId) internal view returns (IOptionGreekCache.OptionListingCache memory) {
     (
       uint id,
       uint strike,
@@ -130,7 +132,7 @@ contract OptionMarketViewer {
       uint updatedAtPrice
     ) = greekCache.listingCaches(listingId);
     return
-      OptionGreekCache.OptionListingCache(
+      IOptionGreekCache.OptionListingCache(
         id,
         strike,
         skew,
@@ -148,7 +150,7 @@ contract OptionMarketViewer {
   /**
    * @dev Gets the GlobalCache struct from the OptionGreekCache
    */
-  function getGlobalCache() internal view returns (OptionGreekCache.GlobalCache memory) {
+  function getGlobalCache() internal view returns (IOptionGreekCache.GlobalCache memory) {
     (
       int netDelta,
       int netStdVega,
@@ -158,7 +160,7 @@ contract OptionMarketViewer {
       uint minExpiryTimestamp
     ) = greekCache.globalCache();
     return
-      OptionGreekCache.GlobalCache(
+      IOptionGreekCache.GlobalCache(
         netDelta,
         netStdVega,
         minUpdatedAt,
@@ -175,7 +177,7 @@ contract OptionMarketViewer {
     uint[] memory liveBoards = optionMarket.getLiveBoards();
     boards = new BoardView[](liveBoards.length);
     for (uint i = 0; i < liveBoards.length; i++) {
-      OptionMarket.OptionBoard memory board = getBoard(liveBoards[i]);
+      IOptionMarket.OptionBoard memory board = getBoard(liveBoards[i]);
       boards[i] = BoardView(board.id, board.expiry);
     }
   }
@@ -184,17 +186,17 @@ contract OptionMarketViewer {
    * @dev Gets detailed ListingViews for all listings on a board
    */
   function getListingsForBoard(uint boardId) external view returns (ListingView[] memory boardListings) {
-    OptionMarket.OptionBoard memory board = getBoard(boardId);
-    LyraGlobals.GreekCacheGlobals memory greekCacheGlobals = globals.getGreekCacheGlobals(address(optionMarket));
+    IOptionMarket.OptionBoard memory board = getBoard(boardId);
+    ILyraGlobals.GreekCacheGlobals memory greekCacheGlobals = globals.getGreekCacheGlobals(address(optionMarket));
 
     boardListings = new ListingView[](board.listingIds.length);
 
     for (uint i = 0; i < board.listingIds.length; i++) {
-      OptionMarket.OptionListing memory listing = getListing(board.listingIds[i]);
+      IOptionMarket.OptionListing memory listing = getListing(board.listingIds[i]);
 
       uint vol = board.iv.multiplyDecimal(listing.skew);
 
-      BlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
+      IBlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
         blackScholes.pricesDeltaStdVega(
           timeToMaturitySeconds(board.expiry),
           vol,
@@ -237,23 +239,23 @@ contract OptionMarketViewer {
     )
   {
     listingView = getListingView(listingId);
-    longCallAmt = optionToken.balanceOf(user, listingId + uint(OptionMarket.TradeType.LONG_CALL));
-    longPutAmt = optionToken.balanceOf(user, listingId + uint(OptionMarket.TradeType.LONG_PUT));
-    shortCallAmt = optionToken.balanceOf(user, listingId + uint(OptionMarket.TradeType.SHORT_CALL));
-    shortPutAmt = optionToken.balanceOf(user, listingId + uint(OptionMarket.TradeType.SHORT_PUT));
+    longCallAmt = optionToken.balanceOf(user, listingId + uint(IOptionMarket.TradeType.LONG_CALL));
+    longPutAmt = optionToken.balanceOf(user, listingId + uint(IOptionMarket.TradeType.LONG_PUT));
+    shortCallAmt = optionToken.balanceOf(user, listingId + uint(IOptionMarket.TradeType.SHORT_CALL));
+    shortPutAmt = optionToken.balanceOf(user, listingId + uint(IOptionMarket.TradeType.SHORT_PUT));
   }
 
   /**
    * @dev Gets a detailed ListingView for a given listing
    */
   function getListingView(uint listingId) public view returns (ListingView memory listingView) {
-    OptionMarket.OptionListing memory listing = getListing(listingId);
-    OptionMarket.OptionBoard memory board = getBoard(listing.boardId);
-    LyraGlobals.GreekCacheGlobals memory greekCacheGlobals = globals.getGreekCacheGlobals(address(optionMarket));
+    IOptionMarket.OptionListing memory listing = getListing(listingId);
+    IOptionMarket.OptionBoard memory board = getBoard(listing.boardId);
+    ILyraGlobals.GreekCacheGlobals memory greekCacheGlobals = globals.getGreekCacheGlobals(address(optionMarket));
 
     uint vol = board.iv.multiplyDecimal(listing.skew);
 
-    BlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
+    IBlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
       blackScholes.pricesDeltaStdVega(
         timeToMaturitySeconds(board.expiry),
         vol,
@@ -286,10 +288,10 @@ contract OptionMarketViewer {
    */
   function getPremiumForOpen(
     uint _listingId,
-    OptionMarket.TradeType tradeType,
+    IOptionMarket.TradeType tradeType,
     uint amount
   ) external view returns (uint premium, uint newIv) {
-    bool isBuy = tradeType == OptionMarket.TradeType.LONG_CALL || tradeType == OptionMarket.TradeType.LONG_PUT;
+    bool isBuy = tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT;
     return getPremiumForTrade(_listingId, tradeType, isBuy, amount);
   }
 
@@ -298,10 +300,10 @@ contract OptionMarketViewer {
    */
   function getPremiumForClose(
     uint _listingId,
-    OptionMarket.TradeType tradeType,
+    IOptionMarket.TradeType tradeType,
     uint amount
   ) external view returns (uint premium, uint newIv) {
-    bool isBuy = !(tradeType == OptionMarket.TradeType.LONG_CALL || tradeType == OptionMarket.TradeType.LONG_PUT);
+    bool isBuy = !(tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT);
     return getPremiumForTrade(_listingId, tradeType, isBuy, amount);
   }
 
@@ -310,25 +312,25 @@ contract OptionMarketViewer {
    */
   function getPremiumForTrade(
     uint _listingId,
-    OptionMarket.TradeType tradeType,
+    IOptionMarket.TradeType tradeType,
     bool isBuy,
     uint amount
   ) public view returns (uint premium, uint newIv) {
-    LyraGlobals.PricingGlobals memory pricingGlobals = globals.getPricingGlobals(address(optionMarket));
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-      globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.ALL);
+    ILyraGlobals.PricingGlobals memory pricingGlobals = globals.getPricingGlobals(address(optionMarket));
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+      globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
 
-    OptionMarket.OptionListing memory listing = getListing(_listingId);
-    OptionMarket.OptionBoard memory board = getBoard(listing.boardId);
-    OptionMarket.Trade memory trade =
-      OptionMarket.Trade({
+    IOptionMarket.OptionListing memory listing = getListing(_listingId);
+    IOptionMarket.OptionBoard memory board = getBoard(listing.boardId);
+    IOptionMarket.Trade memory trade =
+      IOptionMarket.Trade({
         isBuy: isBuy,
         amount: amount,
         vol: board.iv.multiplyDecimal(listing.skew),
         expiry: board.expiry,
         liquidity: liquidityPool.getLiquidity(pricingGlobals.spotPrice, exchangeGlobals.short)
       });
-    bool isCall = tradeType == OptionMarket.TradeType.LONG_CALL || tradeType == OptionMarket.TradeType.SHORT_CALL;
+    bool isCall = tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.SHORT_CALL;
     return _getPremiumForTrade(listing, board, trade, pricingGlobals, isCall);
   }
 
@@ -336,10 +338,10 @@ contract OptionMarketViewer {
    * @dev Gets the premium and new iv value for a given trade
    */
   function _getPremiumForTrade(
-    OptionMarket.OptionListing memory listing,
-    OptionMarket.OptionBoard memory board,
-    OptionMarket.Trade memory trade,
-    LyraGlobals.PricingGlobals memory pricingGlobals,
+    IOptionMarket.OptionListing memory listing,
+    IOptionMarket.OptionBoard memory board,
+    IOptionMarket.Trade memory trade,
+    ILyraGlobals.PricingGlobals memory pricingGlobals,
     bool isCall
   ) public view returns (uint, uint) {
     // Apply the skew as implemented in OptionMarket
@@ -356,24 +358,24 @@ contract OptionMarketViewer {
         int(listing.shortPut) +
         (isCall ? 0 : (trade.isBuy ? int(trade.amount) : -int(trade.amount)));
 
-    OptionMarketPricer.Pricing memory pricing =
+    IOptionMarketPricer.Pricing memory pricing =
       _getPricingForTrade(pricingGlobals, trade, listing.id, newCallExposure, newPutExposure, isCall);
 
     return (optionMarketPricer.getPremium(trade, pricing, pricingGlobals), trade.vol);
   }
 
   function _getPricingForTrade(
-    LyraGlobals.PricingGlobals memory pricingGlobals,
-    OptionMarket.Trade memory trade,
+    ILyraGlobals.PricingGlobals memory pricingGlobals,
+    IOptionMarket.Trade memory trade,
     uint _listingId,
     int newCallExposure,
     int newPutExposure,
     bool isCall
-  ) internal view returns (OptionMarketPricer.Pricing memory pricing) {
-    OptionGreekCache.OptionListingCache memory listingCache = getListingCache(_listingId);
-    OptionGreekCache.GlobalCache memory globalCache = getGlobalCache();
+  ) internal view returns (IOptionMarketPricer.Pricing memory pricing) {
+    IOptionGreekCache.OptionListingCache memory listingCache = getListingCache(_listingId);
+    IOptionGreekCache.GlobalCache memory globalCache = getGlobalCache();
 
-    BlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
+    IBlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega =
       blackScholes.pricesDeltaStdVega(
         timeToMaturitySeconds(trade.expiry),
         trade.vol,

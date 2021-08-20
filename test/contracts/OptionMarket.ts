@@ -1983,7 +1983,7 @@ describe('OptionMarket - unit', () => {
           const baseBal = await c.test.baseToken.balanceOf(c.shortCollateral.address);
           // is 3/4 of the  balance, minus fee
           expect(baseBal).to.eq(toBN('7.48110831234256927'));
-          expect(await c.optionMarket.listingToEthReturnedRatio(listingIds[0])).to.eq(toBN('0.748110831234256927'));
+          expect(await c.optionMarket.listingToBaseReturnedRatio(listingIds[0])).to.eq(toBN('0.748110831234256927'));
         });
       });
 

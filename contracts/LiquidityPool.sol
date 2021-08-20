@@ -7,9 +7,10 @@ import "./synthetix/SafeDecimalMath.sol";
 
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./OptionMarket.sol";
-import "./LiquidityCertificate.sol";
-import "./PoolHedger.sol";
+import "./interfaces/IOptionMarket.sol";
+import "./interfaces/ILiquidityCertificate.sol";
+import "./interfaces/IPoolHedger.sol";
+import "./interfaces/IShortCollateral.sol";
 
 /**
  * @title LiquidityPool
@@ -20,56 +21,18 @@ import "./PoolHedger.sol";
  * 3. Delta hedging the LPs.
  * 4. Storing funds for expired in the money options.
  */
-contract LiquidityPool {
+contract LiquidityPool is ILiquidityPool {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
-
-  struct Collateral {
-    uint quote;
-    uint base;
-  }
-
-  /// @dev These are all in quoteAsset amounts.
-  struct Liquidity {
-    uint freeCollatLiquidity;
-    uint usedCollatLiquidity;
-    uint freeDeltaLiquidity;
-    uint usedDeltaLiquidity;
-  }
-
-  enum Error {
-    QuoteTransferFailed,
-    AlreadySignalledWithdrawal,
-    SignallingBetweenRounds,
-    UnSignalMustSignalFirst,
-    UnSignalAlreadyBurnable,
-    WithdrawNotBurnable,
-    EndRoundWithLiveBoards,
-    EndRoundAlreadyEnded,
-    EndRoundMustExchangeBase,
-    EndRoundMustHedgeDelta,
-    StartRoundMustEndRound,
-    ReceivedZeroFromBaseQuoteExchange,
-    ReceivedZeroFromQuoteBaseExchange,
-    LockingMoreQuoteThanIsFree,
-    LockingMoreBaseThanCanBeExchanged,
-    FreeingMoreBaseThanLocked,
-    SendPremiumNotEnoughCollateral,
-    OnlyPoolHedger,
-    OnlyOptionMarket,
-    OnlyShortCollateral,
-    ReentrancyDetected,
-    Last
-  }
 
   ////
   // Constants
   ////
-  LyraGlobals internal globals;
-  OptionMarket internal optionMarket;
-  LiquidityCertificate internal liquidityCertificate;
-  ShortCollateral internal shortCollateral;
-  PoolHedger internal poolHedger;
+  ILyraGlobals internal globals;
+  IOptionMarket internal optionMarket;
+  ILiquidityCertificate internal liquidityCertificate;
+  IShortCollateral internal shortCollateral;
+  IPoolHedger internal poolHedger;
   IERC20 internal quoteAsset;
   IERC20 internal baseAsset;
   uint internal constant INITIAL_RATE = 1e18;
@@ -82,7 +45,7 @@ contract LiquidityPool {
   bool internal initialized = false;
 
   /// @dev Amount of collateral locked for outstanding calls and puts sold to users
-  Collateral public lockedCollateral;
+  Collateral public override lockedCollateral;
   /**
    * @dev Total amount of quoteAsset held to pay out users who have locked/waited for their tokens to be burnable. As
    * well as keeping track of all settled option's usd value.
@@ -91,7 +54,7 @@ contract LiquidityPool {
   /// @dev Total number of tokens that will be removed from the totalTokenSupply at the end of the round.
   uint internal tokensBurnableForRound;
   /// @dev Funds entering the pool in the next round.
-  uint public queuedQuoteFunds;
+  uint public override queuedQuoteFunds;
   /// @dev Total amount of tokens that represents the total amount of pool shares
   uint internal totalTokenSupply;
   /// @dev Counter for reentrancy guard.
@@ -101,7 +64,7 @@ contract LiquidityPool {
    * @dev Mapping of timestamps to conversion rates of liquidity to tokens. To get the token value of a certificate;
    * `certificate.liquidity / expiryToTokenValue[certificate.enteredAt]`
    */
-  mapping(uint => uint) public expiryToTokenValue;
+  mapping(uint => uint) public override expiryToTokenValue;
 
   constructor() {}
 
@@ -114,11 +77,11 @@ contract LiquidityPool {
    * @param _poolHedger PoolHedger address
    */
   function init(
-    LyraGlobals _globals,
-    OptionMarket _optionMarket,
-    LiquidityCertificate _liquidityCertificate,
-    PoolHedger _poolHedger,
-    ShortCollateral _shortCollateral,
+    ILyraGlobals _globals,
+    IOptionMarket _optionMarket,
+    ILiquidityCertificate _liquidityCertificate,
+    IPoolHedger _poolHedger,
+    IShortCollateral _shortCollateral,
     IERC20 _quoteAsset,
     IERC20 _baseAsset,
     string[] memory _errorMessages
@@ -149,12 +112,12 @@ contract LiquidityPool {
    * @param beneficiary The account that will receive the liquidity certificate.
    * @param amount The amount of quoteAsset to deposit.
    */
-  function deposit(address beneficiary, uint amount) external returns (uint) {
+  function deposit(address beneficiary, uint amount) external override returns (uint) {
     // Assume we have the allowance to take the amount they are depositing
-    _require(quoteAsset.transferFrom(msg.sender, address(this), amount), Error.QuoteTransferFailed);
     queuedQuoteFunds = queuedQuoteFunds.add(amount);
     uint certificateId = liquidityCertificate.mint(beneficiary, amount, optionMarket.maxExpiryTimestamp());
     emit Deposit(beneficiary, certificateId, amount);
+    _require(quoteAsset.transferFrom(msg.sender, address(this), amount), Error.QuoteTransferFailed);
     return certificateId;
   }
 
@@ -164,8 +127,8 @@ contract LiquidityPool {
    *
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function signalWithdrawal(uint certificateId) external {
-    LiquidityCertificate.CertificateData memory certificateData = liquidityCertificate.certificateData(certificateId);
+  function signalWithdrawal(uint certificateId) external override {
+    ILiquidityCertificate.CertificateData memory certificateData = liquidityCertificate.certificateData(certificateId);
     uint maxExpiryTimestamp = optionMarket.maxExpiryTimestamp();
 
     _require(certificateData.burnableAt == 0, Error.AlreadySignalledWithdrawal);
@@ -194,8 +157,8 @@ contract LiquidityPool {
    *
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function unSignalWithdrawal(uint certificateId) external {
-    LiquidityCertificate.CertificateData memory certificateData = liquidityCertificate.certificateData(certificateId);
+  function unSignalWithdrawal(uint certificateId) external override {
+    ILiquidityCertificate.CertificateData memory certificateData = liquidityCertificate.certificateData(certificateId);
 
     // Cannot unsignal withdrawal if the token is burnable/hasn't signalled exit
     _require(certificateData.burnableAt != 0, Error.UnSignalMustSignalFirst);
@@ -224,16 +187,16 @@ contract LiquidityPool {
    * @param beneficiary The account that will receive the withdrawn funds.
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function withdraw(address beneficiary, uint certificateId) external returns (uint value) {
-    LiquidityCertificate.CertificateData memory certificateData = liquidityCertificate.certificateData(certificateId);
+  function withdraw(address beneficiary, uint certificateId) external override returns (uint value) {
+    ILiquidityCertificate.CertificateData memory certificateData = liquidityCertificate.certificateData(certificateId);
     uint maxExpiryTimestamp = optionMarket.maxExpiryTimestamp();
 
     // We allow people to withdraw if their funds haven't entered the system
     if (certificateData.enteredAt == maxExpiryTimestamp) {
       queuedQuoteFunds = queuedQuoteFunds.sub(certificateData.liquidity);
       liquidityCertificate.burn(msg.sender, certificateId);
-      _require(quoteAsset.transfer(beneficiary, certificateData.liquidity), Error.QuoteTransferFailed);
       emit Withdraw(beneficiary, certificateId, certificateData.liquidity, totalQuoteAmountReserved);
+      _require(quoteAsset.transfer(beneficiary, certificateData.liquidity), Error.QuoteTransferFailed);
       return certificateData.liquidity;
     }
 
@@ -248,8 +211,8 @@ contract LiquidityPool {
       totalTokenSupply = totalTokenSupply.sub(tokenAmt);
       value = tokenAmt.multiplyDecimal(currentRoundValue);
       liquidityCertificate.burn(msg.sender, certificateId);
-      _require(quoteAsset.transfer(beneficiary, value), Error.QuoteTransferFailed);
       emit Withdraw(beneficiary, certificateId, value, totalQuoteAmountReserved);
+      _require(quoteAsset.transfer(beneficiary, value), Error.QuoteTransferFailed);
       return value;
     }
 
@@ -263,8 +226,8 @@ contract LiquidityPool {
     liquidityCertificate.burn(msg.sender, certificateId);
 
     totalQuoteAmountReserved = totalQuoteAmountReserved.sub(value);
-    _require(quoteAsset.transfer(beneficiary, value), Error.QuoteTransferFailed);
     emit Withdraw(beneficiary, certificateId, value, totalQuoteAmountReserved);
+    _require(quoteAsset.transfer(beneficiary, value), Error.QuoteTransferFailed);
     return value;
   }
 
@@ -277,9 +240,9 @@ contract LiquidityPool {
    *
    * This token price is only accurate within the period between rounds.
    */
-  function tokenPriceQuote() public view returns (uint) {
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-      globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.ALL);
+  function tokenPriceQuote() public view override returns (uint) {
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+      globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
 
     if (totalTokenSupply == 0) {
       return INITIAL_RATE;
@@ -297,7 +260,7 @@ contract LiquidityPool {
    * @notice Ends a round.
    * @dev Should only be called after all boards have been liquidated.
    */
-  function endRound() external {
+  function endRound() external override {
     // Round can only be ended if all boards have been liquidated, and can only be called once.
     uint maxExpiryTimestamp = optionMarket.maxExpiryTimestamp();
     // We must ensure all boards have been expired
@@ -331,7 +294,7 @@ contract LiquidityPool {
    * @param lastMaxExpiryTimestamp The time at which the previous round ended.
    * @param newMaxExpiryTimestamp The time which funds will be locked until.
    */
-  function startRound(uint lastMaxExpiryTimestamp, uint newMaxExpiryTimestamp) external onlyOptionMarket {
+  function startRound(uint lastMaxExpiryTimestamp, uint newMaxExpiryTimestamp) external override onlyOptionMarket {
     // As the value is never reset, this is when the first board is added
     if (lastMaxExpiryTimestamp == 0) {
       totalTokenSupply = queuedQuoteFunds;
@@ -356,10 +319,10 @@ contract LiquidityPool {
   /////////////////////////////////////////
 
   /**
-   * @dev External function that will bring the base balance of this contract to match locked.base. This cannot be done
+   * @dev external override function that will bring the base balance of this contract to match locked.base. This cannot be done
    * in the same transaction as locking the base, as exchanging on synthetix is too costly gas-wise.
    */
-  function exchangeBase() external reentrancyGuard {
+  function exchangeBase() external override reentrancyGuard {
     uint currentBaseBalance = baseAsset.balanceOf(address(this));
 
     // Add this additional check to prevent any soft locks at round end, as the base balance must be 0 to end the round.
@@ -369,8 +332,8 @@ contract LiquidityPool {
 
     if (currentBaseBalance > lockedCollateral.base) {
       // Sell excess baseAsset
-      LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-        globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.BASE_QUOTE);
+      ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+        globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.BASE_QUOTE);
       uint amount = currentBaseBalance - lockedCollateral.base;
       uint quoteReceived =
         exchangeGlobals.synthetix.exchange(exchangeGlobals.baseKey, amount, exchangeGlobals.quoteKey);
@@ -378,8 +341,8 @@ contract LiquidityPool {
       emit BaseSold(msg.sender, amount, quoteReceived);
     } else if (lockedCollateral.base > currentBaseBalance) {
       // Buy required amount of baseAsset
-      LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-        globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.QUOTE_BASE);
+      ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+        globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.QUOTE_BASE);
       uint quoteToSpend =
         (lockedCollateral.base - currentBaseBalance)
           .divideDecimalRound(SafeDecimalMath.UNIT.sub(exchangeGlobals.quoteBaseFeeRate))
@@ -404,7 +367,7 @@ contract LiquidityPool {
    * @param amount The amount of quote to lock.
    * @param freeCollatLiq The amount of free collateral that can be locked.
    */
-  function lockQuote(uint amount, uint freeCollatLiq) external onlyOptionMarket {
+  function lockQuote(uint amount, uint freeCollatLiq) external override onlyOptionMarket {
     _require(amount <= freeCollatLiq, Error.LockingMoreQuoteThanIsFree);
     lockedCollateral.quote = lockedCollateral.quote.add(amount);
     emit QuoteLocked(amount, lockedCollateral.quote);
@@ -419,9 +382,9 @@ contract LiquidityPool {
    */
   function lockBase(
     uint amount,
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals,
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals,
     Liquidity memory liquidity
-  ) external onlyOptionMarket {
+  ) external override onlyOptionMarket {
     uint currentBaseBal = baseAsset.balanceOf(address(this));
 
     uint desiredBase;
@@ -458,7 +421,7 @@ contract LiquidityPool {
    *
    * @param amount The amount of quote to free.
    */
-  function freeQuoteCollateral(uint amount) external onlyOptionMarket {
+  function freeQuoteCollateral(uint amount) external override onlyOptionMarket {
     _freeQuoteCollateral(amount);
   }
 
@@ -481,7 +444,7 @@ contract LiquidityPool {
    *
    * @param amountBase The amount of base to sell.
    */
-  function freeBase(uint amountBase) external onlyOptionMarket {
+  function freeBase(uint amountBase) external override onlyOptionMarket {
     _require(amountBase <= lockedCollateral.base, Error.FreeingMoreBaseThanLocked);
     lockedCollateral.base = lockedCollateral.base.sub(amountBase);
     emit BaseFreed(amountBase, lockedCollateral.base);
@@ -499,7 +462,7 @@ contract LiquidityPool {
     address recipient,
     uint amount,
     uint freeCollatLiq
-  ) external onlyOptionMarket reentrancyGuard {
+  ) external override onlyOptionMarket reentrancyGuard {
     _require(freeCollatLiq >= amount, Error.SendPremiumNotEnoughCollateral);
     _require(quoteAsset.transfer(recipient, amount), Error.QuoteTransferFailed);
 
@@ -513,15 +476,15 @@ contract LiquidityPool {
   /**
    * @notice Manages collateral at the time of board liquidation, also converting base sent here from the OptionMarket.
    *
-   * @param amountQuoteFreed Total amount of eth to convert to quote, including profits from short calls.
-   * @param amountQuoteReserved Total amount of eth to convert to quote, including profits from short calls.
+   * @param amountQuoteFreed Total amount of base to convert to quote, including profits from short calls.
+   * @param amountQuoteReserved Total amount of base to convert to quote, including profits from short calls.
    * @param amountBaseFreed Total amount of collateral to liquidate.
    */
   function boardLiquidation(
     uint amountQuoteFreed,
     uint amountQuoteReserved,
     uint amountBaseFreed
-  ) external onlyOptionMarket {
+  ) external override onlyOptionMarket {
     _freeQuoteCollateral(amountQuoteFreed);
 
     totalQuoteAmountReserved = totalQuoteAmountReserved.add(amountQuoteReserved);
@@ -541,7 +504,7 @@ contract LiquidityPool {
    * @param user The address of the user to send the quote.
    * @param amount The amount of quote to send.
    */
-  function sendReservedQuote(address user, uint amount) external onlyShortCollateral reentrancyGuard {
+  function sendReservedQuote(address user, uint amount) external override onlyShortCollateral reentrancyGuard {
     // Should never happen, but added to prevent any potential rounding errors
     if (amount > totalQuoteAmountReserved) {
       amount = totalQuoteAmountReserved;
@@ -562,7 +525,7 @@ contract LiquidityPool {
    * @param basePrice The price of the baseAsset.
    * @param usedDeltaLiquidity The amout of delta liquidity that has been used for hedging.
    */
-  function getTotalPoolValueQuote(uint basePrice, uint usedDeltaLiquidity) public view returns (uint) {
+  function getTotalPoolValueQuote(uint basePrice, uint usedDeltaLiquidity) public view override returns (uint) {
     return
       quoteAsset
         .balanceOf(address(this))
@@ -578,7 +541,7 @@ contract LiquidityPool {
    * @param basePrice The price of the base asset.
    * @param short The address of the short contract.
    */
-  function getLiquidity(uint basePrice, ICollateralShort short) public view returns (Liquidity memory) {
+  function getLiquidity(uint basePrice, ICollateralShort short) public view override returns (Liquidity memory) {
     Liquidity memory liquidity;
 
     liquidity.usedDeltaLiquidity = poolHedger.getValueQuote(short, basePrice);
@@ -615,8 +578,9 @@ contract LiquidityPool {
    * @param exchangeGlobals The exchangeGlobals.
    * @param amount The amount requested by the PoolHedger.
    */
-  function transferQuoteToHedge(LyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount)
+  function transferQuoteToHedge(ILyraGlobals.ExchangeGlobals memory exchangeGlobals, uint amount)
     external
+    override
     onlyPoolHedger
     reentrancyGuard
     returns (uint)

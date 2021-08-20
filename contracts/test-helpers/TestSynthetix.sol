@@ -4,15 +4,15 @@ pragma experimental ABIEncoderV2;
 
 import "../interfaces/ISynthetix.sol";
 // Debug
-import "../interfaces/ITestERC20.sol";
+import "./ITestERC20.sol";
 import "../synthetix/SafeDecimalMath.sol";
-import "../LyraGlobals.sol";
+import "../interfaces/ILyraGlobals.sol";
 
 contract TestSynthetix is ISynthetix {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
 
-  LyraGlobals internal globals;
+  ILyraGlobals internal globals;
   ITestERC20 internal quoteAsset;
 
   mapping(bytes32 => ITestERC20) baseAssets;
@@ -29,7 +29,7 @@ contract TestSynthetix is ISynthetix {
 
   constructor() {}
 
-  function init(LyraGlobals _globals, ITestERC20 _quoteAsset) external {
+  function init(ILyraGlobals _globals, ITestERC20 _quoteAsset) external {
     require(!initialized);
     globals = _globals;
     quoteAsset = _quoteAsset;
@@ -72,8 +72,8 @@ contract TestSynthetix is ISynthetix {
     } else {
       address market = markets[sourceCurrencyKey];
       require(market != address(0), "invalid source currency key");
-      LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-        globals.getExchangeGlobals(market, LyraGlobals.ExchangeType.BASE_QUOTE);
+      ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+        globals.getExchangeGlobals(market, ILyraGlobals.ExchangeType.BASE_QUOTE);
       ITestERC20 baseAsset = baseAssets[sourceCurrencyKey];
       require(baseAsset != ITestERC20(0));
       baseAsset.burn(exchangeForAddress, sourceAmount);
@@ -88,8 +88,8 @@ contract TestSynthetix is ISynthetix {
     } else {
       address market = markets[destinationCurrencyKey];
       require(market != address(0), "invalid destination currency key");
-      LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-        globals.getExchangeGlobals(market, LyraGlobals.ExchangeType.QUOTE_BASE);
+      ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+        globals.getExchangeGlobals(market, ILyraGlobals.ExchangeType.QUOTE_BASE);
       ITestERC20 baseAsset = baseAssets[destinationCurrencyKey];
       toRate = exchangeGlobals.spotPrice;
       if (feeRate == 0) {

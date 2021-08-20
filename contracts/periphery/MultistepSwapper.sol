@@ -1,17 +1,18 @@
 //SPDX-License-Identifier:ISC
-pragma solidity ^0.7.6;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import "../interfaces/ISwapRouter.sol";
 import "../interfaces/ISynthetix.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title SwapRouter
  * @author Lyra
  * @dev Swap between tokens and synths using uniswap router and synthetix exchanger
  */
-contract MultistepSwapper {
+contract MultistepSwapper is ReentrancyGuard {
   ISwapRouter internal swapRouter;
   ISynthetix internal synthetix;
 
@@ -55,7 +56,7 @@ contract MultistepSwapper {
     uint amountIn,
     Swap[] calldata swaps,
     uint amountOutMinimum
-  ) external payable returns (uint amountOut) {
+  ) external payable nonReentrant returns (uint amountOut) {
     require(swaps.length > 0, "0 length swaps");
     if (!approved[tokenIn]) {
       tokenIn.approve(address(swapRouter), UINT_MAX);
@@ -65,6 +66,7 @@ contract MultistepSwapper {
     amountOut = amountIn;
     bytes memory path = "";
     for (uint i = 0; i < swaps.length; i++) {
+      require(uint(swaps[i].swapType) <= uint(SwapType.Uniswap), "Invalid swaptype");
       if (swaps[i].swapType == SwapType.Synthetix) {
         amountOut = synthetix.exchange(tokenInCurrencyKey, amountOut, swaps[i].tokenOutCurrencyKey);
       } else if (swaps[i].swapType == SwapType.Uniswap) {

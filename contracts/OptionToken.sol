@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 // Inherited
 import "./openzeppelin-l2/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IOptionToken.sol";
 
 /**
  * @title OptionToken
@@ -12,8 +13,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev Provides a tokenised representation of each OptionListing offered
  * by the OptionMarket.
  */
-contract OptionToken is ERC1155, Ownable {
-  bool initialized = false;
+contract OptionToken is IOptionToken, ERC1155, Ownable {
+  bool internal initialized = false;
   address internal optionMarket;
 
   constructor(string memory uri_) ERC1155(uri_) Ownable() {}
@@ -32,7 +33,7 @@ contract OptionToken is ERC1155, Ownable {
    * @dev Initialise the contract.
    * @param newURI The new uri definition for the contract.
    */
-  function setURI(string memory newURI) external onlyOwner {
+  function setURI(string memory newURI) external override onlyOwner {
     _setURI(newURI);
   }
 
@@ -47,7 +48,7 @@ contract OptionToken is ERC1155, Ownable {
     address account,
     uint id,
     uint amount
-  ) external onlyOptionMarket {
+  ) external override onlyOptionMarket {
     bytes memory data;
     _mint(account, id, amount, data);
   }
@@ -63,7 +64,7 @@ contract OptionToken is ERC1155, Ownable {
     address account,
     uint id,
     uint amount
-  ) external onlyOptionMarket {
+  ) external override onlyOptionMarket {
     _burn(account, id, amount);
   }
 

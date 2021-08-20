@@ -4,7 +4,7 @@ pragma solidity 0.7.6;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import "../interfaces/ITestERC20.sol";
+import "./ITestERC20.sol";
 
 contract TestERC20 is ITestERC20, ERC20 {
   mapping(address => bool) permitted;

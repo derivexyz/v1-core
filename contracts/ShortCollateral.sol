@@ -7,26 +7,25 @@ import "./synthetix/SafeDecimalMath.sol";
 // Inherited
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./PoolHedger.sol";
-import "./LyraGlobals.sol";
-import "./LiquidityPool.sol";
+import "./interfaces/IPoolHedger.sol";
+import "./interfaces/ILyraGlobals.sol";
+import "./interfaces/ILiquidityPool.sol";
+import "./interfaces/IOptionMarket.sol";
+import "./interfaces/IShortCollateral.sol";
 
 /**
  * @title ShortCollateral
  * @author Lyra
  * @dev Holds collateral from users who are selling (shorting) options to the OptionMarket.
  */
-contract ShortCollateral {
+contract ShortCollateral is IShortCollateral {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
 
   bool internal initialized = false;
 
-  ////
-  // Constants
-  ////
-  OptionMarket internal optionMarket;
-  LiquidityPool internal liquidityPool;
+  IOptionMarket internal optionMarket;
+  ILiquidityPool internal liquidityPool;
   IERC20 internal quoteAsset;
   IERC20 internal baseAsset;
 
@@ -41,8 +40,8 @@ contract ShortCollateral {
    * @param _baseAsset Base asset address
    */
   function init(
-    OptionMarket _optionMarket,
-    LiquidityPool _liquidityPool,
+    IOptionMarket _optionMarket,
+    ILiquidityPool _liquidityPool,
     IERC20 _quoteAsset,
     IERC20 _baseAsset
   ) external {
@@ -55,12 +54,12 @@ contract ShortCollateral {
   }
 
   /**
-   * @notice Transfers quoteAsset to the recipient.
+   * @dev Transfers quoteAsset to the recipient.
    *
    * @param recipient The recipient of the transfer.
    * @param amount The amount to send.
    */
-  function sendQuoteCollateral(address recipient, uint amount) external onlyOptionMarket {
+  function sendQuoteCollateral(address recipient, uint amount) external override onlyOptionMarket {
     uint currentBalance = quoteAsset.balanceOf(address(this));
     if (amount > currentBalance) {
       amount = currentBalance;
@@ -70,12 +69,12 @@ contract ShortCollateral {
   }
 
   /**
-   * @notice Transfers baseAsset to the recipient.
+   * @dev Transfers baseAsset to the recipient.
    *
    * @param recipient The recipient of the transfer.
    * @param amount The amount to send.
    */
-  function sendBaseCollateral(address recipient, uint amount) external onlyOptionMarket {
+  function sendBaseCollateral(address recipient, uint amount) external override onlyOptionMarket {
     uint currentBalance = baseAsset.balanceOf(address(this));
     if (amount > currentBalance) {
       amount = currentBalance;
@@ -85,12 +84,12 @@ contract ShortCollateral {
   }
 
   /**
-   * @notice Transfers quoteAsset and baseAsset to the LiquidityPool.
+   * @dev Transfers quoteAsset and baseAsset to the LiquidityPool.
    *
    * @param amountBase The amount of baseAsset to transfer.
    * @param amountQuote The amount of quoteAsset to transfer.
    */
-  function sendToLP(uint amountBase, uint amountQuote) external onlyOptionMarket {
+  function sendToLP(uint amountBase, uint amountQuote) external override onlyOptionMarket {
     uint currentBaseBalance = baseAsset.balanceOf(address(this));
     if (amountBase > currentBaseBalance) {
       amountBase = currentBaseBalance;
@@ -111,7 +110,7 @@ contract ShortCollateral {
   }
 
   /**
-   * @notice Called by the OptionMarket when the owner of an option settles.
+   * @dev Called by the OptionMarket when the owner of an option settles.
    *
    * @param listingId The OptionListing.
    * @param receiver The address of the receiver.
@@ -119,30 +118,30 @@ contract ShortCollateral {
    * @param amount The amount to settle.
    * @param strike The strike price of the OptionListing.
    * @param priceAtExpiry The price of baseAsset at expiry.
-   * @param listingToShortCallEthReturned The amount of ETH to be returned.
+   * @param listingToShortCallBaseReturned The amount of baseAsset to be returned.
    */
   function processSettle(
     uint listingId,
     address receiver,
-    OptionMarket.TradeType tradeType,
+    IOptionMarket.TradeType tradeType,
     uint amount,
     uint strike,
     uint priceAtExpiry,
-    uint listingToShortCallEthReturned
-  ) external onlyOptionMarket {
+    uint listingToShortCallBaseReturned
+  ) external override onlyOptionMarket {
     // Check board has been liquidated
     require(priceAtExpiry != 0, "board must be liquidated");
     require(amount > 0, "option position is 0");
 
-    if (tradeType == OptionMarket.TradeType.SHORT_CALL) {
+    if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
       require(
-        baseAsset.transfer(receiver, listingToShortCallEthReturned.multiplyDecimal(amount)),
+        baseAsset.transfer(receiver, listingToShortCallBaseReturned.multiplyDecimal(amount)),
         "base transfer failed"
       );
-    } else if (tradeType == OptionMarket.TradeType.LONG_CALL && strike < priceAtExpiry) {
+    } else if (tradeType == IOptionMarket.TradeType.LONG_CALL && strike < priceAtExpiry) {
       // long call finished in the money
       liquidityPool.sendReservedQuote(receiver, (priceAtExpiry - strike).multiplyDecimal(amount));
-    } else if (tradeType == OptionMarket.TradeType.SHORT_PUT) {
+    } else if (tradeType == IOptionMarket.TradeType.SHORT_PUT) {
       // If the listing finished in the money;
       // = we pay out the priceAtExpiry (strike - (strike - priceAtExpiry) == priceAtExpiry)
       // Otherwise pay back the strike...
@@ -156,7 +155,7 @@ contract ShortCollateral {
         ),
         "quote transfer failed"
       );
-    } else if (tradeType == OptionMarket.TradeType.LONG_PUT && strike > priceAtExpiry) {
+    } else if (tradeType == IOptionMarket.TradeType.LONG_PUT && strike > priceAtExpiry) {
       // user was long put and it finished in the money
       liquidityPool.sendReservedQuote(receiver, (strike - priceAtExpiry).multiplyDecimal(amount));
     }
@@ -181,7 +180,7 @@ contract ShortCollateral {
     address indexed optionOwner,
     uint strike,
     uint priceAtExpiry,
-    OptionMarket.TradeType tradeType,
+    IOptionMarket.TradeType tradeType,
     uint amount
   );
 

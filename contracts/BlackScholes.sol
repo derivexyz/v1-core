@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 // Libraries
 import "./synthetix/SignedSafeDecimalMath.sol";
 import "./synthetix/SafeDecimalMath.sol";
+import "./interfaces/IBlackScholes.sol";
 
 /**
  * @title BlackScholes
@@ -13,19 +14,11 @@ import "./synthetix/SafeDecimalMath.sol";
  * PRECISE_DECIMAL, which has 1e27 units of precision. The default decimal matches the ethereum standard of 1e18 units
  * of precision.
  */
-contract BlackScholes {
+contract BlackScholes is IBlackScholes {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
   using SignedSafeMath for int;
   using SignedSafeDecimalMath for int;
-
-  struct PricesDeltaStdVega {
-    uint callPrice;
-    uint putPrice;
-    int callDelta;
-    int putDelta;
-    uint stdVega;
-  }
 
   uint private constant SECONDS_PER_YEAR = 31536000;
   /// @dev Internally this library uses 27 decimals of precision
@@ -52,7 +45,7 @@ contract BlackScholes {
   /**
    * @dev Returns absolute value of an int as a uint.
    */
-  function abs(int x) public pure returns (uint) {
+  function abs(int x) public pure override returns (uint) {
     return uint(x < 0 ? -x : x);
   }
 
@@ -85,7 +78,7 @@ contract BlackScholes {
   /**
    * @dev Returns the exponent of the value using taylor expansion with range reduction.
    */
-  function exp(uint x) public pure returns (uint) {
+  function exp(uint x) public pure override returns (uint) {
     if (x == 0) {
       return PRECISE_UNIT;
     }
@@ -113,7 +106,7 @@ contract BlackScholes {
    * @dev Returns the exponent of the value using taylor expansion with range reduction, with support for negative
    * numbers.
    */
-  function exp(int x) public pure returns (uint) {
+  function exp(int x) public pure override returns (uint) {
     if (0 <= x) {
       return exp(uint(x));
     } else if (x < MIN_EXP) {
@@ -128,7 +121,7 @@ contract BlackScholes {
    * @dev Returns the square root of the value using Newton's method. This ignores the unit, so numbers should be
    * multiplied by their unit before being passed in.
    */
-  function sqrt(uint x) public pure returns (uint y) {
+  function sqrt(uint x) public pure override returns (uint y) {
     uint z = (x + 1) / 2;
     y = x;
     while (z < y) {
@@ -270,7 +263,7 @@ contract BlackScholes {
     uint spotDecimal,
     uint strikeDecimal,
     int rateDecimal
-  ) external pure returns (uint call, uint put) {
+  ) external pure override returns (uint call, uint put) {
     uint tAnnualised = annualise(timeToExpirySec);
     uint spotPrecise = spotDecimal.decimalToPreciseDecimal();
     uint strikePrecise = strikeDecimal.decimalToPreciseDecimal();
@@ -343,7 +336,7 @@ contract BlackScholes {
     uint spotDecimal,
     uint strikeDecimal,
     int rateDecimal
-  ) external pure returns (PricesDeltaStdVega memory) {
+  ) external pure override returns (IBlackScholes.PricesDeltaStdVega memory) {
     uint tAnnualised = annualise(timeToExpirySec);
     uint spotPrecise = spotDecimal.decimalToPreciseDecimal();
 
@@ -368,7 +361,7 @@ contract BlackScholes {
     (int callDelta, int putDelta) = _delta(d1);
 
     return
-      PricesDeltaStdVega(
+      IBlackScholes.PricesDeltaStdVega(
         callPrice.preciseDecimalToDecimal(),
         putPrice.preciseDecimalToDecimal(),
         callDelta.preciseDecimalToDecimal(),

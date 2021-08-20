@@ -4,15 +4,17 @@ pragma experimental ABIEncoderV2;
 
 // Libraries
 import "./synthetix/SafeDecimalMath.sol";
+import "./synthetix/SignedSafeDecimalMath.sol";
 // Inherited
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./LiquidityPool.sol";
+import "./interfaces/ILiquidityPool.sol";
 import "./interfaces/ISynthetix.sol";
 import "./interfaces/ICollateralShort.sol";
-import "./LyraGlobals.sol";
-import "./OptionGreekCache.sol";
+import "./interfaces/ILyraGlobals.sol";
+import "./interfaces/IOptionGreekCache.sol";
+import "./interfaces/IPoolHedger.sol";
 
 /**
  * @title PoolHedger
@@ -20,47 +22,35 @@ import "./OptionGreekCache.sol";
  * @dev Uses the delta hedging funds from the LiquidityPool to hedge option deltas,
  * so LPs are minimally exposed to movements in the underlying asset price.
  */
-contract PoolHedger is Ownable {
+contract PoolHedger is IPoolHedger, Ownable {
   using SafeMath for uint;
-  using SignedSafeMath for int;
   using SafeDecimalMath for uint;
+  using SignedSafeMath for int;
 
-  LyraGlobals internal globals;
-  OptionMarket internal optionMarket;
-  OptionGreekCache internal optionGreekCache;
-  LiquidityPool internal liquidityPool;
+  ILyraGlobals internal globals;
+  IOptionMarket internal optionMarket;
+  IOptionGreekCache internal optionGreekCache;
+  ILiquidityPool internal liquidityPool;
   IERC20 internal quoteAsset;
   IERC20 internal baseAsset;
 
-  bool initialized = false;
-  bool public shortingInitialized = false;
-  // the ID of our short that is opened when we init the contract.
-  uint public shortId;
-  // the ratio we wish to maintain on our short position.
-  uint public shortBuffer;
-  // The last time a short or long position was updated
-  uint public lastInteraction;
-  // How long before balance can be updated
-  uint public interactionDelay;
-  // Counter for reentrancy guard
+  bool internal initialized = false;
+  bool public override shortingInitialized = false;
+  /// @dev The ID of our short that is opened when we init the contract.
+  uint public override shortId;
+  /// @dev The ratio we wish to maintain on our short position.
+  uint public override shortBuffer;
+  /// @dev The last time a short or long position was updated
+  uint public override lastInteraction;
+  /// @dev How long before balance can be updated
+  uint public override interactionDelay;
+  /// @dev Counter for reentrancy guard
   uint internal counter = 1;
 
   constructor() Ownable() {
     shortBuffer = (2 * SafeDecimalMath.UNIT);
     interactionDelay = 3 hours;
     emit ShortBufferSet(shortBuffer);
-    emit InteractionDelaySet(interactionDelay);
-  }
-
-  function setShortBuffer(uint newShortBuffer) external onlyOwner {
-    require(newShortBuffer <= (10 * SafeDecimalMath.UNIT), "buffer too high"); // 1000%
-    require(newShortBuffer >= ((15 * SafeDecimalMath.UNIT) / 10), "buffer too low"); // 150%
-    shortBuffer = newShortBuffer;
-    emit ShortBufferSet(shortBuffer);
-  }
-
-  function setInteractionDelay(uint newInteractionDelay) external onlyOwner {
-    interactionDelay = newInteractionDelay;
     emit InteractionDelaySet(interactionDelay);
   }
 
@@ -74,10 +64,10 @@ contract PoolHedger is Ownable {
    * @param _baseAsset Base asset address
    */
   function init(
-    LyraGlobals _globals,
-    OptionMarket _optionMarket,
-    OptionGreekCache _optionGreekCache,
-    LiquidityPool _liquidityPool,
+    ILyraGlobals _globals,
+    IOptionMarket _optionMarket,
+    IOptionGreekCache _optionGreekCache,
+    ILiquidityPool _liquidityPool,
     IERC20 _quoteAsset,
     IERC20 _baseAsset
   ) external {
@@ -92,14 +82,36 @@ contract PoolHedger is Ownable {
   }
 
   /**
+   * @dev Initialize the contract.
+   *
+   * @param newShortBuffer The new short buffer for collateral to short ratio.
+   */
+  function setShortBuffer(uint newShortBuffer) external override onlyOwner {
+    require(newShortBuffer <= (10 * SafeDecimalMath.UNIT), "buffer too high"); // 1000%
+    require(newShortBuffer >= ((15 * SafeDecimalMath.UNIT) / 10), "buffer too low"); // 150%
+    shortBuffer = newShortBuffer;
+    emit ShortBufferSet(shortBuffer);
+  }
+
+  /**
+   * @dev Set the contract interaction delay.
+   *
+   * @param newInteractionDelay The new interaction delay.
+   */
+  function setInteractionDelay(uint newInteractionDelay) external override onlyOwner {
+    interactionDelay = newInteractionDelay;
+    emit InteractionDelaySet(interactionDelay);
+  }
+
+  /**
    * @dev Initialises the short.
    */
-  function initShort() external onlyOwner {
+  function initShort() external override onlyOwner {
     require(initialized, "contract must be initialized");
     require(!shortingInitialized, "shorting already initialized");
 
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-      globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.ALL);
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+      globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
 
     openShort(exchangeGlobals);
     shortingInitialized = true;
@@ -108,11 +120,11 @@ contract PoolHedger is Ownable {
   /**
    * @dev Reopens the short if the old one was closed or liquidated.
    */
-  function reopenShort() external onlyOwner {
+  function reopenShort() external override onlyOwner {
     require(initialized && shortingInitialized, "not initialized");
 
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-      globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.ALL);
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+      globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
 
     (, , , , , , , uint interestIndex, ) = exchangeGlobals.short.loans(shortId);
     // Cannot open a new short if the old one is still open
@@ -126,7 +138,7 @@ contract PoolHedger is Ownable {
    *
    * @param exchangeGlobals The ExchangeGlobals.
    */
-  function openShort(LyraGlobals.ExchangeGlobals memory exchangeGlobals) internal reentrancyGuard {
+  function openShort(ILyraGlobals.ExchangeGlobals memory exchangeGlobals) internal reentrancyGuard {
     uint minCollateral = exchangeGlobals.short.minCollateral();
 
     quoteAsset.approve(address(exchangeGlobals.short), type(uint).max);
@@ -141,28 +153,34 @@ contract PoolHedger is Ownable {
   }
 
   /**
-   * @notice Retreives the netDelta from the OptionGreekCache and updates the hedge position.
+   * @dev Retrieves the netDelta from the OptionGreekCache and updates the hedge position.
    */
-  function hedgeDelta() external reentrancyGuard {
+  function hedgeDelta() external override reentrancyGuard {
     require(shortingInitialized, "shorting must be initialized");
 
     // Update any stale boards to get an accurate netDelta value
     int netOptionDelta = optionGreekCache.getGlobalNetDelta();
 
-    // Subtract the eth balance from netDelta, to account for the variance from collateral held by LP.
+    // Subtract the baseAsset balance from netDelta, to account for the variance from collateral held by LP.
     int expectedHedge = netOptionDelta.sub(int(baseAsset.balanceOf(address(liquidityPool))));
 
     // Bypass interactionDelay if we want to set netDelta to 0
     if (expectedHedge != 0 && interactionDelay != 0) {
-      require(lastInteraction + interactionDelay <= block.timestamp, "Interaction delay");
+      require(lastInteraction.add(interactionDelay) <= block.timestamp, "Interaction delay");
     }
 
     _hedgeDelta(expectedHedge);
   }
 
+  /**
+   * @dev Updates the hedge position. This may need to be called several times as it will only do one step at a time
+   * I.e. to go from a long position to asho
+   *
+   * @param expectedHedge The expected final hedge value.
+   */
   function _hedgeDelta(int expectedHedge) internal {
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-      globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.ALL);
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+      globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
     uint longBalance = baseAsset.balanceOf(address(this));
     (uint shortBalance, uint collateral) = getShortPosition(exchangeGlobals.short);
 
@@ -189,7 +207,7 @@ contract PoolHedger is Ownable {
    * @param expectedHedge The amount of baseAsset exposure needed to hedge delta risk.
    */
   function updatePosition(
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals,
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals,
     uint longBalance,
     uint shortBalance,
     uint collateral,
@@ -204,10 +222,10 @@ contract PoolHedger is Ownable {
       }
 
       if (expectedLong > longBalance) {
-        // Must Buy Eth
+        // Must buy baseAsset
         return int(increaseLong(exchangeGlobals, expectedLong.sub(longBalance), longBalance));
       } else if (longBalance > expectedLong) {
-        // Must Sell Eth
+        // Must sell baseAsset
         return int(decreaseLong(exchangeGlobals, longBalance.sub(expectedLong), longBalance));
       }
       return int(longBalance);
@@ -227,7 +245,7 @@ contract PoolHedger is Ownable {
    *
    * @param short The short contract.
    */
-  function getShortPosition(ICollateralShort short) public view returns (uint shortBalance, uint collateral) {
+  function getShortPosition(ICollateralShort short) public view override returns (uint shortBalance, uint collateral) {
     if (!shortingInitialized) {
       return (0, 0);
     }
@@ -237,9 +255,9 @@ contract PoolHedger is Ownable {
   /**
    * @dev Returns the current hedged netDelta position
    */
-  function getCurrentHedgedNetDelta() external view returns (int) {
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals =
-      globals.getExchangeGlobals(address(optionMarket), LyraGlobals.ExchangeType.ALL);
+  function getCurrentHedgedNetDelta() external view override returns (int) {
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+      globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
 
     uint longBalance = baseAsset.balanceOf(address(this));
     if (longBalance > 0) {
@@ -255,7 +273,7 @@ contract PoolHedger is Ownable {
    * @param short The short contract.
    * @param spotPrice The price of the baseAsset.
    */
-  function getValueQuote(ICollateralShort short, uint spotPrice) public view returns (uint value) {
+  function getValueQuote(ICollateralShort short, uint spotPrice) public view override returns (uint value) {
     uint baseBalance = baseAsset.balanceOf(address(this));
     if (baseBalance > 0) {
       return baseBalance.multiplyDecimal(spotPrice);
@@ -279,7 +297,7 @@ contract PoolHedger is Ownable {
    * @param amount The amount of baseAsset to purchase.
    */
   function increaseLong(
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals,
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals,
     uint amount,
     uint currentBalance
   ) internal returns (uint newBalance) {
@@ -307,7 +325,7 @@ contract PoolHedger is Ownable {
    * @param amount The amount of baseAsset to sell.
    */
   function decreaseLong(
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals,
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals,
     uint amount,
     uint currentBalance
   ) internal returns (uint newBalance) {
@@ -320,9 +338,9 @@ contract PoolHedger is Ownable {
   }
 
   /**
-   * @dev Increases or decreases short to get to this amount of shorted eth at the shortBuffer ratio. Note, hedge() may
-   * have to be called a second time to re-balance collateral after calling `repayWithCollateral`. As that disregards
-   * the desired ratio.
+   * @dev Increases or decreases short to get to this amount of shorted baseAsset at the shortBuffer ratio. Note,
+   * hedge() may have to be called a second time to re-balance collateral after calling `repayWithCollateral`. As that
+   * disregards the desired ratio.
    *
    * @param exchangeGlobals The ExchangeGlobals.
    * @param desiredShort The desired short balance.
@@ -330,7 +348,7 @@ contract PoolHedger is Ownable {
    * @param currentCollateral Trusted value for current amount of collateral, in quote.
    */
   function setShortTo(
-    LyraGlobals.ExchangeGlobals memory exchangeGlobals,
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals,
     uint desiredShort,
     uint currentShort,
     uint currentCollateral

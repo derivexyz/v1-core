@@ -7,11 +7,11 @@ import "./synthetix/SignedSafeDecimalMath.sol";
 import "./synthetix/SafeDecimalMath.sol";
 
 // Interfaces
-import "./LyraGlobals.sol";
-import "./LiquidityPool.sol";
-import "./OptionMarket.sol";
-import "./OptionGreekCache.sol";
-import "./OptionMarket.sol";
+import "./interfaces/ILyraGlobals.sol";
+import "./interfaces/ILiquidityPool.sol";
+import "./interfaces/IOptionMarket.sol";
+import "./interfaces/IOptionGreekCache.sol";
+import "./interfaces/IOptionMarket.sol";
 
 /**
  * @title OptionMarketPricer
@@ -19,20 +19,13 @@ import "./OptionMarket.sol";
  * @dev Logic for working out the price of an option. Includes the IV impact of the trade, the fee components and
  * premium.
  */
-contract OptionMarketPricer {
+contract OptionMarketPricer is IOptionMarketPricer {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
   using SignedSafeMath for int;
 
-  struct Pricing {
-    uint optionPrice;
-    int preTradeAmmNetStdVega;
-    int postTradeAmmNetStdVega;
-    int callDelta;
-  }
-
   address internal optionMarket;
-  OptionGreekCache internal greekCache;
+  IOptionGreekCache internal greekCache;
   bool internal initialized = false;
 
   constructor() {}
@@ -43,7 +36,7 @@ contract OptionMarketPricer {
    * @param _optionMarket OptionMarket address
    * @param _greekCache OptionGreekCache address
    */
-  function init(address _optionMarket, OptionGreekCache _greekCache) external {
+  function init(address _optionMarket, IOptionGreekCache _greekCache) external {
     require(!initialized, "contract already initialized");
     optionMarket = _optionMarket;
     greekCache = _greekCache;
@@ -59,16 +52,16 @@ contract OptionMarketPricer {
    * @param boardBaseIv The base IV of the OptionBoard.
    */
   function ivImpactForTrade(
-    OptionMarket.OptionListing memory listing,
-    OptionMarket.Trade memory trade,
-    LyraGlobals.PricingGlobals memory pricingGlobals,
+    IOptionMarket.OptionListing memory listing,
+    IOptionMarket.Trade memory trade,
+    ILyraGlobals.PricingGlobals memory pricingGlobals,
     uint boardBaseIv
-  ) public pure returns (uint, uint) {
+  ) public pure override returns (uint, uint) {
     uint orderSize = trade.amount.divideDecimal(pricingGlobals.standardSize);
     uint orderMoveBaseIv = orderSize / 100;
     uint orderMoveSkew = orderMoveBaseIv.multiplyDecimal(pricingGlobals.skewAdjustmentFactor);
     if (trade.isBuy) {
-      return (boardBaseIv + orderMoveBaseIv, listing.skew + orderMoveSkew);
+      return (boardBaseIv.add(orderMoveBaseIv), listing.skew.add(orderMoveSkew));
     } else {
       return (boardBaseIv.sub(orderMoveBaseIv), listing.skew.sub(orderMoveSkew));
     }
@@ -83,12 +76,13 @@ contract OptionMarketPricer {
    * @param boardBaseIv The base IV of the OptionBoard.
    */
   function updateCacheAndGetTotalCost(
-    OptionMarket.OptionListing memory listing,
-    OptionMarket.Trade memory trade,
-    LyraGlobals.PricingGlobals memory pricingGlobals,
+    IOptionMarket.OptionListing memory listing,
+    IOptionMarket.Trade memory trade,
+    ILyraGlobals.PricingGlobals memory pricingGlobals,
     uint boardBaseIv
   )
     external
+    override
     onlyOptionMarket
     returns (
       uint totalCost,
@@ -103,7 +97,7 @@ contract OptionMarketPricer {
 
     Pricing memory pricing =
       greekCache.updateListingCacheAndGetPrice(
-        LyraGlobals.GreekCacheGlobals(pricingGlobals.rateAndCarry, pricingGlobals.spotPrice),
+        ILyraGlobals.GreekCacheGlobals(pricingGlobals.rateAndCarry, pricingGlobals.spotPrice),
         listing.id,
         int(listing.longCall).sub(int(listing.shortCall)),
         int(listing.longPut).sub(int(listing.shortPut)),
@@ -128,17 +122,17 @@ contract OptionMarketPricer {
    * @param pricingGlobals The PricingGlobals.
    */
   function getPremium(
-    OptionMarket.Trade memory trade,
+    IOptionMarket.Trade memory trade,
     Pricing memory pricing,
-    LyraGlobals.PricingGlobals memory pricingGlobals
-  ) public pure returns (uint premium) {
+    ILyraGlobals.PricingGlobals memory pricingGlobals
+  ) public pure override returns (uint premium) {
     uint vegaUtil = getVegaUtil(trade, pricing, pricingGlobals);
 
     uint fee = getFee(pricingGlobals, trade.amount, pricing.optionPrice, vegaUtil);
     premium = pricing.optionPrice.multiplyDecimal(trade.amount);
     if (trade.isBuy) {
       // If we are selling, increase the amount the user pays
-      premium += fee;
+      premium = premium.add(fee);
     } else {
       // If we are buying, reduce the amount we pay
       if (fee > premium) {
@@ -158,10 +152,10 @@ contract OptionMarketPricer {
    * @param pricingGlobals The PricingGlobals.
    */
   function getVegaUtil(
-    OptionMarket.Trade memory trade,
+    IOptionMarket.Trade memory trade,
     Pricing memory pricing,
-    LyraGlobals.PricingGlobals memory pricingGlobals
-  ) public pure returns (uint vegaUtil) {
+    ILyraGlobals.PricingGlobals memory pricingGlobals
+  ) public pure override returns (uint vegaUtil) {
     if (abs(pricing.preTradeAmmNetStdVega) >= abs(pricing.postTradeAmmNetStdVega)) {
       return 0;
     }
@@ -188,14 +182,16 @@ contract OptionMarketPricer {
    * @param vegaUtil The vega utilisation of the LiquidityPool.
    */
   function getFee(
-    LyraGlobals.PricingGlobals memory pricingGlobals,
+    ILyraGlobals.PricingGlobals memory pricingGlobals,
     uint amount,
     uint optionPrice,
     uint vegaUtil
-  ) public pure returns (uint fee) {
-    fee = ((pricingGlobals.optionPriceFeeCoefficient.multiplyDecimal(optionPrice)) +
-      (pricingGlobals.spotPriceFeeCoefficient.multiplyDecimal(pricingGlobals.spotPrice)) +
-      (pricingGlobals.vegaFeeCoefficient.multiplyDecimal(vegaUtil)))
+  ) public pure override returns (uint fee) {
+    fee = (
+      (pricingGlobals.optionPriceFeeCoefficient.multiplyDecimal(optionPrice))
+        .add((pricingGlobals.spotPriceFeeCoefficient.multiplyDecimal(pricingGlobals.spotPrice)))
+        .add((pricingGlobals.vegaFeeCoefficient.multiplyDecimal(vegaUtil)))
+    )
       .multiplyDecimal(amount);
   }
 

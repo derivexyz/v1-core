@@ -4,8 +4,8 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "./ITestERC20.sol";
 import "../interfaces/ICollateralShort.sol";
-import "../interfaces/ITestERC20.sol";
 import "../interfaces/IExchangeRates.sol";
 import "../synthetix/SafeDecimalMath.sol";
 import "../LyraGlobals.sol";

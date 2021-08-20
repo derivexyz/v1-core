@@ -7,6 +7,7 @@ import "./synthetix/SafeDecimalMath.sol";
 
 // Inherited
 import "./openzeppelin-l2/ERC721.sol";
+import "./interfaces/ILiquidityCertificate.sol";
 
 /**
  * @title LiquidityCertificate
@@ -14,21 +15,16 @@ import "./openzeppelin-l2/ERC721.sol";
  * @dev An ERC721 token which represents a share of the LiquidityPool.
  * It is minted when users deposit, and burned when users withdraw.
  */
-contract LiquidityCertificate is ERC721 {
+contract LiquidityCertificate is ILiquidityCertificate, ERC721 {
+  using SafeMath for uint;
   using SafeDecimalMath for uint;
 
-  struct CertificateData {
-    uint liquidity;
-    uint enteredAt;
-    uint burnableAt;
-  }
-
-  /// @dev The minimum amount of liquidity a certificated can be minted with.
-  uint public constant MIN_LIQUIDITY = 1e18;
+  /// @dev The minimum amount of liquidity a certificate can be minted with.
+  uint public constant override MIN_LIQUIDITY = 1e18;
 
   uint internal nextId;
   mapping(uint => CertificateData) internal _certificateData;
-  address public liquidityPool;
+  address public override liquidityPool;
   bool internal initialized = false;
 
   /**
@@ -53,7 +49,7 @@ contract LiquidityCertificate is ERC721 {
    *
    * @param owner The owner of the certificates
    */
-  function certificates(address owner) external view returns (uint[] memory) {
+  function certificates(address owner) external view override returns (uint[] memory) {
     uint numCerts = balanceOf(owner);
     uint[] memory ids = new uint[](numCerts);
 
@@ -69,7 +65,7 @@ contract LiquidityCertificate is ERC721 {
    *
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function liquidity(uint certificateId) external view returns (uint) {
+  function liquidity(uint certificateId) external view override returns (uint) {
     return _certificateData[certificateId].liquidity;
   }
 
@@ -78,7 +74,7 @@ contract LiquidityCertificate is ERC721 {
    *
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function enteredAt(uint certificateId) external view returns (uint) {
+  function enteredAt(uint certificateId) external view override returns (uint) {
     return _certificateData[certificateId].enteredAt;
   }
 
@@ -87,7 +83,7 @@ contract LiquidityCertificate is ERC721 {
    *
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function burnableAt(uint certificateId) external view returns (uint) {
+  function burnableAt(uint certificateId) external view override returns (uint) {
     return _certificateData[certificateId].burnableAt;
   }
 
@@ -96,7 +92,12 @@ contract LiquidityCertificate is ERC721 {
    *
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function certificateData(uint certificateId) external view returns (CertificateData memory) {
+  function certificateData(uint certificateId)
+    external
+    view
+    override
+    returns (ILiquidityCertificate.CertificateData memory)
+  {
     require(_certificateData[certificateId].liquidity != 0, "certificate does not exist");
     return _certificateData[certificateId];
   }
@@ -112,7 +113,7 @@ contract LiquidityCertificate is ERC721 {
     address owner,
     uint liquidityAmount,
     uint expiryAtCreation
-  ) external onlyLiquidityPool returns (uint) {
+  ) external override onlyLiquidityPool returns (uint) {
     require(liquidityAmount >= MIN_LIQUIDITY, "liquidity value of certificate must be >= 1");
 
     uint certificateId = nextId++;
@@ -133,7 +134,7 @@ contract LiquidityCertificate is ERC721 {
     address spender,
     uint certificateId,
     uint timestamp
-  ) external onlyLiquidityPool {
+  ) external override onlyLiquidityPool {
     require(_isApprovedOrOwner(spender, certificateId), "certificate does not exist or not owner");
     _certificateData[certificateId].burnableAt = timestamp;
 
@@ -151,7 +152,7 @@ contract LiquidityCertificate is ERC721 {
    * @param spender The account which is performing the burn.
    * @param certificateId The id of the LiquidityCertificate.
    */
-  function burn(address spender, uint certificateId) external onlyLiquidityPool {
+  function burn(address spender, uint certificateId) external override onlyLiquidityPool {
     require(_isApprovedOrOwner(spender, certificateId), "attempted to burn nonexistent certificate, or not owner");
     delete _certificateData[certificateId];
     _burn(certificateId);
@@ -164,13 +165,13 @@ contract LiquidityCertificate is ERC721 {
    * @param certificateId The id of the LiquidityCertificate.
    * @param percentageSplit The percentage of liquidity assigned to the new certificate.
    */
-  function split(uint certificateId, uint percentageSplit) external returns (uint) {
+  function split(uint certificateId, uint percentageSplit) external override returns (uint) {
     require(percentageSplit < SafeDecimalMath.UNIT, "split must be less than 100%");
     require(ownerOf(certificateId) == msg.sender, "only the owner can split their certificate");
     CertificateData memory certData = _certificateData[certificateId];
 
     uint newCertLiquidity = certData.liquidity.multiplyDecimal(percentageSplit);
-    uint oldCertLiquidity = certData.liquidity - newCertLiquidity;
+    uint oldCertLiquidity = certData.liquidity.sub(newCertLiquidity);
 
     require(
       newCertLiquidity >= MIN_LIQUIDITY && oldCertLiquidity >= MIN_LIQUIDITY,
