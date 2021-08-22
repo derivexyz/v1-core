@@ -10,23 +10,23 @@ so LPs are minimally exposed to movements in the underlying asset price.
 
 ## Functions:
 
+- `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionGreekCache _optionGreekCache, contract ILiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
+
 - `setShortBuffer(uint256 newShortBuffer) (external)`
 
 - `setInteractionDelay(uint256 newInteractionDelay) (external)`
-
-- `init(contract LyraGlobals _globals, contract OptionMarket _optionMarket, contract OptionGreekCache _optionGreekCache, contract LiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
 
 - `initShort() (external)`
 
 - `reopenShort() (external)`
 
-- `openShort(struct LyraGlobals.ExchangeGlobals exchangeGlobals) (internal)`
+- `openShort(struct ILyraGlobals.ExchangeGlobals exchangeGlobals) (internal)`
 
 - `hedgeDelta() (external)`
 
 - `_hedgeDelta(int256 expectedHedge) (internal)`
 
-- `updatePosition(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) (internal)`
+- `updatePosition(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) (internal)`
 
 - `getShortPosition(contract ICollateralShort short) (public)`
 
@@ -34,11 +34,11 @@ so LPs are minimally exposed to movements in the underlying asset price.
 
 - `getValueQuote(contract ICollateralShort short, uint256 spotPrice) (public)`
 
-- `increaseLong(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) (internal)`
+- `increaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) (internal)`
 
-- `decreaseLong(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) (internal)`
+- `decreaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) (internal)`
 
-- `setShortTo(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) (internal)`
+- `setShortTo(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) (internal)`
 
 - `sendAllQuoteToLP() (internal)`
 
@@ -64,11 +64,7 @@ so LPs are minimally exposed to movements in the underlying asset price.
 
 ### Modifier `reentrancyGuard()`
 
-### Function `setShortBuffer(uint256 newShortBuffer) external`
-
-### Function `setInteractionDelay(uint256 newInteractionDelay) external`
-
-### Function `init(contract LyraGlobals _globals, contract OptionMarket _optionMarket, contract OptionGreekCache _optionGreekCache, contract LiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
+### Function `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionGreekCache _optionGreekCache, contract ILiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
 
 Initialize the contract.
 
@@ -84,6 +80,22 @@ Initialize the contract.
 
 - `_baseAsset`: Base asset address
 
+### Function `setShortBuffer(uint256 newShortBuffer) external`
+
+Initialize the contract.
+
+#### Parameters:
+
+- `newShortBuffer`: The new short buffer for collateral to short ratio.
+
+### Function `setInteractionDelay(uint256 newInteractionDelay) external`
+
+Set the contract interaction delay.
+
+#### Parameters:
+
+- `newInteractionDelay`: The new interaction delay.
+
 ### Function `initShort() external`
 
 Initialises the short.
@@ -92,7 +104,7 @@ Initialises the short.
 
 Reopens the short if the old one was closed or liquidated.
 
-### Function `openShort(struct LyraGlobals.ExchangeGlobals exchangeGlobals) internal`
+### Function `openShort(struct ILyraGlobals.ExchangeGlobals exchangeGlobals) internal`
 
 Opens the short position with 0 amount and 0 collateral.
 
@@ -102,11 +114,19 @@ Opens the short position with 0 amount and 0 collateral.
 
 ### Function `hedgeDelta() external`
 
-Retreives the netDelta from the OptionGreekCache and updates the hedge position.
+Retrieves the netDelta from the OptionGreekCache and updates the hedge position.
 
 ### Function `_hedgeDelta(int256 expectedHedge) internal`
 
-### Function `updatePosition(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) → int256 internal`
+Updates the hedge position. This may need to be called several times as it will only do one step at a time
+
+I.e. to go from a long position to asho
+
+#### Parameters:
+
+- `expectedHedge`: The expected final hedge value.
+
+### Function `updatePosition(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) → int256 internal`
 
 Updates the hedge contract based off a new netDelta.
 
@@ -144,7 +164,7 @@ Returns the value of the long/short position held by the PoolHedger.
 
 - `spotPrice`: The price of the baseAsset.
 
-### Function `increaseLong(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
+### Function `increaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
 
 Increases the long exposure of the hedge contract.
 
@@ -154,7 +174,7 @@ Increases the long exposure of the hedge contract.
 
 - `amount`: The amount of baseAsset to purchase.
 
-### Function `decreaseLong(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
+### Function `decreaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
 
 Decreases the long exposure of the hedge contract.
 
@@ -164,13 +184,13 @@ Decreases the long exposure of the hedge contract.
 
 - `amount`: The amount of baseAsset to sell.
 
-### Function `setShortTo(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) → uint256 newShortAmount internal`
+### Function `setShortTo(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) → uint256 newShortAmount internal`
 
-Increases or decreases short to get to this amount of shorted eth at the shortBuffer ratio. Note, hedge() may
+Increases or decreases short to get to this amount of shorted baseAsset at the shortBuffer ratio. Note,
 
-have to be called a second time to re-balance collateral after calling `repayWithCollateral`. As that disregards
+hedge() may have to be called a second time to re-balance collateral after calling `repayWithCollateral`. As that
 
-the desired ratio.
+disregards the desired ratio.
 
 #### Parameters:
 

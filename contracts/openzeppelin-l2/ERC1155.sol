@@ -151,8 +151,6 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
     _balances[id][to] = _balances[id][to].add(amount);
 
     emit TransferSingle(operator, from, to, id, amount);
-
-    _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);
   }
 
   /**
@@ -185,8 +183,6 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
     }
 
     emit TransferBatch(operator, from, to, ids, amounts);
-
-    _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);
   }
 
   /**
@@ -266,8 +262,6 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
     }
 
     emit TransferBatch(operator, address(0), to, ids, amounts);
-
-    _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
   }
 
   /**
@@ -348,48 +342,6 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
     uint[] memory amounts,
     bytes memory data
   ) internal virtual {}
-
-  function _doSafeTransferAcceptanceCheck(
-    address operator,
-    address from,
-    address to,
-    uint id,
-    uint amount,
-    bytes memory data
-  ) private {
-    if (to.isContract()) {
-      try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {
-        if (response != IERC1155Receiver(to).onERC1155Received.selector) {
-          revert("ERC1155: ERC1155Receiver rejected tokens");
-        }
-      } catch Error(string memory reason) {
-        revert(reason);
-      } catch {
-        revert("ERC1155: transfer to non ERC1155Receiver implementer");
-      }
-    }
-  }
-
-  function _doSafeBatchTransferAcceptanceCheck(
-    address operator,
-    address from,
-    address to,
-    uint[] memory ids,
-    uint[] memory amounts,
-    bytes memory data
-  ) private {
-    if (to.isContract()) {
-      try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (bytes4 response) {
-        if (response != IERC1155Receiver(to).onERC1155BatchReceived.selector) {
-          revert("ERC1155: ERC1155Receiver rejected tokens");
-        }
-      } catch Error(string memory reason) {
-        revert(reason);
-      } catch {
-        revert("ERC1155: transfer to non ERC1155Receiver implementer");
-      }
-    }
-  }
 
   function _asSingletonArray(uint element) private pure returns (uint[] memory) {
     uint[] memory array = new uint[](1);

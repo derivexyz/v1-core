@@ -8,11 +8,15 @@ inter-contract calls.
 
 The OptionMarket contract address is used as the key to access the variables for the market.
 
+## Modifiers:
+
+- `notPaused()`
+
 ## Functions:
 
 - `setGlobals(contract ISynthetix _synthetix, contract IExchanger _exchanger, contract IExchangeRates _exchangeRates, contract ICollateralShort _collateralShort) (external)`
 
-- `setGlobalsForContract(address _contractAddress, uint256 _tradingCutoff, struct LyraGlobals.PricingGlobals pricingGlobals, bytes32 _quoteKey, bytes32 _baseKey) (external)`
+- `setGlobalsForContract(address _contractAddress, uint256 _tradingCutoff, struct ILyraGlobals.PricingGlobals pricingGlobals, bytes32 _quoteKey, bytes32 _baseKey) (external)`
 
 - `setPaused(bool _isPaused) (external)`
 
@@ -48,7 +52,7 @@ The OptionMarket contract address is used as the key to access the variables for
 
 - `getGreekCacheGlobals(address _contractAddress) (external)`
 
-- `getExchangeGlobals(address _contractAddress, enum LyraGlobals.ExchangeType exchangeType) (public)`
+- `getExchangeGlobals(address _contractAddress, enum ILyraGlobals.ExchangeType exchangeType) (public)`
 
 - `getGlobalsForOptionTrade(address _contractAddress, bool isBuy) (external)`
 
@@ -82,6 +86,8 @@ The OptionMarket contract address is used as the key to access the variables for
 
 - `BaseKeySet(address _contractAddress, bytes32 _baseKey)`
 
+### Modifier `notPaused()`
+
 ### Function `setGlobals(contract ISynthetix _synthetix, contract IExchanger _exchanger, contract IExchangeRates _exchangeRates, contract ICollateralShort _collateralShort) external`
 
 Set the globals that apply to all OptionMarkets.
@@ -96,7 +102,7 @@ Set the globals that apply to all OptionMarkets.
 
 - `_collateralShort`: The address of Synthetix's CollateralShort.
 
-### Function `setGlobalsForContract(address _contractAddress, uint256 _tradingCutoff, struct LyraGlobals.PricingGlobals pricingGlobals, bytes32 _quoteKey, bytes32 _baseKey) external`
+### Function `setGlobalsForContract(address _contractAddress, uint256 _tradingCutoff, struct ILyraGlobals.PricingGlobals pricingGlobals, bytes32 _quoteKey, bytes32 _baseKey) external`
 
 Set the globals for a specific OptionMarket.
 
@@ -260,7 +266,7 @@ so the price of sUSD is always $1.00, and is never stale.
 
 - `to`: The key of the synthetic asset.
 
-### Function `getPricingGlobals(address _contractAddress) → struct LyraGlobals.PricingGlobals external`
+### Function `getPricingGlobals(address _contractAddress) → struct ILyraGlobals.PricingGlobals external`
 
 Returns a PricingGlobals struct for a given market address.
 
@@ -268,7 +274,7 @@ Returns a PricingGlobals struct for a given market address.
 
 - `_contractAddress`: The address of the OptionMarket.
 
-### Function `getGreekCacheGlobals(address _contractAddress) → struct LyraGlobals.GreekCacheGlobals external`
+### Function `getGreekCacheGlobals(address _contractAddress) → struct ILyraGlobals.GreekCacheGlobals external`
 
 Returns the GreekCacheGlobals.
 
@@ -276,7 +282,7 @@ Returns the GreekCacheGlobals.
 
 - `_contractAddress`: The address of the OptionMarket.
 
-### Function `getExchangeGlobals(address _contractAddress, enum LyraGlobals.ExchangeType exchangeType) → struct LyraGlobals.ExchangeGlobals exchangeGlobals public`
+### Function `getExchangeGlobals(address _contractAddress, enum ILyraGlobals.ExchangeType exchangeType) → struct ILyraGlobals.ExchangeGlobals exchangeGlobals public`
 
 Returns the ExchangeGlobals.
 
@@ -286,7 +292,7 @@ Returns the ExchangeGlobals.
 
 - `exchangeType`: The ExchangeType.
 
-### Function `getGlobalsForOptionTrade(address _contractAddress, bool isBuy) → struct LyraGlobals.PricingGlobals pricingGlobals, struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 tradeCutoff external`
+### Function `getGlobalsForOptionTrade(address _contractAddress, bool isBuy) → struct ILyraGlobals.PricingGlobals pricingGlobals, struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 tradeCutoff external`
 
 Returns the globals needed to perform a trade.
 

@@ -213,12 +213,11 @@ contract OptionMarket is IOptionMarket {
     uint strike,
     uint skew
   ) internal returns (uint listingId) {
-    uint listingId = nextListingId;
+    listingId = nextListingId;
     nextListingId += 4;
     optionListings[listingId] = OptionListing(listingId, strike, skew, 0, 0, 0, 0, boardId);
     optionBoards[boardId].listingIds.push(listingId);
     emit ListingAdded(boardId, listingId, strike, skew);
-    return listingId;
   }
 
   ///////////

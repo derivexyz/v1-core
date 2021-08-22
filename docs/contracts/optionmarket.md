@@ -10,7 +10,7 @@ for the listing's IV. Also allows for auto cash settling options as at expiry.
 
 ## Functions:
 
-- `init(contract LyraGlobals _globals, contract LiquidityPool _liquidityPool, contract OptionMarketPricer _optionPricer, contract OptionGreekCache _greekCache, contract ShortCollateral _shortCollateral, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) (external)`
+- `init(contract ILyraGlobals _globals, contract ILiquidityPool _liquidityPool, contract IOptionMarketPricer _optionPricer, contract IOptionGreekCache _greekCache, contract IShortCollateral _shortCollateral, contract IOptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) (external)`
 
 - `transferOwnership(address newOwner) (external)`
 
@@ -30,19 +30,19 @@ for the listing's IV. Also allows for auto cash settling options as at expiry.
 
 - `getBoardListings(uint256 boardId) (external)`
 
-- `openPosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount) (external)`
+- `openPosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) (external)`
 
-- `closePosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount) (external)`
+- `closePosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) (external)`
 
-- `_doTrade(struct OptionMarket.OptionListing listing, struct OptionMarket.OptionBoard board, struct OptionMarket.Trade trade, struct LyraGlobals.PricingGlobals pricingGlobals) (internal)`
+- `_doTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.OptionBoard board, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals) (internal)`
 
 - `liquidateExpiredBoard(uint256 boardId) (external)`
 
-- `_liquidateExpiredBoard(struct OptionMarket.OptionBoard board) (internal)`
+- `_liquidateExpiredBoard(struct IOptionMarket.OptionBoard board) (internal)`
 
-- `settleOptions(uint256 listingId, enum OptionMarket.TradeType tradeType) (external)`
+- `settleOptions(uint256 listingId, enum IOptionMarket.TradeType tradeType) (external)`
 
-- `_require(bool pass, enum OptionMarket.Error error) (internal)`
+- `_require(bool pass, enum IOptionMarket.Error error) (internal)`
 
 ## Events:
 
@@ -56,9 +56,9 @@ for the listing's IV. Also allows for auto cash settling options as at expiry.
 
 - `ListingAdded(uint256 boardId, uint256 listingId, uint256 strike, uint256 skew)`
 
-- `PositionOpened(address trader, uint256 listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+- `PositionOpened(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
 
-- `PositionClosed(address trader, uint256 listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+- `PositionClosed(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
 
 - `BoardLiquidated(uint256 boardId, uint256 totalUserLongProfitQuote, uint256 totalBoardLongCallCollateral, uint256 totalBoardLongPutCollateral, uint256 totalAMMShortCallProfitBase, uint256 totalAMMShortPutProfitQuote)`
 
@@ -68,7 +68,7 @@ for the listing's IV. Also allows for auto cash settling options as at expiry.
 
 Throws if called by any account other than the owner.
 
-### Function `init(contract LyraGlobals _globals, contract LiquidityPool _liquidityPool, contract OptionMarketPricer _optionPricer, contract OptionGreekCache _greekCache, contract ShortCollateral _shortCollateral, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) external`
+### Function `init(contract ILyraGlobals _globals, contract ILiquidityPool _liquidityPool, contract IOptionMarketPricer _optionPricer, contract IOptionGreekCache _greekCache, contract IShortCollateral _shortCollateral, contract IOptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) external`
 
 Initialize the contract.
 
@@ -170,7 +170,7 @@ Returns the listing ids for a given `boardId`.
 
 - `boardId`: The id of the relevant OptionBoard.
 
-### Function `openPosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount) → uint256 totalCost external`
+### Function `openPosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) → uint256 totalCost external`
 
 Opens a position, which may be long call, long put, short call or short put.
 
@@ -182,7 +182,7 @@ Opens a position, which may be long call, long put, short call or short put.
 
 - `amount`: The amount the user has requested to trade.
 
-### Function `closePosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount) → uint256 totalCost external`
+### Function `closePosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) → uint256 totalCost external`
 
 Closes some amount of an open position. The user does not have to close the whole position.
 
@@ -194,7 +194,7 @@ Closes some amount of an open position. The user does not have to close the whol
 
 - `amount`: The amount the user has requested to trade.
 
-### Function `_doTrade(struct OptionMarket.OptionListing listing, struct OptionMarket.OptionBoard board, struct OptionMarket.Trade trade, struct LyraGlobals.PricingGlobals pricingGlobals) → uint256 internal`
+### Function `_doTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.OptionBoard board, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals) → uint256 internal`
 
 Determine the cost of the trade and update the system's iv/skew parameters.
 
@@ -216,7 +216,7 @@ Liquidates a board that has passed expiry. This function will not preserve the o
 
 - `boardId`: The id of the relevant OptionBoard.
 
-### Function `_liquidateExpiredBoard(struct OptionMarket.OptionBoard board) internal`
+### Function `_liquidateExpiredBoard(struct IOptionMarket.OptionBoard board) internal`
 
 Liquidates an expired board.
 
@@ -228,7 +228,7 @@ It will reserve collateral for users to settle their ITM long options.
 
 - `board`: The relevant OptionBoard.
 
-### Function `settleOptions(uint256 listingId, enum OptionMarket.TradeType tradeType) external`
+### Function `settleOptions(uint256 listingId, enum IOptionMarket.TradeType tradeType) external`
 
 Settles options for expired and liquidated listings. Also functions as the way to reclaim capital for options
 
@@ -238,7 +238,7 @@ sold to the market.
 
 - `listingId`: The id of the relevant OptionListing.
 
-### Function `_require(bool pass, enum OptionMarket.Error error) internal`
+### Function `_require(bool pass, enum IOptionMarket.Error error) internal`
 
 ### Event `BoardCreated(uint256 boardId, uint256 expiry, uint256 baseIv)`
 
@@ -260,11 +260,11 @@ Emitted when a Listing new skew is set.
 
 Emitted when a Listing is added to a board
 
-### Event `PositionOpened(address trader, uint256 listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+### Event `PositionOpened(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
 
 Emitted when a Position is opened.
 
-### Event `PositionClosed(address trader, uint256 listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+### Event `PositionClosed(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
 
 Emitted when a Position is closed.
 

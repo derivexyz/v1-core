@@ -6,13 +6,13 @@ sandwich attacks.
 
 ## Functions:
 
-- `init(contract OptionMarket _optionMarket, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
+- `init(contract IOptionMarket _optionMarket, contract IOptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
 
-- `openPosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) (external)`
+- `openPosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) (external)`
 
-- `closePosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) (external)`
+- `closePosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) (external)`
 
-### Function `init(contract OptionMarket _optionMarket, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
+### Function `init(contract IOptionMarket _optionMarket, contract IOptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
 
 Initialises the contract
 
@@ -26,7 +26,7 @@ Initialises the contract
 
 - `_baseAsset`: The baseAsset contract address
 
-### Function `openPosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) external`
+### Function `openPosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) external`
 
 Attempts to open positions within bounds, reverts if the returned amount is outside of the accepted bounds.
 
@@ -42,7 +42,7 @@ Attempts to open positions within bounds, reverts if the returned amount is outs
 
 - `minCost`: Min cost user is willing to pay
 
-### Function `closePosition(uint256 _listingId, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) external`
+### Function `closePosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 maxCost, uint256 minCost) external`
 
 Attempts to close some amount of an open position within bounds, reverts if the returned amount is outside of
 

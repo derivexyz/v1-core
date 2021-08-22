@@ -90,7 +90,7 @@ Returns certificate's `burnableAt`.
 
 - `certificateId`: The id of the LiquidityCertificate.
 
-### Function `certificateData(uint256 certificateId) → struct LiquidityCertificate.CertificateData external`
+### Function `certificateData(uint256 certificateId) → struct ILiquidityCertificate.CertificateData external`
 
 Returns a certificate's data.
 

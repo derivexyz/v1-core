@@ -22,7 +22,7 @@ Holds funds from LPs, which are used for the following purposes:
 
 ## Functions:
 
-- `init(contract LyraGlobals _globals, contract OptionMarket _optionMarket, contract LiquidityCertificate _liquidityCertificate, contract PoolHedger _poolHedger, contract ShortCollateral _shortCollateral, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) (external)`
+- `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract ILiquidityCertificate _liquidityCertificate, contract IPoolHedger _poolHedger, contract IShortCollateral _shortCollateral, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) (external)`
 
 - `deposit(address beneficiary, uint256 amount) (external)`
 
@@ -42,7 +42,7 @@ Holds funds from LPs, which are used for the following purposes:
 
 - `lockQuote(uint256 amount, uint256 freeCollatLiq) (external)`
 
-- `lockBase(uint256 amount, struct LyraGlobals.ExchangeGlobals exchangeGlobals, struct LiquidityPool.Liquidity liquidity) (external)`
+- `lockBase(uint256 amount, struct ILyraGlobals.ExchangeGlobals exchangeGlobals, struct ILiquidityPool.Liquidity liquidity) (external)`
 
 - `freeQuoteCollateral(uint256 amount) (external)`
 
@@ -60,9 +60,9 @@ Holds funds from LPs, which are used for the following purposes:
 
 - `getLiquidity(uint256 basePrice, contract ICollateralShort short) (public)`
 
-- `transferQuoteToHedge(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount) (external)`
+- `transferQuoteToHedge(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount) (external)`
 
-- `_require(bool pass, enum LiquidityPool.Error error) (internal)`
+- `_require(bool pass, enum ILiquidityPool.Error error) (internal)`
 
 ## Events:
 
@@ -108,7 +108,7 @@ Holds funds from LPs, which are used for the following purposes:
 
 ### Modifier `reentrancyGuard()`
 
-### Function `init(contract LyraGlobals _globals, contract OptionMarket _optionMarket, contract LiquidityCertificate _liquidityCertificate, contract PoolHedger _poolHedger, contract ShortCollateral _shortCollateral, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) external`
+### Function `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract ILiquidityCertificate _liquidityCertificate, contract IPoolHedger _poolHedger, contract IShortCollateral _shortCollateral, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) external`
 
 Initialize the contract.
 
@@ -192,7 +192,7 @@ Starts a round. Can only be called by optionMarket contract when adding a board.
 
 ### Function `exchangeBase() external`
 
-External function that will bring the base balance of this contract to match locked.base. This cannot be done
+external override function that will bring the base balance of this contract to match locked.base. This cannot be done
 
 in the same transaction as locking the base, as exchanging on synthetix is too costly gas-wise.
 
@@ -206,7 +206,7 @@ Locks quote when the system sells a put option.
 
 - `freeCollatLiq`: The amount of free collateral that can be locked.
 
-### Function `lockBase(uint256 amount, struct LyraGlobals.ExchangeGlobals exchangeGlobals, struct LiquidityPool.Liquidity liquidity) external`
+### Function `lockBase(uint256 amount, struct ILyraGlobals.ExchangeGlobals exchangeGlobals, struct ILiquidityPool.Liquidity liquidity) external`
 
 Purchases and locks base when the system sells a call option.
 
@@ -262,9 +262,9 @@ Manages collateral at the time of board liquidation, also converting base sent h
 
 #### Parameters:
 
-- `amountQuoteFreed`: Total amount of eth to convert to quote, including profits from short calls.
+- `amountQuoteFreed`: Total amount of base to convert to quote, including profits from short calls.
 
-- `amountQuoteReserved`: Total amount of eth to convert to quote, including profits from short calls.
+- `amountQuoteReserved`: Total amount of base to convert to quote, including profits from short calls.
 
 - `amountBaseFreed`: Total amount of collateral to liquidate.
 
@@ -292,7 +292,7 @@ Returns the total pool value in quoteAsset.
 
 - `usedDeltaLiquidity`: The amout of delta liquidity that has been used for hedging.
 
-### Function `getLiquidity(uint256 basePrice, contract ICollateralShort short) → struct LiquidityPool.Liquidity public`
+### Function `getLiquidity(uint256 basePrice, contract ICollateralShort short) → struct ILiquidityPool.Liquidity public`
 
 Returns the used and free amounts for collateral and delta liquidity.
 
@@ -302,7 +302,7 @@ Returns the used and free amounts for collateral and delta liquidity.
 
 - `short`: The address of the short contract.
 
-### Function `transferQuoteToHedge(struct LyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount) → uint256 external`
+### Function `transferQuoteToHedge(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount) → uint256 external`
 
 Sends quoteAsset to the PoolHedger.
 
@@ -316,7 +316,7 @@ The hedger must determine what to do with the amount received.
 
 - `amount`: The amount requested by the PoolHedger.
 
-### Function `_require(bool pass, enum LiquidityPool.Error error) internal`
+### Function `_require(bool pass, enum ILiquidityPool.Error error) internal`
 
 ### Event `Deposit(address beneficiary, uint256 certificateId, uint256 amount)`
 

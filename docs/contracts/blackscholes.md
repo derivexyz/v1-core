@@ -166,7 +166,7 @@ Returns the option's vega value with expiry modified to be at least VEGA_STANDAR
 
 - `timeToExpirySec`: Number of seconds to expiry
 
-### Function `pricesDeltaStdVega(uint256 timeToExpirySec, uint256 volatilityDecimal, uint256 spotDecimal, uint256 strikeDecimal, int256 rateDecimal) → struct BlackScholes.PricesDeltaStdVega external`
+### Function `pricesDeltaStdVega(uint256 timeToExpirySec, uint256 volatilityDecimal, uint256 spotDecimal, uint256 strikeDecimal, int256 rateDecimal) → struct IBlackScholes.PricesDeltaStdVega external`
 
 Returns call/put prices and delta/stdVega for options with given parameters.
 

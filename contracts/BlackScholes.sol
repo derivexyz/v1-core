@@ -122,7 +122,7 @@ contract BlackScholes is IBlackScholes {
    * multiplied by their unit before being passed in.
    */
   function sqrt(uint x) public pure override returns (uint y) {
-    uint z = (x + 1) / 2;
+    uint z = (x.add(1)) / 2;
     y = x;
     while (z < y) {
       y = z;

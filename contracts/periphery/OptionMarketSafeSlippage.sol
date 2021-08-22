@@ -7,7 +7,6 @@ import "../synthetix/SafeDecimalMath.sol";
 
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC1155/ERC1155Holder.sol";
 import "../interfaces/IOptionMarket.sol";
 import "../interfaces/IOptionToken.sol";
 
@@ -17,7 +16,7 @@ import "../interfaces/IOptionToken.sol";
  * @dev Allows users to set the min/max price they want to purchase options for, to help prevent frontrunning or
  * sandwich attacks.
  */
-contract OptionMarketSafeSlippage is ERC1155Holder {
+contract OptionMarketSafeSlippage {
   using SafeMath for uint;
   using SafeDecimalMath for uint;
 
@@ -73,15 +72,16 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
     uint maxCost,
     uint minCost
   ) external {
-    if (tradeType == IOptionMarket.TradeType.LONG_CALL) {
-      require(quoteAsset.transferFrom(msg.sender, address(this), maxCost));
-    } else if (tradeType == IOptionMarket.TradeType.LONG_PUT) {
-      require(quoteAsset.transferFrom(msg.sender, address(this), maxCost));
+    if (tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT) {
+      require(quoteAsset.transferFrom(msg.sender, address(this), maxCost), "quote transferFrom failed");
     } else if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
-      require(baseAsset.transferFrom(msg.sender, address(this), amount));
+      require(baseAsset.transferFrom(msg.sender, address(this), amount), "base transferFrom failed");
     } else {
       (, uint strike, , , , , , ) = optionMarket.optionListings(_listingId);
-      require(quoteAsset.transferFrom(msg.sender, address(this), amount.multiplyDecimal(strike)));
+      require(
+        quoteAsset.transferFrom(msg.sender, address(this), amount.multiplyDecimal(strike)),
+        "quote transferFrom failed"
+      );
     }
 
     uint totalCost = optionMarket.openPosition(_listingId, tradeType, amount);
@@ -89,7 +89,7 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
 
     uint quoteBalance = quoteAsset.balanceOf(address(this));
     if (quoteBalance > 0) {
-      require(quoteAsset.transfer(msg.sender, quoteBalance));
+      require(quoteAsset.transfer(msg.sender, quoteBalance), "quote transfer failed");
     }
 
     optionToken.safeTransferFrom(
@@ -127,7 +127,7 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
     );
 
     if (tradeType == IOptionMarket.TradeType.SHORT_CALL) {
-      require(quoteAsset.transferFrom(msg.sender, address(this), maxCost));
+      require(quoteAsset.transferFrom(msg.sender, address(this), maxCost), "Failed to transferFrom quote");
     }
 
     uint totalCost = optionMarket.closePosition(_listingId, tradeType, amount);
@@ -136,12 +136,12 @@ contract OptionMarketSafeSlippage is ERC1155Holder {
 
     uint quoteBalance = quoteAsset.balanceOf(address(this));
     if (quoteBalance > 0) {
-      require(quoteAsset.transfer(msg.sender, quoteBalance), "Failed to send quote");
+      require(quoteAsset.transfer(msg.sender, quoteBalance), "Failed to transfer quote");
     }
 
     uint baseBalance = baseAsset.balanceOf(address(this));
     if (baseBalance > 0) {
-      require(baseAsset.transfer(msg.sender, baseBalance), "Failed to send base");
+      require(baseAsset.transfer(msg.sender, baseBalance), "Failed to transfer base");
     }
   }
 }

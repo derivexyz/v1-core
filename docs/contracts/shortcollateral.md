@@ -8,7 +8,7 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 ## Functions:
 
-- `init(contract OptionMarket _optionMarket, contract LiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
+- `init(contract IOptionMarket _optionMarket, contract ILiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
 
 - `sendQuoteCollateral(address recipient, uint256 amount) (external)`
 
@@ -16,11 +16,11 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 - `sendToLP(uint256 amountBase, uint256 amountQuote) (external)`
 
-- `processSettle(uint256 listingId, address receiver, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 strike, uint256 priceAtExpiry, uint256 listingToShortCallEthReturned) (external)`
+- `processSettle(uint256 listingId, address receiver, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 strike, uint256 priceAtExpiry, uint256 listingToShortCallBaseReturned) (external)`
 
 ## Events:
 
-- `OptionsSettled(uint256 listingId, address optionOwner, uint256 strike, uint256 priceAtExpiry, enum OptionMarket.TradeType tradeType, uint256 amount)`
+- `OptionsSettled(uint256 listingId, address optionOwner, uint256 strike, uint256 priceAtExpiry, enum IOptionMarket.TradeType tradeType, uint256 amount)`
 
 - `QuoteSent(address receiver, uint256 amount)`
 
@@ -28,7 +28,7 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 ### Modifier `onlyOptionMarket()`
 
-### Function `init(contract OptionMarket _optionMarket, contract LiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
+### Function `init(contract IOptionMarket _optionMarket, contract ILiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
 
 Initialize the contract.
 
@@ -72,7 +72,7 @@ Transfers quoteAsset and baseAsset to the LiquidityPool.
 
 - `amountQuote`: The amount of quoteAsset to transfer.
 
-### Function `processSettle(uint256 listingId, address receiver, enum OptionMarket.TradeType tradeType, uint256 amount, uint256 strike, uint256 priceAtExpiry, uint256 listingToShortCallEthReturned) external`
+### Function `processSettle(uint256 listingId, address receiver, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 strike, uint256 priceAtExpiry, uint256 listingToShortCallBaseReturned) external`
 
 Called by the OptionMarket when the owner of an option settles.
 
@@ -90,9 +90,9 @@ Called by the OptionMarket when the owner of an option settles.
 
 - `priceAtExpiry`: The price of baseAsset at expiry.
 
-- `listingToShortCallEthReturned`: The amount of ETH to be returned.
+- `listingToShortCallBaseReturned`: The amount of baseAsset to be returned.
 
-### Event `OptionsSettled(uint256 listingId, address optionOwner, uint256 strike, uint256 priceAtExpiry, enum OptionMarket.TradeType tradeType, uint256 amount)`
+### Event `OptionsSettled(uint256 listingId, address optionOwner, uint256 strike, uint256 priceAtExpiry, enum IOptionMarket.TradeType tradeType, uint256 amount)`
 
 Emitted when an Option is settled.
 

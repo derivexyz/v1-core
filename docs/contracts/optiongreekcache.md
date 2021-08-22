@@ -2,7 +2,7 @@
 
 Aggregates the netDelta and netStdVega of the OptionMarket by iterating over current listings.
 
-Needs to be called by an external actor as it's not feasible to do all the computation during the trade flow and
+Needs to be called by an external override actor as it's not feasible to do all the computation during the trade flow and
 
 because delta/vega change over time and with movements in asset price and volatility.
 
@@ -14,7 +14,7 @@ because delta/vega change over time and with movements in asset price and volati
 
 ## Functions:
 
-- `init(contract LyraGlobals _globals, contract OptionMarket _optionMarket, contract OptionMarketPricer _optionPricer, contract BlackScholes _blackScholes) (external)`
+- `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionMarketPricer _optionPricer, contract IBlackScholes _blackScholes) (external)`
 
 - `setStaleCacheParameters(uint256 _staleUpdateDuration, uint256 _priceScalingPeriod, uint256 _maxAcceptablePercent, uint256 _minAcceptablePercent) (external)`
 
@@ -28,21 +28,21 @@ because delta/vega change over time and with movements in asset price and volati
 
 - `addListingToBoard(uint256 boardId, uint256 listingId) (external)`
 
-- `_addNewListingToListingCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 listingId) (internal)`
+- `_addNewListingToListingCache(struct IOptionGreekCache.OptionBoardCache boardCache, uint256 listingId) (internal)`
 
 - `getOptionMarketListing(uint256 listingId) (internal)`
 
 - `updateAllStaleBoards() (external)`
 
-- `_updateAllStaleBoards(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals) (internal)`
+- `_updateAllStaleBoards(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals) (internal)`
 
 - `updateBoardCachedGreeks(uint256 boardCacheId) (external)`
 
-- `_updateBoardCachedGreeks(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 boardCacheId) (internal)`
+- `_updateBoardCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 boardCacheId) (internal)`
 
-- `updateListingCacheAndGetPrice(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 listingCacheId, int256 newCallExposure, int256 newPutExposure, uint256 iv, uint256 skew) (external)`
+- `updateListingCacheAndGetPrice(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 listingCacheId, int256 newCallExposure, int256 newPutExposure, uint256 iv, uint256 skew) (external)`
 
-- `_updateListingCachedGreeks(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals, struct OptionGreekCache.OptionListingCache listingCache, struct OptionGreekCache.OptionBoardCache boardCache, bool returnCallPrice, int256 newCallExposure, int256 newPutExposure) (internal)`
+- `_updateListingCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, struct IOptionGreekCache.OptionListingCache listingCache, struct IOptionGreekCache.OptionBoardCache boardCache, bool returnCallPrice, int256 newCallExposure, int256 newPutExposure) (internal)`
 
 - `isGlobalCacheStale() (external)`
 
@@ -56,7 +56,7 @@ because delta/vega change over time and with movements in asset price and volati
 
 - `isPriceMoveAcceptable(uint256 pastPrice, uint256 currentPrice, uint256 timeToExpirySec) (internal)`
 
-- `_updateBoardLastUpdatedAt(struct OptionGreekCache.OptionBoardCache boardCache) (internal)`
+- `_updateBoardLastUpdatedAt(struct IOptionGreekCache.OptionBoardCache boardCache) (internal)`
 
 - `_updateGlobalLastUpdatedAt() (internal)`
 
@@ -70,6 +70,8 @@ because delta/vega change over time and with movements in asset price and volati
 
 ## Events:
 
+- `StaleCacheParametersUpdated(uint256 priceScalingPeriod, uint256 minAcceptablePercent, uint256 maxAcceptablePercent, uint256 staleUpdateDuration)`
+
 - `ListingGreeksUpdated(uint256 listingId, int256 callDelta, int256 putDelta, uint256 vega, uint256 price, uint256 baseIv, uint256 skew)`
 
 - `ListingExposureUpdated(uint256 listingId, int256 newCallExposure, int256 newPutExposure)`
@@ -80,7 +82,7 @@ because delta/vega change over time and with movements in asset price and volati
 
 ### Modifier `onlyOptionMarketPricer()`
 
-### Function `init(contract LyraGlobals _globals, contract OptionMarket _optionMarket, contract OptionMarketPricer _optionPricer, contract BlackScholes _blackScholes) external`
+### Function `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionMarketPricer _optionPricer, contract IBlackScholes _blackScholes) external`
 
 Initialize the contract.
 
@@ -144,7 +146,7 @@ Add a new listing to the listingCaches and the listingId to the boardCache
 
 - `listingId`: The id of the OptionListing.
 
-### Function `_addNewListingToListingCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 listingId) internal`
+### Function `_addNewListingToListingCache(struct IOptionGreekCache.OptionBoardCache boardCache, uint256 listingId) internal`
 
 Add a new listing to the listingCaches
 
@@ -154,7 +156,7 @@ Add a new listing to the listingCaches
 
 - `listingId`: The id of the OptionListing.
 
-### Function `getOptionMarketListing(uint256 listingId) → struct OptionMarket.OptionListing internal`
+### Function `getOptionMarketListing(uint256 listingId) → struct IOptionMarket.OptionListing internal`
 
 Retrieves an OptionListing from the OptionMarket.
 
@@ -166,7 +168,7 @@ Retrieves an OptionListing from the OptionMarket.
 
 Updates all stale boards.
 
-### Function `_updateAllStaleBoards(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals) internal`
+### Function `_updateAllStaleBoards(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals) internal`
 
 Updates all stale boards.
 
@@ -182,7 +184,7 @@ Updates the cached greeks for an OptionBoardCache.
 
 - `boardCacheId`: The id of the OptionBoardCache.
 
-### Function `_updateBoardCachedGreeks(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 boardCacheId) internal`
+### Function `_updateBoardCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 boardCacheId) internal`
 
 Updates the cached greeks for an OptionBoardCache.
 
@@ -192,7 +194,7 @@ Updates the cached greeks for an OptionBoardCache.
 
 - `boardCacheId`: The id of the OptionBoardCache.
 
-### Function `updateListingCacheAndGetPrice(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 listingCacheId, int256 newCallExposure, int256 newPutExposure, uint256 iv, uint256 skew) → struct OptionMarketPricer.Pricing external`
+### Function `updateListingCacheAndGetPrice(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 listingCacheId, int256 newCallExposure, int256 newPutExposure, uint256 iv, uint256 skew) → struct IOptionMarketPricer.Pricing external`
 
 Updates the OptionListingCache to reflect the new exposure.
 
@@ -210,7 +212,7 @@ Updates the OptionListingCache to reflect the new exposure.
 
 - `skew`: The new skew of the OptionListingCache.
 
-### Function `_updateListingCachedGreeks(struct LyraGlobals.GreekCacheGlobals greekCacheGlobals, struct OptionGreekCache.OptionListingCache listingCache, struct OptionGreekCache.OptionBoardCache boardCache, bool returnCallPrice, int256 newCallExposure, int256 newPutExposure) → struct OptionMarketPricer.Pricing pricing internal`
+### Function `_updateListingCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, struct IOptionGreekCache.OptionListingCache listingCache, struct IOptionGreekCache.OptionBoardCache boardCache, bool returnCallPrice, int256 newCallExposure, int256 newPutExposure) → struct IOptionMarketPricer.Pricing pricing internal`
 
 Updates an OptionListingCache.
 
@@ -274,7 +276,7 @@ Check if the price move of an asset is acceptable given the time to expiry.
 
 - `timeToExpirySec`: The time to expiry in seconds.
 
-### Function `_updateBoardLastUpdatedAt(struct OptionGreekCache.OptionBoardCache boardCache) internal`
+### Function `_updateBoardLastUpdatedAt(struct IOptionGreekCache.OptionBoardCache boardCache) internal`
 
 Updates `lastUpdatedAt` for an OptionBoardCache.
 
@@ -301,6 +303,10 @@ Get the price of the baseAsset for the OptionMarket.
 ### Function `getGlobalNetDelta() → int256 external`
 
 Get the current cached global netDelta value.
+
+### Event `StaleCacheParametersUpdated(uint256 priceScalingPeriod, uint256 minAcceptablePercent, uint256 maxAcceptablePercent, uint256 staleUpdateDuration)`
+
+Emitted when stale cache parameters are updated.
 
 ### Event `ListingGreeksUpdated(uint256 listingId, int256 callDelta, int256 putDelta, uint256 vega, uint256 price, uint256 baseIv, uint256 skew)`
 
