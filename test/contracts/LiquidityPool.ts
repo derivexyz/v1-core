@@ -1,19 +1,11 @@
 import { BigNumber, Signer } from 'ethers';
 import { ethers } from 'hardhat';
-import {
-  currentTime,
-  DAY_SEC,
-  getEventArgs,
-  MONTH_SEC,
-  toBN,
-  TradeType,
-  UNIT,
-  ZERO_ADDRESS,
-} from '../../scripts/util/web3utils';
+import { DAY_SEC, getEventArgs, MONTH_SEC, toBN, TradeType, UNIT, ZERO_ADDRESS } from '../../scripts/util/web3utils';
 import { TestLiquidityPool, TestPoolHedger } from '../../typechain';
 import {
   assertCloseToPercentage,
   assertNotCloseToPercentage,
+  currentTime,
   fastForward,
   fastForwardTo,
   restoreSnapshot,

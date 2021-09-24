@@ -1,7 +1,6 @@
 import { BigNumber, Signer } from 'ethers';
 import { ethers } from 'hardhat';
 import {
-  currentTime,
   DAY_SEC,
   getEventArgs,
   HOUR_SEC,
@@ -13,7 +12,7 @@ import {
   WEEK_SEC,
   ZERO_ADDRESS,
 } from '../../scripts/util/web3utils';
-import { fastForward, restoreSnapshot, takeSnapshot } from '../utils';
+import { currentTime, fastForward, restoreSnapshot, takeSnapshot } from '../utils';
 import { createDefaultBoardWithOverrides } from '../utils/contractHelpers';
 import { deployTestSystem, TestSystemContractsType } from '../utils/deployTestSystem';
 import { seedBalanceAndApprovalFor, seedTestBalances, seedTestSystem } from '../utils/seedTestSystem';

@@ -1,6 +1,6 @@
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
-import { currentTime, fromBN, toBN } from '../../scripts/util/web3utils';
+import { fromBN, toBN } from '../../scripts/util/web3utils';
 import { expect } from './testSetup';
 
 export function send(method: string, params?: Array<any>) {
@@ -81,4 +81,9 @@ export function assertNotCloseToPercentage(a: BigNumber, b: BigNumber, percentag
     b.sub(a).mul(toBN('1')).div(b).abs().lte(percentage),
     `${fromBN(a)} is close to ${fromBN(b)} +/- ${fromBN(percentage.mul(100))}%`,
   ).is.false;
+}
+
+export async function currentTime() {
+  const { timestamp } = await ethers.provider.getBlock('latest');
+  return timestamp;
 }

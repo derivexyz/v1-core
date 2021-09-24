@@ -1,6 +1,7 @@
 import { BigNumber } from 'ethers';
-import { currentTime, getEventArgs, MONTH_SEC, toBN } from '../../scripts/util/web3utils';
+import { getEventArgs, MONTH_SEC, toBN } from '../../scripts/util/web3utils';
 import { TestSystemContractsType } from './deployTestSystem';
+import { currentTime } from './index';
 
 export async function createDefaultBoardWithOverrides(
   c: TestSystemContractsType,

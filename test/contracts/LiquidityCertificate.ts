@@ -1,8 +1,8 @@
 import { BigNumber, Signer } from 'ethers';
 import { ethers } from 'hardhat';
-import { currentTime, getEventArgs, toBN, ZERO_ADDRESS } from '../../scripts/util/web3utils';
+import { getEventArgs, toBN, ZERO_ADDRESS } from '../../scripts/util/web3utils';
 import { LiquidityCertificate } from '../../typechain';
-import { restoreSnapshot, takeSnapshot } from '../utils';
+import { currentTime, restoreSnapshot, takeSnapshot } from '../utils';
 import { expect } from '../utils/testSetup';
 
 describe('LiquidityCertificate - unit tests', () => {
