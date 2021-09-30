@@ -52,7 +52,13 @@ export function decimalToBN(v: number) {
   if (val.includes('e')) {
     if (parseFloat(val) > 1) {
       const x = val.split('.');
-      const y = x[1].split('e+');
+      let y;
+      if (x.length == 1) {
+        y = x[0].split('e+');
+        x[0] = y[0];
+      } else {
+        y = x[1].split('e+');
+      }
       const exponent = parseFloat(y[1]);
       const newVal = x[0] + y[0] + '0'.repeat(exponent - y[0].length);
       // console.warn(`Warning: toBN of val with exponent, converting to string. (${val}) converted to (${newVal})`);

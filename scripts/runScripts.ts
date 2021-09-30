@@ -7,7 +7,7 @@ import { getNetworkProvider, getSelectedNetwork } from './util';
 
 const RUN_PARAMS = {
   updateBlockNumbers: false,
-  updateEvents: true,
+  updateEvents: false,
   getTradeVol: true,
   getCurrentLPPosition: true,
 };
@@ -24,6 +24,7 @@ async function main() {
     const endBlock = (await params.provider.getBlock('latest')).number;
     await cacheAllEventsForLyraContract(params, 'OptionMarket', endBlock, 'sETH');
     await cacheAllEventsForLyraContract(params, 'LiquidityPool', endBlock, 'sETH');
+    await cacheAllEventsForLyraContract(params, 'ShortCollateral', endBlock, 'sETH');
   }
 
   if (RUN_PARAMS.getTradeVol) {
