@@ -10,6 +10,7 @@ export async function getCurrentLPPosition(params: Params, tickers: string[]) {
   console.log('============');
 
   for (const ticker of tickers) {
+    console.log(`\n= ${ticker} market =\n`);
     let longCallExposure = BigNumber.from(0);
     let longPutExposure = BigNumber.from(0);
     let shortCallExposure = BigNumber.from(0);

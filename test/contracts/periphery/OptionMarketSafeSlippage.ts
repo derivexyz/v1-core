@@ -64,8 +64,8 @@ describe('SafeSlippage trading tests', () => {
             listingIds[0],
             TradeType.LONG_CALL,
             toBN('1'),
-            toBN('500'),
             toBN('300'),
+            toBN('500'),
           ),
         ).revertedWith('BoardFrozenOrTradingCutoffReached');
       });
@@ -79,7 +79,7 @@ describe('SafeSlippage trading tests', () => {
         // Using wide cost range
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('500'), toBN('200'));
+          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('200'), toBN('500'));
 
         expect(await c.optionToken.balanceOf(accountAddr, listingIds[0])).to.eq(bal.add(toBN('1')));
       });
@@ -89,15 +89,15 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_CALL,
           toBN('1'),
-          toBN('500'),
           toBN('200'),
+          toBN('500'),
         );
         await c.optionMarketSafeSlippage.openPosition(
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('500'),
           toBN('200'),
+          toBN('500'),
         );
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_CALL)).to.eq(toBN('1'));
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL)).to.eq(toBN('1'));
@@ -108,8 +108,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('500'),
           toBN('200'),
+          toBN('500'),
         );
         await c.liquidityPool.exchangeBase();
         expect(await c.test.baseToken.balanceOf(c.liquidityPool.address)).to.eq(toBN('1'));
@@ -118,14 +118,14 @@ describe('SafeSlippage trading tests', () => {
 
     describe('base case long puts (No slippage)', async () => {
       it('should allow open if the user is short puts', async () => {
-        await c.optionMarketSafeSlippage.openPosition(1, TradeType.SHORT_PUT, toBN('1'), toBN('50'), toBN('45'));
-        await c.optionMarketSafeSlippage.openPosition(1, TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80'));
+        await c.optionMarketSafeSlippage.openPosition(1, TradeType.SHORT_PUT, toBN('1'), toBN('45'), toBN('50'));
+        await c.optionMarketSafeSlippage.openPosition(1, TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85'));
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_PUT)).to.eq(toBN('1'));
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT)).to.eq(toBN('1'));
       });
 
       it('should update the user balance and net exposure', async () => {
-        await c.optionMarketSafeSlippage.openPosition(1, TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80'));
+        await c.optionMarketSafeSlippage.openPosition(1, TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85'));
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT);
         expect(balance).to.eq(toBN('1'));
       });
@@ -135,8 +135,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_PUT,
           toBN('1'),
-          toBN('85'),
           toBN('80'),
+          toBN('85'),
         );
         expect(
           (await c.liquidityPool.getLiquidity(toBN('1742.01337'), c.test.collateralShort.address)).usedCollatLiquidity,
@@ -150,8 +150,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_CALL,
           toBN('1'),
-          toBN('300'),
           toBN('290'),
+          toBN('300'),
         );
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL);
         expect(balance).to.eq(toBN('1'));
@@ -163,15 +163,15 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('300'),
+          toBN('350'),
         );
         await c.optionMarketSafeSlippage.openPosition(
           listingIds[0],
           TradeType.SHORT_CALL,
           toBN('1'),
-          toBN('300'),
           toBN('290'),
+          toBN('300'),
         );
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_CALL)).to.eq(toBN('1'));
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL)).to.eq(toBN('1'));
@@ -180,14 +180,14 @@ describe('SafeSlippage trading tests', () => {
 
     describe('base case short puts (No slippage)', async () => {
       it('should allow open if the user is long puts', async () => {
-        await c.optionMarketSafeSlippage.openPosition(1, TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80'));
-        await c.optionMarketSafeSlippage.openPosition(1, TradeType.SHORT_PUT, toBN('1'), toBN('50'), toBN('45'));
+        await c.optionMarketSafeSlippage.openPosition(1, TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85'));
+        await c.optionMarketSafeSlippage.openPosition(1, TradeType.SHORT_PUT, toBN('1'), toBN('45'), toBN('50'));
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_PUT)).to.eq(toBN('1'));
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT)).to.eq(toBN('1'));
       });
 
       it('should update the user balance and net exposure', async () => {
-        await c.optionMarketSafeSlippage.openPosition(1, TradeType.SHORT_CALL, toBN('1'), toBN('300'), toBN('290'));
+        await c.optionMarketSafeSlippage.openPosition(1, TradeType.SHORT_CALL, toBN('1'), toBN('290'), toBN('300'));
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL);
         expect(balance).to.eq(toBN('1'));
       });
@@ -203,8 +203,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('300'),
+          toBN('350'),
         );
 
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_CALL);
@@ -216,8 +216,8 @@ describe('SafeSlippage trading tests', () => {
             listingIds[0],
             TradeType.LONG_CALL,
             toBN('1'),
-            toBN('350'),
             toBN('300'),
+            toBN('350'),
           ),
         ).revertedWith('BoardFrozenOrTradingCutoffReached');
       });
@@ -232,8 +232,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('200'),
+          toBN('350'),
         );
 
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_CALL);
@@ -245,8 +245,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('200'),
+          toBN('350'),
         );
 
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
@@ -260,8 +260,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_PUT,
           toBN('1'),
-          toBN('85'),
           toBN('50'),
+          toBN('85'),
         );
 
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT);
@@ -273,8 +273,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_PUT,
           toBN('1'),
-          toBN('60'),
           toBN('40'),
+          toBN('60'),
         );
 
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
@@ -289,8 +289,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_CALL,
           toBN('1'),
-          toBN('300'),
           toBN('290'),
+          toBN('300'),
         );
 
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL);
@@ -302,8 +302,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_CALL,
           toBN('1'),
-          toBN('500'),
           toBN('290'),
+          toBN('500'),
         );
 
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
@@ -317,8 +317,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_PUT,
           toBN('1'),
-          toBN('50'),
           toBN('1'),
+          toBN('50'),
         );
 
         const balance = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_PUT);
@@ -330,8 +330,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_PUT,
           toBN('1'),
-          toBN('150'),
           toBN('1'),
+          toBN('150'),
         );
 
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
@@ -354,7 +354,7 @@ describe('SafeSlippage trading tests', () => {
         const bal = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_CALL);
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('350'), toBN('300'));
+          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('300'), toBN('350'));
 
         expect(await c.optionToken.balanceOf(accountAddr, listingIds[0])).to.eq(bal.add(toBN('1')));
 
@@ -373,7 +373,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('350'), toBN('300')),
+            .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('300'), toBN('350')),
         ).revertedWith('ERC20: transfer amount exceeds balance');
 
         // Set IV back to 1 - trade goes through
@@ -384,7 +384,7 @@ describe('SafeSlippage trading tests', () => {
         const bal = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_CALL);
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('350'), toBN('300'));
+          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('300'), toBN('350'));
 
         expect(await c.optionToken.balanceOf(accountAddr, listingIds[0])).to.eq(bal.add(toBN('1')));
       });
@@ -401,7 +401,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80'));
+          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT)).to.eq(toBN('1'));
 
@@ -420,7 +420,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80')),
+            .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85')),
         ).revertedWith('ERC20: transfer amount exceeds balance');
 
         // Set IV back to 1 - trade goes through
@@ -430,7 +430,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80'));
+          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT)).to.eq(toBN('1'));
       });
@@ -447,7 +447,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('300'), toBN('290'));
+          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('290'), toBN('300'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL)).to.eq(toBN('1'));
 
@@ -466,7 +466,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('300'), toBN('290')),
+            .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('290'), toBN('300')),
         ).revertedWith('Total cost outside specified bounds');
 
         // Set IV back to 1 - trade goes through
@@ -476,7 +476,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('300'), toBN('290'));
+          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('290'), toBN('300'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL)).to.eq(toBN('1'));
       });
@@ -493,7 +493,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('50'), toBN('45'));
+          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('45'), toBN('50'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_PUT)).to.eq(toBN('1'));
 
@@ -512,7 +512,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('50'), toBN('45')),
+            .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('45'), toBN('50')),
         ).revertedWith('Total cost outside specified bounds');
 
         // Set IV back to 1 - trade goes through
@@ -522,7 +522,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('50'), toBN('45'));
+          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('45'), toBN('50'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_PUT)).to.eq(toBN('1'));
       });
@@ -542,7 +542,7 @@ describe('SafeSlippage trading tests', () => {
         const bal = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_CALL);
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('350'), toBN('300'));
+          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('300'), toBN('350'));
 
         expect(await c.optionToken.balanceOf(accountAddr, listingIds[0])).to.eq(bal.add(toBN('1')));
 
@@ -557,8 +557,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('200'),
+          toBN('350'),
         );
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
         assertCloseTo(postBalance.sub(preBalance), toBN('296.9727118'));
@@ -568,7 +568,7 @@ describe('SafeSlippage trading tests', () => {
         // open position first
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('350'), toBN('300'));
+          .openPosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('300'), toBN('350'));
 
         // SetIV from 1 -> 1.1 to cause slippage (change in premium cost)
         await c.optionMarket.setBoardFrozen(boardId, true);
@@ -583,7 +583,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .closePosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('308'), toBN('300')),
+            .closePosition(listingIds[0], TradeType.LONG_CALL, toBN('1'), toBN('300'), toBN('308')),
         ).revertedWith('Total cost outside specified bounds');
 
         // Set IV back to 1 - trade goes through
@@ -596,8 +596,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('200'),
+          toBN('350'),
         );
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
         assertCloseTo(postBalance.sub(preBalance), toBN('296.9727118'));
@@ -615,7 +615,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80'));
+          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT)).to.eq(toBN('1'));
 
@@ -630,8 +630,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_PUT,
           toBN('1'),
-          toBN('50'),
           toBN('45'),
+          toBN('50'),
         );
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
         assertCloseTo(postBalance.sub(preBalance), toBN('45.940193'));
@@ -641,7 +641,7 @@ describe('SafeSlippage trading tests', () => {
         // open position first
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80'));
+          .openPosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85'));
 
         // SetIV from 1 -> 1.1 to cause slippage (change in premium cost)
         await c.optionMarket.setBoardFrozen(boardId, true);
@@ -656,7 +656,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .closePosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('85'), toBN('80')),
+            .closePosition(listingIds[0], TradeType.LONG_PUT, toBN('1'), toBN('80'), toBN('85')),
         ).revertedWith('Total cost outside specified bounds');
 
         // Set IV back to 1 - trade goes through
@@ -669,8 +669,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.LONG_PUT,
           toBN('1'),
-          toBN('50'),
           toBN('45'),
+          toBN('50'),
         );
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
         assertCloseTo(postBalance.sub(preBalance), toBN('45.940193'));
@@ -689,7 +689,7 @@ describe('SafeSlippage trading tests', () => {
         //const bal = await c.optionToken.balanceOf(accountAddr, 1 + TradeType.LONG_PUT);
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('300'), toBN('250'));
+          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('250'), toBN('300'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_CALL)).to.eq(toBN('1'));
 
@@ -704,8 +704,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('300'),
+          toBN('350'),
         );
 
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
@@ -716,7 +716,7 @@ describe('SafeSlippage trading tests', () => {
         // open position first
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('300'), toBN('250'));
+          .openPosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('250'), toBN('300'));
 
         // SetIV from 1 -> 1.1 to cause slippage (change in premium cost)
         await c.optionMarket.setBoardFrozen(boardId, true);
@@ -731,7 +731,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .closePosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('350'), toBN('300')),
+            .closePosition(listingIds[0], TradeType.SHORT_CALL, toBN('1'), toBN('300'), toBN('350')),
         ).revertedWith('ERC20: transfer amount exceeds balance');
 
         // Set IV back to 1 - trade goes through
@@ -744,8 +744,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_CALL,
           toBN('1'),
-          toBN('350'),
           toBN('300'),
+          toBN('350'),
         );
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
         // going to be off by .2%
@@ -764,7 +764,7 @@ describe('SafeSlippage trading tests', () => {
 
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('50'), toBN('45'));
+          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('45'), toBN('50'));
 
         expect(await c.optionToken.balanceOf(accountAddr, 1 + TradeType.SHORT_PUT)).to.eq(toBN('1'));
 
@@ -779,8 +779,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_PUT,
           toBN('1'),
-          toBN('95'),
           toBN('80'),
+          toBN('95'),
         );
 
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
@@ -791,7 +791,7 @@ describe('SafeSlippage trading tests', () => {
         // open position first
         await c.optionMarketSafeSlippage
           .connect(account)
-          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('50'), toBN('45'));
+          .openPosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('45'), toBN('50'));
 
         // SetIV from 1 -> 1.2 to cause slippage (change in premium cost)
         await c.optionMarket.setBoardFrozen(boardId, true);
@@ -806,7 +806,7 @@ describe('SafeSlippage trading tests', () => {
         await expect(
           c.optionMarketSafeSlippage
             .connect(account)
-            .closePosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('95'), toBN('80')),
+            .closePosition(listingIds[0], TradeType.SHORT_PUT, toBN('1'), toBN('80'), toBN('95')),
         ).revertedWith('Total cost outside specified bounds');
 
         // Set IV back to 1 - trade goes through
@@ -819,8 +819,8 @@ describe('SafeSlippage trading tests', () => {
           listingIds[0],
           TradeType.SHORT_PUT,
           toBN('1'),
-          toBN('95'),
           toBN('80'),
+          toBN('95'),
         );
         const postBalance = await c.test.quoteToken.balanceOf(accountAddr);
         // going to be off by .2%

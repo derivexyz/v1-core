@@ -16,7 +16,7 @@ import "./interfaces/IShortCollateral.sol";
  * @title LiquidityPool
  * @author Lyra
  * @dev Holds funds from LPs, which are used for the following purposes:
- * 1. Collateralising options sold by the OptionMarket.
+ * 1. Collateralizing options sold by the OptionMarket.
  * 2. Buying options from users.
  * 3. Delta hedging the LPs.
  * 4. Storing funds for expired in the money options.
@@ -133,7 +133,7 @@ contract LiquidityPool is ILiquidityPool {
 
     _require(certificateData.burnableAt == 0, Error.AlreadySignalledWithdrawal);
     _require(
-      certificateData.enteredAt != maxExpiryTimestamp && expiryToTokenValue[certificateData.burnableAt] == 0,
+      certificateData.enteredAt != maxExpiryTimestamp && expiryToTokenValue[maxExpiryTimestamp] == 0,
       Error.SignallingBetweenRounds
     );
 
@@ -283,9 +283,8 @@ contract LiquidityPool is ILiquidityPool {
     emit QuoteReserved(tokensBurnableForRound.multiplyDecimal(pricePerToken), totalQuoteAmountReserved);
 
     totalTokenSupply = totalTokenSupply.sub(tokensBurnableForRound);
+    emit RoundEnded(maxExpiryTimestamp, pricePerToken, totalQuoteAmountReserved, tokensBurnableForRound);
     tokensBurnableForRound = 0;
-
-    emit RoundEnded(maxExpiryTimestamp, pricePerToken, totalQuoteAmountReserved, totalTokenSupply);
   }
 
   /**
@@ -310,7 +309,7 @@ contract LiquidityPool is ILiquidityPool {
       lastMaxExpiryTimestamp,
       newMaxExpiryTimestamp,
       totalTokenSupply,
-      totalTokenSupply.multiplyDecimalRound(expiryToTokenValue[lastMaxExpiryTimestamp])
+      lastMaxExpiryTimestamp == 0 ? SafeDecimalMath.UNIT : expiryToTokenValue[lastMaxExpiryTimestamp]
     );
   }
 
@@ -651,16 +650,16 @@ contract LiquidityPool is ILiquidityPool {
     uint indexed maxExpiryTimestamp,
     uint pricePerToken,
     uint totalQuoteAmountReserved,
-    uint totalTokenSupply
+    uint tokensBurnableForRound
   );
   /**
    * @dev Emitted when a round starts.
    */
   event RoundStarted(
-    uint indexed lastMaxExpiryTimestmp,
-    uint indexed newMaxExpiryTimestmp,
+    uint indexed lastMaxExpiryTimestamp,
+    uint indexed newMaxExpiryTimestamp,
     uint totalTokenSupply,
-    uint totalPoolValueQuote
+    uint tokenValue
   );
   /**
    * @dev Emitted when quote is locked.

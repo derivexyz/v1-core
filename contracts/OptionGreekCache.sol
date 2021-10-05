@@ -152,7 +152,7 @@ contract OptionGreekCache is IOptionGreekCache, Ownable {
       }
     }
     delete boardCaches[boardId];
-    emit GlobalCacheUpdated(globalCache.netStdVega, globalCache.netDelta);
+    emit GlobalCacheUpdated(globalCache.netDelta, globalCache.netStdVega);
   }
 
   /**
@@ -413,7 +413,7 @@ contract OptionGreekCache is IOptionGreekCache, Ownable {
       boardCache.iv,
       listingCache.skew
     );
-    emit GlobalCacheUpdated(globalCache.netStdVega, globalCache.netDelta);
+    emit GlobalCacheUpdated(globalCache.netDelta, globalCache.netStdVega);
 
     return pricing;
   }

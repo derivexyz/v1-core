@@ -69,8 +69,8 @@ contract OptionMarketSafeSlippage {
     uint _listingId,
     IOptionMarket.TradeType tradeType,
     uint amount,
-    uint maxCost,
-    uint minCost
+    uint minCost,
+    uint maxCost
   ) external {
     if (tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT) {
       require(quoteAsset.transferFrom(msg.sender, address(this), maxCost), "quote transferFrom failed");
@@ -99,6 +99,8 @@ contract OptionMarketSafeSlippage {
       amount,
       "OptionMarketSafeSlippage: Open"
     );
+
+    emit PositionOpenedWithSlippageControls(msg.sender, _listingId, tradeType, amount, minCost, maxCost, totalCost);
   }
 
   /**
@@ -115,8 +117,8 @@ contract OptionMarketSafeSlippage {
     uint _listingId,
     IOptionMarket.TradeType tradeType,
     uint amount,
-    uint maxCost,
-    uint minCost
+    uint minCost,
+    uint maxCost
   ) external {
     optionToken.safeTransferFrom(
       msg.sender,
@@ -143,5 +145,33 @@ contract OptionMarketSafeSlippage {
     if (baseBalance > 0) {
       require(baseAsset.transfer(msg.sender, baseBalance), "Failed to transfer base");
     }
+
+    emit PositionClosedWithSlippageControls(msg.sender, _listingId, tradeType, amount, minCost, maxCost, totalCost);
   }
+
+  /**
+   * @dev Emitted when a Position is opened.
+   */
+  event PositionOpenedWithSlippageControls(
+    address indexed trader,
+    uint indexed listingId,
+    IOptionMarket.TradeType indexed tradeType,
+    uint amount,
+    uint minCost,
+    uint maxCost,
+    uint totalCost
+  );
+
+  /**
+   * @dev Emitted when a Position is closed.
+   */
+  event PositionClosedWithSlippageControls(
+    address indexed trader,
+    uint indexed listingId,
+    IOptionMarket.TradeType indexed tradeType,
+    uint amount,
+    uint minCost,
+    uint maxCost,
+    uint totalCost
+  );
 }

@@ -1,3 +1,4 @@
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber, Signer } from 'ethers';
 import { ethers } from 'hardhat';
 import { DAY_SEC, getEventArgs, MONTH_SEC, toBN, TradeType, UNIT, ZERO_ADDRESS } from '../../scripts/util/web3utils';
@@ -71,6 +72,10 @@ describe('LiquidityPool - unit tests', () => {
       const result = await c.liquidityPool.tokenPriceQuote();
       expect(result).equal(toBN('1'));
     });
+
+    it.skip('Correctly calculates the price of tokens');
+
+    it.skip('Errors if the token supply > 0 and pool value = 0');
   });
 
   describe('deposit', async () => {
@@ -1330,9 +1335,9 @@ describe('LiquidityPool - unit tests', () => {
 });
 
 describe('LiquidityPool - minting and burning', () => {
-  let account: Signer;
+  let account: SignerWithAddress;
   let accountAddr: string;
-  let account2: Signer;
+  let account2: SignerWithAddress;
   let account2Addr: string;
   let c: TestSystemContractsType;
   let snap: number;
@@ -1575,6 +1580,14 @@ describe('LiquidityPool - minting and burning', () => {
       await expect(c.liquidityCertificate.split(certificateId, toBN('0.5'))).revertedWith(
         'cannot transfer certificates that have signalled exit',
       );
+    });
+
+    it('will block signalling if between rounds', async () => {
+      await fastForward(MONTH_SEC);
+      const acc1Certs = await c.liquidityCertificate.certificates(account.address);
+      await c.optionMarket.liquidateExpiredBoard(boardId);
+      await c.liquidityPool.endRound();
+      await expect(c.liquidityPool.signalWithdrawal(acc1Certs[0])).revertedWith('SignallingBetweenRounds');
     });
   });
 

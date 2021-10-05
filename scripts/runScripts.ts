@@ -6,8 +6,8 @@ import { getTradeVolume } from './events/getTradeVolume';
 import { getNetworkProvider, getSelectedNetwork } from './util';
 
 const RUN_PARAMS = {
-  updateBlockNumbers: false,
-  updateEvents: false,
+  updateBlockNumbers: true,
+  updateEvents: true,
   getTradeVol: true,
   getCurrentLPPosition: true,
 };
@@ -22,16 +22,18 @@ async function main() {
 
   if (RUN_PARAMS.updateEvents) {
     const endBlock = (await params.provider.getBlock('latest')).number;
-    await cacheAllEventsForLyraContract(params, 'OptionMarket', endBlock, 'sETH');
-    await cacheAllEventsForLyraContract(params, 'LiquidityPool', endBlock, 'sETH');
-    await cacheAllEventsForLyraContract(params, 'ShortCollateral', endBlock, 'sETH');
+    for (const ticker of ['sETH', 'sLINK']) {
+      await cacheAllEventsForLyraContract(params, 'OptionMarket', endBlock, ticker);
+      await cacheAllEventsForLyraContract(params, 'LiquidityPool', endBlock, ticker);
+      await cacheAllEventsForLyraContract(params, 'ShortCollateral', endBlock, ticker);
+    }
   }
 
   if (RUN_PARAMS.getTradeVol) {
-    await getTradeVolume(params, ['sETH']);
+    await getTradeVolume(params, ['sETH', 'sLINK']);
   }
   if (RUN_PARAMS.getCurrentLPPosition) {
-    await getCurrentLPPosition(params, ['sETH']);
+    await getCurrentLPPosition(params, ['sETH', 'sLINK']);
   }
 
   console.log(chalk.greenBright('\n=== Success! ===\n'));

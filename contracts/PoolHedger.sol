@@ -200,10 +200,10 @@ contract PoolHedger is IPoolHedger, Ownable {
   /**
    * @dev Updates the hedge contract based off a new netDelta.
    *
-   * @param exchangeGlobals TODO
-   * @param longBalance TODO
-   * @param shortBalance TODO
-   * @param collateral TODO
+   * @param exchangeGlobals Globals related to exchanging synths
+   * @param longBalance The current long base balance of the PoolHedger
+   * @param shortBalance The current short balance of the PoolHedger
+   * @param collateral The current quote collateral for shorts of the PoolHedger
    * @param expectedHedge The amount of baseAsset exposure needed to hedge delta risk.
    */
   function updatePosition(

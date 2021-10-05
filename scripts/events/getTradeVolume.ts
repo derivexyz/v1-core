@@ -11,6 +11,7 @@ export async function getTradeVolume(params: Params, tickers: string[]) {
   const uniqueAddresses: { [key: string]: boolean } = {};
 
   for (const ticker of tickers) {
+    console.log(`\n= ${ticker} market =\n`);
     let totalLongAmountOpen = BigNumber.from(0);
     let totalLongAmountClose = BigNumber.from(0);
     let totalShortAmountOpen = BigNumber.from(0);
