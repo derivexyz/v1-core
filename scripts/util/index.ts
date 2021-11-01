@@ -19,6 +19,16 @@ export function getNetworkProvider(network: AllowedNetworks): Provider {
   }
 }
 
+
+export function getNetworkProviderUrl(network: AllowedNetworks): string {
+  if (network == 'kovan-ovm') {
+    return 'https://kovan.optimism.io';
+  } else {
+    return 'https://mainnet.optimism.io';
+  }
+}
+
+
 export function getWallet(network: AllowedNetworks) {
   return new ethers.Wallet(
     '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -39,4 +49,19 @@ export function getSelectedNetwork(): AllowedNetworks {
     return network;
   }
   throw Error('Invalid network ' + network);
+}
+
+export function getAddressParameter(): string {
+  const foundFlag = process.argv.find(arg => arg.includes('--address='));
+
+  if (!foundFlag) {
+    throw new Error('Missing --address=0x... flag');
+  }
+
+  const address = foundFlag.split('address=').pop();
+
+  if (address && address.match(/0x[0-9A-Fa-f]/)) {
+    return address;
+  }
+  throw Error('Invalid address ' + address);
 }

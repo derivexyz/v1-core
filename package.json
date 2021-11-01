@@ -13,6 +13,7 @@
     "build": "yarn clean && yarn compile",
     "test": "hardhat test",
     "runScripts": "ts-node scripts/runScripts.ts",
+    "getLPExposure": "ts-node scripts/getIndividualExposure.ts",
     "doc:uml": "sol2uml ./contracts -i mocks,test -f png -o ./docs/uml/lyra.png",
     "docify": "node docify.js",
     "docgen": "yarn doc:uml && yarn docify",

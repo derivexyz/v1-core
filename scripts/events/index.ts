@@ -6,16 +6,17 @@ import { loadLyraContractDeploymentBlock } from '../util/parseFiles';
 import { getLyraContract } from '../util/transactions';
 
 const EVENT_BATCH_SIZE = 10000;
+const REGENESIS_ADD = 10_000_000
 
 function createTableStatement(eventName: string, nameTypes: [string, string][]) {
-  return `CREATE TABLE IF NOT EXISTS ${eventName} (id INTEGER PRIMARY KEY AUTOINCREMENT, blockNumber INTEGER NOT NULL, ${nameTypes
-    .map(x => `${x[0]} ${x[1]} NOT NULL`)
+  return `CREATE TABLE IF NOT EXISTS "${eventName}" (id INTEGER PRIMARY KEY AUTOINCREMENT, blockNumber INTEGER NOT NULL, ${nameTypes
+    .map(x => `"${x[0]}" ${x[1]} NOT NULL`)
     .join(', ')});`;
 }
 
 function insertEventStatement(eventName: string, nameTypes: [string, string][]) {
-  return `INSERT INTO ${eventName} (blockNumber, ${nameTypes
-    .map(x => `${x[0]}`)
+  return `INSERT INTO "${eventName}" (blockNumber, ${nameTypes
+    .map(x => `"${x[0]}"`)
     .join(', ')}) VALUES (?, ${nameTypes.map(_ => '?').join(', ')});`;
 }
 
@@ -53,16 +54,24 @@ async function getAllNewEvents(
   nameTypes: [string, string][],
   startBlock: number,
   endBlock: number,
+  isPostRegenesis: boolean,
 ) {
   startBlock =
     (db.prepare(`SELECT MAX(blockNumber) as maxBlock FROM ${eventName}`).get()?.maxBlock || startBlock - 1) + 1;
+
+  if (isPostRegenesis && startBlock < REGENESIS_ADD) {
+    startBlock = 0;
+  }
 
   console.log(`Fetching all ${eventName} events from ${startBlock} to ${endBlock}`);
   const newResults = await getAllEvents(contract, filter, startBlock, endBlock);
 
   const statement = await db.prepare(insertEventStatement(eventName, nameTypes));
   for (const item of newResults) {
-    statement.run(item.blockNumber, ...item.args.map((x: any) => x.toString()));
+    statement.run(
+      item.blockNumber + (isPostRegenesis ? REGENESIS_ADD : 0),
+      ...item.args.map((x: any) => x.toString())
+    );
   }
 }
 
@@ -71,7 +80,10 @@ export async function cacheAllEventsForLyraContract(
   contractName: string,
   endblock: number,
   market?: string,
+  eventFilter?: string[]
 ) {
+  const isPostRegenesis = params.network === 'kovan-ovm';
+
   const db = sqlite3(
     path.join(
       __dirname,
@@ -83,10 +95,13 @@ export async function cacheAllEventsForLyraContract(
   );
 
   const contract = await getLyraContract(params, contractName, market);
-  const deploymentBlock = loadLyraContractDeploymentBlock(params, contractName, market);
+  const deploymentBlock = isPostRegenesis ? loadLyraContractDeploymentBlock(params, contractName, market) : 0;
 
   for (const event in contract.interface.events) {
     const eventData = contract.interface.events[event];
+    if (!!eventFilter && !eventFilter.includes(eventData.name)) {
+      continue;
+    }
 
     const nameTypes: [string, string][] = eventData.inputs.map(x => [x.name, 'STRING']);
 
@@ -94,7 +109,7 @@ export async function cacheAllEventsForLyraContract(
     await db.exec(createTable);
 
     const filter = contract.filters[event](...eventData.inputs.map(_ => null));
-    await getAllNewEvents(db, contract, filter, eventData.name, nameTypes, deploymentBlock, endblock);
+    await getAllNewEvents(db, contract, filter, eventData.name, nameTypes, deploymentBlock, endblock, isPostRegenesis);
   }
 }
 

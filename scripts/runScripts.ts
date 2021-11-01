@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { cacheAllEventsForLyraContract } from './events';
-import { updateBlockNumbers } from './events/blockNumbers';
+import {cacheAllEventsForLyraContract, getEventsFromLyraContract} from './events';
+import { updateBlocksToLatest } from './events/blockNumbers';
 import { getCurrentLPPosition } from './events/getLPcurrentPnL';
 import { getTradeVolume } from './events/getTradeVolume';
 import { getNetworkProvider, getSelectedNetwork } from './util';
@@ -17,7 +17,7 @@ async function main() {
   const params = { network, provider: getNetworkProvider(network) };
 
   if (RUN_PARAMS.updateBlockNumbers) {
-    await updateBlockNumbers(params);
+    await updateBlocksToLatest(params.network);
   }
 
   if (RUN_PARAMS.updateEvents) {
