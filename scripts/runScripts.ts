@@ -12,6 +12,8 @@ const RUN_PARAMS = {
   getCurrentLPPosition: true,
 };
 
+const markets = ['sETH', 'sLINK', 'sBTC'];
+
 async function main() {
   const network = getSelectedNetwork();
   const params = { network, provider: getNetworkProvider(network) };
@@ -22,7 +24,7 @@ async function main() {
 
   if (RUN_PARAMS.updateEvents) {
     const endBlock = (await params.provider.getBlock('latest')).number;
-    for (const ticker of ['sETH', 'sLINK']) {
+    for (const ticker of markets) {
       await cacheAllEventsForLyraContract(params, 'OptionMarket', endBlock, ticker);
       await cacheAllEventsForLyraContract(params, 'LiquidityPool', endBlock, ticker);
       await cacheAllEventsForLyraContract(params, 'ShortCollateral', endBlock, ticker);
@@ -30,10 +32,10 @@ async function main() {
   }
 
   if (RUN_PARAMS.getTradeVol) {
-    await getTradeVolume(params, ['sETH', 'sLINK']);
+    await getTradeVolume(params, markets);
   }
   if (RUN_PARAMS.getCurrentLPPosition) {
-    await getCurrentLPPosition(params, ['sETH', 'sLINK']);
+    await getCurrentLPPosition(params, markets);
   }
 
   console.log(chalk.greenBright('\n=== Success! ===\n'));
