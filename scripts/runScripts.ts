@@ -4,12 +4,14 @@ import { updateBlocksToLatest } from './events/blockNumbers';
 import { getCurrentLPPosition } from './events/getLPcurrentPnL';
 import { getTradeVolume } from './events/getTradeVolume';
 import { getNetworkProvider, getSelectedNetwork } from './util';
+import {getPerListingBreakdown} from "./events/getPerListingBreakdown";
 
 const RUN_PARAMS = {
   updateBlockNumbers: true,
   updateEvents: true,
   getTradeVol: true,
   getCurrentLPPosition: true,
+  getPerListingBreakdown: false,
 };
 
 const markets = ['sETH', 'sLINK', 'sBTC'];
@@ -36,6 +38,10 @@ async function main() {
   }
   if (RUN_PARAMS.getCurrentLPPosition) {
     await getCurrentLPPosition(params, markets);
+  }
+
+  if (RUN_PARAMS.getPerListingBreakdown) {
+    await getPerListingBreakdown(params, markets);
   }
 
   console.log(chalk.greenBright('\n=== Success! ===\n'));

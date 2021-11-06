@@ -25,6 +25,13 @@ export async function getCurrentLPPosition(params: Params, tickers: string[]) {
     let avgBaseSalePrice = BigNumber.from(0);
     let baseSoldAmount = BigNumber.from(0);
 
+    const roundStartedEvents = await getEventsFromLyraContract(params, 'LiquidityPool', 'RoundStarted', {}, ticker);
+
+    const latestRoundStartedEvent = roundStartedEvents.reduce(
+      (a: any, b: any) => a.newMaxExpiryTimestamp > b.newMaxExpiryTimestamp ? a : b,
+      {newMaxExpiryTimestamp: 0}
+    )
+
     const liveBoards: BigNumber[] = await callLyraFunction(params, 'OptionMarket', 'getLiveBoards', [], ticker);
 
     for (const boardId of liveBoards) {
@@ -49,6 +56,9 @@ export async function getCurrentLPPosition(params: Params, tickers: string[]) {
 
     const basePurchasedEvents = await getEventsFromLyraContract(params, 'LiquidityPool', 'BasePurchased', {}, ticker);
     for (const basePurchasedEvent of basePurchasedEvents) {
+      if (basePurchasedEvent.blockNumber < latestRoundStartedEvent.blockNumber) {
+        continue
+      }
       const newTotal = basePurchasedAmount.add(decimalToBN(basePurchasedEvent.amountPurchased));
       avgBasePurchasePrice = avgBasePurchasePrice
         .mul(basePurchasedAmount)
@@ -58,6 +68,9 @@ export async function getCurrentLPPosition(params: Params, tickers: string[]) {
     }
     const baseSoldEvents = await getEventsFromLyraContract(params, 'LiquidityPool', 'BaseSold', {}, ticker);
     for (const baseSoldEvent of baseSoldEvents) {
+      if (baseSoldEvent.blockNumber < latestRoundStartedEvent.blockNumber) {
+        continue
+      }
       const newTotal = baseSoldAmount.add(decimalToBN(baseSoldEvent.amountSold));
       avgBaseSalePrice = avgBaseSalePrice
         .mul(baseSoldAmount)
