@@ -1,8 +1,7 @@
 import { BigNumber } from 'ethers';
-import { getEventsFromLyraContract } from '../events';
 import { Params } from '../util';
 import { callLyraFunction } from '../util/transactions';
-import { decimalToBN, fromBN, toBytes32, UNIT } from '../util/web3utils';
+import { fromBN, UNIT } from '../util/web3utils';
 
 export async function getPerListingBreakdown(params: Params, tickers: string[]) {
   console.log('=================');

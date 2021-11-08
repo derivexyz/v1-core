@@ -1,10 +1,10 @@
 import chalk from 'chalk';
-import {cacheAllEventsForLyraContract, getEventsFromLyraContract} from './events';
+import { cacheAllEventsForLyraContract } from './events';
 import { updateBlocksToLatest } from './events/blockNumbers';
 import { getCurrentLPPosition } from './events/getLPcurrentPnL';
 import { getTradeVolume } from './events/getTradeVolume';
 import { getNetworkProvider, getSelectedNetwork } from './util';
-import {getPerListingBreakdown} from "./events/getPerListingBreakdown";
+import { getPerListingBreakdown } from "./events/getPerListingBreakdown";
 
 const RUN_PARAMS = {
   updateBlockNumbers: true,
