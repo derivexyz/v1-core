@@ -30,11 +30,13 @@ export async function getLPExposure(params: Params, address: string, tickers: st
 
     const certificates = await callLyraFunction(params, 'LiquidityCertificate', 'certificates', [address], ticker);
 
+    console.log({certificates: certificates.map((x: any) => x.toNumber())})
+
     let totalValue = decimalToBN(latestRoundStartedEvent.totalTokenSupply);
 
     let totalValueForAddress = BigNumber.from(0);
 
-    for (const certificateId in certificates) {
+    for (const certificateId of certificates) {
       const certData = await callLyraFunction(params, 'LiquidityCertificate', 'certificateData', [certificateId], ticker)
       totalValueForAddress = totalValueForAddress.add(
         certData.liquidity.mul(expiryToTokenValue[certData.enteredAt.toNumber()].toString()).div(UNIT)
