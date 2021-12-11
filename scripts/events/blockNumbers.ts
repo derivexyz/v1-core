@@ -1,33 +1,46 @@
 import axios from 'axios';
 import sqlite3 from 'better-sqlite3';
-import {AllowedNetworks, getNetworkProviderUrl} from '../util';
-import * as path from "path";
+import * as path from 'path';
+import { AllowedNetworks, getNetworkProviderUrl } from '../util';
 
 const REGENESIS_ADD = 10_000_000;
-const mainnet_endpoint = "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-blocks";
-const kovan_endpoint = "https://api.thegraph.com/subgraphs/name/ianlapham/optimism-kovan-blocks";
+const mainnet_endpoint = 'https://api.thegraph.com/subgraphs/name/ianlapham/optimism-blocks';
+const kovan_endpoint = 'https://api.thegraph.com/subgraphs/name/ianlapham/optimism-kovan-blocks';
 
+const USE_GRAPH = false;
 
-async function getBlockTimestamp(network: AllowedNetworks, isPostRegenesis: boolean, blockNumber: number | 'latest'): Promise<[number, number] | null> {
+async function getBlockTimestamp(
+  network: AllowedNetworks,
+  isPostRegenesis: boolean,
+  blockNumber: number | 'latest',
+): Promise<[number, number] | null> {
   let res;
   for (let i = 0; i < 10; i++) {
     try {
       res = await axios.post(getNetworkProviderUrl(network), {
-        "jsonrpc": "2.0",
-        "method": "eth_getBlockByNumber",
-        "params": [blockNumber == 'latest' ? 'latest' : '0x' + (blockNumber - (isPostRegenesis ? REGENESIS_ADD : 0)).toString(16), false],
-        "id": 1
+        jsonrpc: '2.0',
+        method: 'eth_getBlockByNumber',
+        params: [
+          blockNumber == 'latest'
+            ? 'latest'
+            : '0x' + (blockNumber - (isPostRegenesis ? REGENESIS_ADD : 0)).toString(16),
+          false,
+        ],
+        id: 1,
       });
       break;
     } catch {
-      console.log(`-- fail fetching block ${blockNumber} timestamp, retrying`)
+      console.log(`-- fail fetching block ${blockNumber} timestamp, retrying`);
     }
   }
   if (!res) {
     throw new Error('Failed to fetch block 10 times');
   }
   if (res.data.result) {
-    return [parseInt(res.data.result.number, 16) + (isPostRegenesis ? REGENESIS_ADD : 0), parseInt(res.data.result.timestamp, 16)];
+    return [
+      parseInt(res.data.result.number, 16) + (isPostRegenesis ? REGENESIS_ADD : 0),
+      parseInt(res.data.result.timestamp, 16),
+    ];
   } else {
     return null;
   }
@@ -47,32 +60,29 @@ async function getBlocksFast(blocksDb: any, isPostRegenesis: boolean, network: A
     }
   });
 
-  let current: number = ((blocksDb.prepare("SELECT MAX(blockNumber) as maxBlock FROM blockNums").get())?.maxBlock || 0) + 1;
+  let current: number =
+    (blocksDb.prepare('SELECT MAX(blockNumber) as maxBlock FROM blockNums').get()?.maxBlock || 0) + 1;
 
   if (current > REGENESIS_ADD) {
     current = current - REGENESIS_ADD;
   }
 
   const limit = 1000;
-  while (true) {
-    console.log(`- Caching block timestamps: [${current}-${current+1000}]`)
-    const res = await axios.post(network == "mainnet-ovm" ? mainnet_endpoint : kovan_endpoint, {
+  let res;
+  do {
+    console.log(`- Caching block timestamps: [${current}-${current + 1000}]`);
+    res = await axios.post(network == 'mainnet-ovm' ? mainnet_endpoint : kovan_endpoint, {
       query: `{
         blocks(first: ${limit}, where:{number_gte:${current}}, orderBy: number) {
           number
           timestamp
         }
-      }`
-    })
+      }`,
+    });
     current += limit;
     insertMany(res.data.data.blocks);
-
-    if (res.data.data.blocks.length < 1000) {
-      break;
-    }
-  }
+  } while (res.data.data.blocks.length > 1000);
 }
-
 
 async function cacheBlockNumbers(blocksDb: any, isPostRegenesis: boolean, network: AllowedNetworks) {
   await blocksDb.exec(`CREATE TABLE IF NOT EXISTS blockNums (
@@ -88,12 +98,13 @@ async function cacheBlockNumbers(blocksDb: any, isPostRegenesis: boolean, networ
     }
   });
 
-  let startBlock: number = ((blocksDb.prepare("SELECT MAX(blockNumber) as maxBlock FROM blockNums").get())?.maxBlock || 0) + 1;
+  let startBlock: number =
+    (blocksDb.prepare('SELECT MAX(blockNumber) as maxBlock FROM blockNums').get()?.maxBlock || 0) + 1;
   const maxBlock = await getBlockTimestamp(network, false, 'latest' as any);
-  console.log(`- Caching block timestamps: [${startBlock}-${maxBlock}]`)
+  console.log(`- Caching block timestamps: [${startBlock}-${maxBlock}]`);
 
   if (!maxBlock) {
-    throw Error("")
+    throw Error('');
   }
   let endBlock = maxBlock[0];
   const batchSize = 200;
@@ -106,10 +117,10 @@ async function cacheBlockNumbers(blocksDb: any, isPostRegenesis: boolean, networ
     startBlock += REGENESIS_ADD;
   }
 
-  for (let i = startBlock; i < endBlock; i+= batchSize) {
-    console.log(`- ${i}/${endBlock}`)
+  for (let i = startBlock; i < endBlock; i += batchSize) {
+    console.log(`- ${i}/${endBlock}`);
     const promises = [];
-    for (let j=i; j<i+batchSize; j++) {
+    for (let j = i; j < i + batchSize; j++) {
       promises.push(getBlockTimestamp(network, isPostRegenesis, j));
     }
     const results = await Promise.all(promises);
@@ -118,30 +129,23 @@ async function cacheBlockNumbers(blocksDb: any, isPostRegenesis: boolean, networ
 }
 
 export async function getTimestampForBlock(blocksDb: sqlite3.Database, blockNumber: number) {
-  let res = (blocksDb.prepare("SELECT blockNumber, timestamp FROM blockNums WHERE blockNumber = ?").get(blockNumber))
+  const res = blocksDb.prepare('SELECT blockNumber, timestamp FROM blockNums WHERE blockNumber = ?').get(blockNumber);
 
   if (res.length == 0) {
-    throw Error("missing timestamp for block " + blockNumber)
+    throw Error('missing timestamp for block ' + blockNumber);
   }
 
   return res.timestamp;
 }
 
 export async function updateBlocksToLatest(network: AllowedNetworks) {
-  const blocksDb = sqlite3(
-    path.join(
-      __dirname,
-      '../data/',
-      network,
-      '/blockNumbers.sqlite',
-    ),
-  );
+  const blocksDb = sqlite3(path.join(__dirname, '../data/', network, '/blockNumbers.sqlite'));
 
-  if (network == "mainnet-ovm") {
+  if (USE_GRAPH) {
     await getBlocksFast(blocksDb, false, network);
   } else {
     await cacheBlockNumbers(blocksDb, true, network);
   }
 
-  return ((blocksDb.prepare("SELECT MAX(blockNumber) as maxBlock FROM blockNums").get())?.maxBlock || 0);
+  return blocksDb.prepare('SELECT MAX(blockNumber) as maxBlock FROM blockNums').get()?.maxBlock || 0;
 }

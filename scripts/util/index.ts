@@ -19,7 +19,6 @@ export function getNetworkProvider(network: AllowedNetworks): Provider {
   }
 }
 
-
 export function getNetworkProviderUrl(network: AllowedNetworks): string {
   if (network == 'kovan-ovm') {
     return 'https://kovan.optimism.io';
@@ -27,7 +26,6 @@ export function getNetworkProviderUrl(network: AllowedNetworks): string {
     return 'https://mainnet.optimism.io';
   }
 }
-
 
 export function getWallet(network: AllowedNetworks) {
   return new ethers.Wallet(

@@ -35,11 +35,20 @@ export async function getPerListingBreakdown(params: Params, tickers: string[]) 
         const callNetDelta = listingCache.callDelta.mul(callExposure).div(UNIT);
         const putNetDelta = listingCache.putDelta.mul(putExposure).div(UNIT);
 
-        console.log('-----')
-        console.log(`Listing id: ${listing.listingId}\nstrike: ${fromBN(listing.strike)}\nexpiry: ${listing.expiry.toNumber()}\n`);
-        console.log(`call delta: ${fromBN(listingCache.callDelta)}\nput delta: ${fromBN(listingCache.putDelta)}\nstd vega: ${fromBN(listingCache.stdVega)}\n`);
-        console.log(`long calls: ${fromBN(listing.longCall)}\nlong put: ${fromBN(listing.longPut)}\nshort calls: ${fromBN(listing.shortCall)}\nshort put: ${fromBN(listing.shortPut)}\n`);
-
+        console.log('-----');
+        console.log(
+          `Listing id: ${listing.listingId}\nstrike: ${fromBN(listing.strike)}\nexpiry: ${listing.expiry.toNumber()}\n`,
+        );
+        console.log(
+          `call delta: ${fromBN(listingCache.callDelta)}\nput delta: ${fromBN(
+            listingCache.putDelta,
+          )}\nstd vega: ${fromBN(listingCache.stdVega)}\n`,
+        );
+        console.log(
+          `long calls: ${fromBN(listing.longCall)}\nlong put: ${fromBN(listing.longPut)}\nshort calls: ${fromBN(
+            listing.shortCall,
+          )}\nshort put: ${fromBN(listing.shortPut)}\n`,
+        );
 
         console.log(`net delta: ${fromBN(callNetDelta.add(putNetDelta))}`);
         console.log(`net std vega: ${fromBN(callExposure.add(putExposure).mul(listingCache.stdVega).div(UNIT))}`);

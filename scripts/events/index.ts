@@ -6,7 +6,7 @@ import { loadLyraContractDeploymentBlock } from '../util/parseFiles';
 import { getLyraContract } from '../util/transactions';
 
 const EVENT_BATCH_SIZE = 10000;
-const REGENESIS_ADD = 10_000_000
+const REGENESIS_ADD = 10_000_000;
 
 function createTableStatement(eventName: string, nameTypes: [string, string][]) {
   return `CREATE TABLE IF NOT EXISTS "${eventName}" (id INTEGER PRIMARY KEY AUTOINCREMENT, blockNumber INTEGER NOT NULL, ${nameTypes
@@ -68,10 +68,7 @@ async function getAllNewEvents(
 
   const statement = await db.prepare(insertEventStatement(eventName, nameTypes));
   for (const item of newResults) {
-    statement.run(
-      item.blockNumber + (isPostRegenesis ? REGENESIS_ADD : 0),
-      ...item.args.map((x: any) => x.toString())
-    );
+    statement.run(item.blockNumber + (isPostRegenesis ? REGENESIS_ADD : 0), ...item.args.map((x: any) => x.toString()));
   }
 }
 
@@ -80,9 +77,9 @@ export async function cacheAllEventsForLyraContract(
   contractName: string,
   endblock: number,
   market?: string,
-  eventFilter?: string[]
+  eventFilter?: string[],
 ) {
-  const isPostRegenesis = params.network === 'kovan-ovm';
+  const isPostRegenesis = true;
 
   const db = sqlite3(
     path.join(

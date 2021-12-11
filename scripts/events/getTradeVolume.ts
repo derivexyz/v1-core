@@ -14,9 +14,9 @@ export async function getTradeVolume(params: Params, tickers: string[]) {
     const roundStartedEvents = await getEventsFromLyraContract(params, 'LiquidityPool', 'RoundStarted', {}, ticker);
 
     const latestRoundStartedEvent = roundStartedEvents.reduce(
-      (a: any, b: any) => a.newMaxExpiryTimestamp > b.newMaxExpiryTimestamp ? a : b,
-      {newMaxExpiryTimestamp: 0}
-    )
+      (a: any, b: any) => (a.newMaxExpiryTimestamp > b.newMaxExpiryTimestamp ? a : b),
+      { newMaxExpiryTimestamp: 0 },
+    );
 
     console.log(`\n= ${ticker} market =\n`);
     let totalLongAmountOpen = BigNumber.from(0);
@@ -32,8 +32,9 @@ export async function getTradeVolume(params: Params, tickers: string[]) {
     let totalLongSettleValue = BigNumber.from(0);
     let totalShortSettleValue = BigNumber.from(0);
 
-    const openEvents = (await getEventsFromLyraContract(params, 'OptionMarket', 'PositionOpened', {}, ticker))
-      .filter(x => x.blockNumber >= latestRoundStartedEvent.blockNumber);
+    const openEvents = (await getEventsFromLyraContract(params, 'OptionMarket', 'PositionOpened', {}, ticker)).filter(
+      x => x.blockNumber >= latestRoundStartedEvent.blockNumber,
+    );
 
     for (const i of openEvents) {
       if (uniqueAddresses[i.trader] === undefined) {
@@ -48,9 +49,9 @@ export async function getTradeVolume(params: Params, tickers: string[]) {
       }
     }
 
-    const closeEvents = (await getEventsFromLyraContract(params, 'OptionMarket', 'PositionClosed', {}, ticker))
-      .filter(x => x.blockNumber >= latestRoundStartedEvent.blockNumber);
-
+    const closeEvents = (await getEventsFromLyraContract(params, 'OptionMarket', 'PositionClosed', {}, ticker)).filter(
+      x => x.blockNumber >= latestRoundStartedEvent.blockNumber,
+    );
 
     for (const i of closeEvents) {
       if (i.tradeType == TradeType.LONG_CALL || i.tradeType == TradeType.LONG_PUT) {
@@ -62,8 +63,9 @@ export async function getTradeVolume(params: Params, tickers: string[]) {
       }
     }
 
-    const settleEvents = (await getEventsFromLyraContract(params, 'ShortCollateral', 'OptionsSettled', {}, ticker))
-      .filter(x => x.blockNumber >= latestRoundStartedEvent.blockNumber);
+    const settleEvents = (
+      await getEventsFromLyraContract(params, 'ShortCollateral', 'OptionsSettled', {}, ticker)
+    ).filter(x => x.blockNumber >= latestRoundStartedEvent.blockNumber);
 
     for (const i of settleEvents) {
       const strike = decimalToBN(i.strike);

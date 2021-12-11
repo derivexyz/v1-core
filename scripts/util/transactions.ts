@@ -35,6 +35,18 @@ export async function getLyraContract(params: Params, contractName: string, mark
   return contract;
 }
 
+export async function callLyraFunction(
+  deploymentParams: Params,
+  contractName: string,
+  fn: string,
+  args: any[],
+  market?: string,
+): Promise<any> {
+  const contract = await getLyraContract(deploymentParams, contractName, market);
+  console.log(chalk.grey(`Calling ${fn} on ${contract.address} with args ${args}`));
+  return await contract[fn](...args);
+}
+
 export async function getSynthetixContract(params: Params, contractName: string): Promise<Contract> {
   if (contracts[contractName]) {
     return contracts[contractName];
@@ -49,18 +61,6 @@ export async function getSynthetixContract(params: Params, contractName: string)
   );
   contracts[contractName] = contract;
   return contract;
-}
-
-export async function callLyraFunction(
-  deploymentParams: Params,
-  contractName: string,
-  fn: string,
-  args: any[],
-  market?: string,
-): Promise<any> {
-  const contract = await getLyraContract(deploymentParams, contractName, market);
-  console.log(chalk.grey(`Calling ${fn} on ${contract.address} with args ${args}`));
-  return await contract[fn](...args);
 }
 
 export async function callSynthetixFunction(

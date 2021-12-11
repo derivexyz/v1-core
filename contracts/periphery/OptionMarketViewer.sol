@@ -52,6 +52,16 @@ contract OptionMarketViewer {
     uint putPrice;
   }
 
+  struct TradePremiumView {
+    uint listingId;
+    uint premium;
+    uint basePrice;
+    uint vegaUtilFee;
+    uint optionPriceFee;
+    uint spotPriceFee;
+    uint newIv;
+  }
+
   ILyraGlobals public globals;
   IOptionMarket public optionMarket;
   IOptionMarketPricer public optionMarketPricer;
@@ -290,7 +300,7 @@ contract OptionMarketViewer {
     uint _listingId,
     IOptionMarket.TradeType tradeType,
     uint amount
-  ) external view returns (uint premium, uint newIv) {
+  ) external view returns (TradePremiumView memory) {
     bool isBuy = tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT;
     return getPremiumForTrade(_listingId, tradeType, isBuy, amount);
   }
@@ -302,20 +312,20 @@ contract OptionMarketViewer {
     uint _listingId,
     IOptionMarket.TradeType tradeType,
     uint amount
-  ) external view returns (uint premium, uint newIv) {
+  ) external view returns (TradePremiumView memory) {
     bool isBuy = !(tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT);
     return getPremiumForTrade(_listingId, tradeType, isBuy, amount);
   }
 
   /**
-   * @dev Gets the premium and new iv value for a given trade
+   * @dev Gets the premium with fee breakdown and new iv value for a given trade
    */
   function getPremiumForTrade(
     uint _listingId,
     IOptionMarket.TradeType tradeType,
     bool isBuy,
     uint amount
-  ) public view returns (uint premium, uint newIv) {
+  ) public view returns (TradePremiumView memory) {
     ILyraGlobals.PricingGlobals memory pricingGlobals = globals.getPricingGlobals(address(optionMarket));
     ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
       globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
@@ -335,6 +345,60 @@ contract OptionMarketViewer {
   }
 
   /**
+   * @dev Gets the premium with fee breakdown and new iv value after opening for all listings in a board
+   */
+  function getOpenPremiumsForBoard(
+    uint _boardId,
+    IOptionMarket.TradeType tradeType,
+    uint amount
+  ) external view returns (TradePremiumView[] memory) {
+    bool isBuy = tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT;
+    return getPremiumsForBoard(_boardId, tradeType, isBuy, amount);
+  }
+
+  /**
+   * @dev Gets the premium with fee breakdown and new iv value after closing for all listings in a board
+   */
+  function getClosePremiumsForBoard(
+    uint _boardId,
+    IOptionMarket.TradeType tradeType,
+    uint amount
+  ) external view returns (TradePremiumView[] memory) {
+    bool isBuy = !(tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.LONG_PUT);
+    return getPremiumsForBoard(_boardId, tradeType, isBuy, amount);
+  }
+
+  /**
+   * @dev Gets the premium with fee breakdown and new iv value for all listings in a board
+   */
+  function getPremiumsForBoard(
+    uint _boardId,
+    IOptionMarket.TradeType tradeType,
+    bool isBuy,
+    uint amount
+  ) public view returns (TradePremiumView[] memory tradePremiums) {
+    IOptionMarket.OptionBoard memory board = getBoard(_boardId);
+    ILyraGlobals.PricingGlobals memory pricingGlobals = globals.getPricingGlobals(address(optionMarket));
+    ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
+      globals.getExchangeGlobals(address(optionMarket), ILyraGlobals.ExchangeType.ALL);
+
+    tradePremiums = new TradePremiumView[](board.listingIds.length);
+    for (uint i = 0; i < board.listingIds.length; i++) {
+      IOptionMarket.OptionListing memory listing = getListing(board.listingIds[i]);
+      IOptionMarket.Trade memory trade =
+        IOptionMarket.Trade({
+          isBuy: isBuy,
+          amount: amount,
+          vol: board.iv.multiplyDecimal(listing.skew),
+          expiry: board.expiry,
+          liquidity: liquidityPool.getLiquidity(pricingGlobals.spotPrice, exchangeGlobals.short)
+        });
+      bool isCall = tradeType == IOptionMarket.TradeType.LONG_CALL || tradeType == IOptionMarket.TradeType.SHORT_CALL;
+      tradePremiums[i] = _getPremiumForTrade(listing, board, trade, pricingGlobals, isCall);
+    }
+  }
+
+  /**
    * @dev Gets the premium and new iv value for a given trade
    */
   function _getPremiumForTrade(
@@ -343,7 +407,7 @@ contract OptionMarketViewer {
     IOptionMarket.Trade memory trade,
     ILyraGlobals.PricingGlobals memory pricingGlobals,
     bool isCall
-  ) public view returns (uint, uint) {
+  ) public view returns (TradePremiumView memory premium) {
     // Apply the skew as implemented in OptionMarket
 
     (uint newIv, uint newSkew) = optionMarketPricer.ivImpactForTrade(listing, trade, pricingGlobals, board.iv);
@@ -361,7 +425,21 @@ contract OptionMarketViewer {
     IOptionMarketPricer.Pricing memory pricing =
       _getPricingForTrade(pricingGlobals, trade, listing.id, newCallExposure, newPutExposure, isCall);
 
-    return (optionMarketPricer.getPremium(trade, pricing, pricingGlobals), trade.vol);
+    uint vegaUtil = optionMarketPricer.getVegaUtil(trade, pricing, pricingGlobals);
+
+    premium.listingId = listing.id;
+    premium.premium = optionMarketPricer.getPremium(trade, pricing, pricingGlobals);
+    premium.newIv = trade.vol;
+    premium.optionPriceFee = pricingGlobals
+      .optionPriceFeeCoefficient
+      .multiplyDecimal(pricing.optionPrice)
+      .multiplyDecimal(trade.amount);
+    premium.spotPriceFee = pricingGlobals
+      .spotPriceFeeCoefficient
+      .multiplyDecimal(pricingGlobals.spotPrice)
+      .multiplyDecimal(trade.amount);
+    premium.vegaUtilFee = pricingGlobals.vegaFeeCoefficient.multiplyDecimal(vegaUtil).multiplyDecimal(trade.amount);
+    premium.basePrice = pricing.optionPrice.multiplyDecimal(trade.amount);
   }
 
   function _getPricingForTrade(

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import {cacheAllEventsForLyraContract } from './events';
-import {getAddressParameter, getNetworkProvider, getSelectedNetwork} from './util';
-import {getLPExposure} from "./events/getLPExposure";
+import { cacheAllEventsForLyraContract } from './events';
+import { getLPExposure } from './events/getLPExposure';
+import { getAddressParameter, getNetworkProvider, getSelectedNetwork } from './util';
 
 const RUN_PARAMS = {
   updateEvents: true,
