@@ -1,0 +1,8 @@
+# folders
+.yarn/
+build/
+dist/
+typechain-types/
+node_modules/
+contracts/mocks/*
+contracts/test/*

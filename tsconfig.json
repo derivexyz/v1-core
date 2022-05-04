@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "lib": ["es2019", "es2020.promise", "es2020.bigint", "es2020.string"],
+    "module": "commonjs",
+    "target": "es2019",
+    "strict": true,
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "declaration": true
+  },
+  "include": ["./scripts", "./test", "./types", "./simulation", "test-old/SynthetixAdapter.ts"],
+  "exclude": [
+    "node_modules",
+    "artifacts",
+    "cache",
+    ".git",
+    "typechain-types",
+    ".lyra"
+  ],
+  "files": ["./hardhat.config.ts", "typechain-types/hardhat.d.ts", "types.d.ts"]
+}

@@ -1,0 +1,125 @@
+{
+  "DefaultParameters": {
+    "tradingCutoff": 86400,
+    "optionPriceFeeCoefficient": "",
+    "spotPriceFeeCoefficient": "0.001",
+    "vegaFeeCoefficient": "",
+    "standardSize": "",
+    "skewAdjustmentFactor": "1",
+    "rateAndCarry": "0.06",
+    "minDelta": "0.1",
+    "volatilityCutoff": "0.45"
+  },
+  "Markets": {
+    "sETH": {
+      "BaseTicker": "sETH",
+      "ParameterOverrides": {
+        "standardSize": "11",
+        "optionPriceFeeCoefficient": "0.015",
+        "vegaFeeCoefficient": "40000"
+      }
+    },
+    "sLINK": {
+      "BaseTicker": "sLINK",
+      "ParameterOverrides": {
+        "standardSize": "40",
+        "optionPriceFeeCoefficient": "0.03",
+        "vegaFeeCoefficient": "400"
+      }
+    },
+    "sBTC": {
+      "BaseTicker": "sBTC",
+      "ParameterOverrides": {
+        "standardSize": "5",
+        "optionPriceFeeCoefficient": "0.015",
+        "vegaFeeCoefficient": "600000"
+      }
+    },
+    "sSOL":  {
+      "BaseTicker": "sSOL",
+      "ParameterOverrides": {
+        "standardSize": "100",
+        "optionPriceFeeCoefficient": "0.015",
+        "vegaFeeCoefficient": "2000"
+      }
+    }
+  },
+  "Seed": {
+    "mintFunds": {
+      "run": false,
+      "markets": {
+        "sETH": {
+          "quoteAmount": "10000000",
+          "baseAmount": "10000"
+        }
+      }
+    },
+    "deposit": {
+      "run": false,
+      "markets": {
+        "sETH": {
+          "quoteAmount": "2345.678901234567890123"
+        }
+      }
+    },
+    "addExercisableOptions": {
+      "run": false
+    },
+    "addBoards": {
+      "run": false,
+      "markets": {
+        "sETH": {
+          "generated": false,
+          "staticBoards": [
+            {
+              "Expiry": 1629662400,
+              "BaseIv": "0.90",
+              "Strikes": [
+                "2950",
+                "3000",
+                "3100",
+                "3150",
+                "3200",
+                "3250",
+                "3350",
+                "3400"
+              ],
+              "Skews": [
+                "1",
+                "1",
+                "1",
+                "1",
+                "1",
+                "1",
+                "1.02",
+                "1.04"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "updateCaches": {
+      "markets": {
+        "sETH": false
+      }
+    },
+    "hedgeDelta": {
+      "markets": {
+        "sETH": false
+      }
+    },
+    "seedTrades": {
+      "markets": {
+        "sETH": false
+      }
+    },
+    "changeOwner": {
+      "run": true,
+      "globalOwner": "0xF6f583141590577eae48A99B7F09aD3a7274cE40",
+      "markets": {
+        "sBTC": "0xF6f583141590577eae48A99B7F09aD3a7274cE40"
+      }
+    }
+  }
+}

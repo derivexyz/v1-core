@@ -1,0 +1,35 @@
+# Summary
+* contracts
+  * [LiquidityPool](docs/contracts/liquiditypool.md)
+  * [LiquidityTokens](docs/contracts/liquiditytokens.md)
+  * [OptionGreekCache](docs/contracts/optiongreekcache.md)
+  * [OptionMarket](docs/contracts/optionmarket.md)
+  * [OptionMarketPricer](docs/contracts/optionmarketpricer.md)
+  * [OptionToken](docs/contracts/optiontoken.md)
+  * [PoolHedger](docs/contracts/poolhedger.md)
+  * [ShortCollateral](docs/contracts/shortcollateral.md)
+  * [SynthetixAdapter](docs/contracts/synthetixadapter.md)
+  * lib
+    * [BlackScholes](docs/contracts/lib/blackscholes.md)
+    * [FixedPointMathLib](docs/contracts/lib/fixedpointmathlib.md)
+    * [GWAV](docs/contracts/lib/gwav.md)
+    * [SimpleInitializeable](docs/contracts/lib/simpleinitializeable.md)
+  * periphery
+    * [BasicFeeCounter](docs/contracts/periphery/basicfeecounter.md)
+    * [BasicLiquidityCounter](docs/contracts/periphery/basicliquiditycounter.md)
+    * [GWAVOracle](docs/contracts/periphery/gwavoracle.md)
+    * [KeeperHelper](docs/contracts/periphery/keeperhelper.md)
+    * [LyraRegistry](docs/contracts/periphery/lyraregistry.md)
+    * [MultistepSwapper](docs/contracts/periphery/multistepswapper.md)
+    * [OptionMarketViewer](docs/contracts/periphery/optionmarketviewer.md)
+    * [VaultAdapter](docs/contracts/periphery/vaultadapter.md)
+    * Wrapper
+      * [BasicOptionMarketWrapper](docs/contracts/periphery/wrapper/basicoptionmarketwrapper.md)
+      * [OptionMarketWrapper](docs/contracts/periphery/wrapper/optionmarketwrapper.md)
+      * [OptionMarketWrapperWithSwaps](docs/contracts/periphery/wrapper/optionmarketwrapperwithswaps.md)
+  * synthetix
+    * [AbstractOwned](docs/contracts/synthetix/abstractowned.md)
+    * [DecimalMath](docs/contracts/synthetix/decimalmath.md)
+    * [Owned](docs/contracts/synthetix/owned.md)
+    * [OwnedUpgradeable](docs/contracts/synthetix/ownedupgradeable.md)
+    * [SignedDecimalMath](docs/contracts/synthetix/signeddecimalmath.md)

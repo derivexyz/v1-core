@@ -1,0 +1,459 @@
+//SPDX-License-Identifier: ISC
+pragma solidity 0.8.9;
+
+// Libraries
+import "./synthetix/DecimalMath.sol";
+
+// Inherited
+import "./synthetix/OwnedUpgradeable.sol";
+
+// Interfaces
+import "./interfaces/ISynthetix.sol";
+import "./interfaces/ICollateralShort.sol";
+import "./interfaces/IAddressResolver.sol";
+import "./interfaces/IExchanger.sol";
+import "./interfaces/IExchangeRates.sol";
+
+import "./LiquidityPool.sol";
+import "./interfaces/IDelegateApprovals.sol";
+
+/**
+ * @title SynthetixAdapter
+ * @author Lyra
+ * @dev Manages access to exchange functions on Synthetix.
+ * The OptionMarket contract address is used as the key to access the relevant exchange parameters for the market.
+ */
+contract SynthetixAdapter is OwnedUpgradeable {
+  using DecimalMath for uint;
+
+  /**
+   * @dev Structs to help reduce the number of calls between other contracts and this one
+   * Grouped in usage for a particular contract/use case
+   */
+  struct ExchangeParams {
+    uint spotPrice;
+    bytes32 quoteKey;
+    bytes32 baseKey;
+    ICollateralShort short;
+    uint quoteBaseFeeRate;
+    uint baseQuoteFeeRate;
+  }
+
+  /// @dev Pause the whole system. Note; this will not pause settling previously expired options.
+  mapping(address => bool) public isMarketPaused;
+  bool public isGlobalPaused;
+
+  IAddressResolver public addressResolver;
+
+  bytes32 private constant CONTRACT_SYNTHETIX = "Synthetix";
+  bytes32 private constant CONTRACT_EXCHANGER = "Exchanger";
+  bytes32 private constant CONTRACT_EXCHANGE_RATES = "ExchangeRates";
+  bytes32 private constant CONTRACT_COLLATERAL_SHORT = "CollateralShort";
+  bytes32 private constant CONTRACT_DELEGATE_APPROVALS = "DelegateApprovals";
+
+  // Cached addresses that can be updated via a public function
+  ISynthetix public synthetix;
+  IExchanger public exchanger;
+  IExchangeRates public exchangeRates;
+  ICollateralShort public collateralShort;
+  IDelegateApprovals public delegateApprovals;
+
+  // Variables related to calculating premium/fees
+  mapping(address => bytes32) public quoteKey;
+  mapping(address => bytes32) public baseKey;
+  mapping(address => address) public rewardAddress;
+  mapping(address => bytes32) public trackingCode;
+
+  function initialize() external initializer {
+    __Ownable_init();
+  }
+
+  /////////////
+  // Setters //
+  /////////////
+
+  /**
+   * @dev Set the address of the Synthetix address resolver.
+   *
+   * @param _addressResolver The address of Synthetix's AddressResolver.
+   */
+  function setAddressResolver(IAddressResolver _addressResolver) external onlyOwner {
+    addressResolver = _addressResolver;
+    updateSynthetixAddresses();
+    emit AddressResolverSet(addressResolver);
+  }
+
+  /**
+   * @dev Set the synthetixAdapter for a specific OptionMarket.
+   *
+   * @param _contractAddress The address of the OptionMarket.
+   * @param _quoteKey The key of the quoteAsset.
+   * @param _baseKey The key of the baseAsset.
+   */
+  function setGlobalsForContract(
+    address _contractAddress,
+    bytes32 _quoteKey,
+    bytes32 _baseKey,
+    address _rewardAddress,
+    bytes32 _trackingCode
+  ) external onlyOwner {
+    if (_rewardAddress == address(0)) {
+      revert InvalidRewardAddress(address(this), _rewardAddress);
+    }
+    quoteKey[_contractAddress] = _quoteKey;
+    baseKey[_contractAddress] = _baseKey;
+    rewardAddress[_contractAddress] = _rewardAddress;
+    trackingCode[_contractAddress] = _trackingCode;
+    emit GlobalsSetForContract(_contractAddress, _quoteKey, _baseKey, _rewardAddress, _trackingCode);
+  }
+
+  /**
+   * @dev Pauses the contract.
+   *
+   * @param _isPaused Whether getting synthetixAdapter will revert or not.
+   */
+  function setMarketPaused(address _contractAddress, bool _isPaused) external onlyOwner {
+    isMarketPaused[_contractAddress] = _isPaused;
+    emit MarketPausedSet(_contractAddress, _isPaused);
+  }
+
+  function setGlobalPaused(bool _isPaused) external onlyOwner {
+    isGlobalPaused = _isPaused;
+    emit GlobalPausedSet(_isPaused);
+  }
+
+  //////////////////////
+  // Address Resolver //
+  //////////////////////
+
+  /**
+   * @dev Public function to update synthetix addresses Lyra uses. The addresses are cached this way for gas efficiency.
+   */
+  function updateSynthetixAddresses() public {
+    synthetix = ISynthetix(addressResolver.getAddress(CONTRACT_SYNTHETIX));
+    exchanger = IExchanger(addressResolver.getAddress(CONTRACT_EXCHANGER));
+    exchangeRates = IExchangeRates(addressResolver.getAddress(CONTRACT_EXCHANGE_RATES));
+    collateralShort = ICollateralShort(addressResolver.getAddress(CONTRACT_COLLATERAL_SHORT));
+    delegateApprovals = IDelegateApprovals(addressResolver.getAddress(CONTRACT_DELEGATE_APPROVALS));
+
+    emit SynthetixAddressesUpdated(synthetix, exchanger, exchangeRates, collateralShort, delegateApprovals);
+  }
+
+  /////////////
+  // Getters //
+  /////////////
+  /**
+   * @notice Returns the price of the baseAsset.
+   *
+   * @param _contractAddress The address of the OptionMarket.
+   */
+  function getSpotPriceForMarket(address _contractAddress) public view notPaused(_contractAddress) returns (uint) {
+    return getSpotPrice(baseKey[_contractAddress]);
+  }
+
+  /**
+   * @notice Gets spot price of an asset.
+   * @dev All rates are denominated in terms of sUSD,
+   * so the price of sUSD is always $1.00, and is never stale.
+   *
+   * @param to The key of the synthetic asset.
+   */
+  function getSpotPrice(bytes32 to) public view returns (uint) {
+    (uint rate, bool invalid) = exchangeRates.rateAndInvalid(to);
+    if (rate == 0 || invalid) {
+      revert RateIsInvalid(address(this), rate, invalid);
+    }
+    return rate;
+  }
+
+  /**
+   * @notice Returns the ExchangeParams.
+   *
+   * @param _contractAddress The address of the OptionMarket.
+   */
+  function getExchangeParams(address _contractAddress)
+    public
+    view
+    notPaused(_contractAddress)
+    returns (ExchangeParams memory exchangeParams)
+  {
+    exchangeParams = ExchangeParams({
+      spotPrice: 0,
+      quoteKey: quoteKey[_contractAddress],
+      baseKey: baseKey[_contractAddress],
+      short: collateralShort,
+      quoteBaseFeeRate: 0,
+      baseQuoteFeeRate: 0
+    });
+
+    exchangeParams.spotPrice = getSpotPrice(exchangeParams.baseKey);
+    exchangeParams.quoteBaseFeeRate = exchanger.feeRateForExchange(exchangeParams.quoteKey, exchangeParams.baseKey);
+    exchangeParams.baseQuoteFeeRate = exchanger.feeRateForExchange(exchangeParams.baseKey, exchangeParams.quoteKey);
+  }
+
+  /////////////////////////////////////////
+  // Exchanging QuoteAsset for BaseAsset //
+  /////////////////////////////////////////
+  function exchangeFromExactQuote(address optionMarket, uint amountQuote) external returns (uint baseReceived) {
+    return _exchangeQuoteForBase(optionMarket, amountQuote);
+  }
+
+  function exchangeToExactBase(
+    ExchangeParams memory exchangeParams,
+    address optionMarket,
+    uint amountBase
+  ) external returns (uint quoteSpent, uint baseReceived) {
+    return exchangeToExactBaseWithLimit(exchangeParams, optionMarket, amountBase, type(uint).max);
+  }
+
+  function exchangeToExactBaseWithLimit(
+    ExchangeParams memory exchangeParams,
+    address optionMarket,
+    uint amountBase,
+    uint quoteLimit
+  ) public returns (uint quoteSpent, uint baseReceived) {
+    uint quoteToSpend = estimateExchangeToExactBase(exchangeParams, amountBase);
+    if (quoteToSpend > quoteLimit) {
+      revert QuoteBaseExchangeExceedsLimit(
+        address(this),
+        amountBase,
+        quoteToSpend,
+        quoteLimit,
+        exchangeParams.spotPrice,
+        exchangeParams.quoteKey,
+        exchangeParams.baseKey
+      );
+    }
+
+    return (quoteToSpend, _exchangeQuoteForBase(optionMarket, quoteToSpend));
+  }
+
+  function _exchangeQuoteForBase(address optionMarket, uint amountQuote) internal returns (uint baseReceived) {
+    if (amountQuote == 0) {
+      return 0;
+    }
+    baseReceived = synthetix.exchangeOnBehalfWithTracking(
+      msg.sender,
+      quoteKey[optionMarket],
+      amountQuote,
+      baseKey[optionMarket],
+      rewardAddress[optionMarket],
+      trackingCode[optionMarket]
+    );
+    if (amountQuote > 1e10 && baseReceived == 0) {
+      revert ReceivedZeroFromExchange(
+        address(this),
+        quoteKey[optionMarket],
+        baseKey[optionMarket],
+        amountQuote,
+        baseReceived
+      );
+    }
+    emit QuoteSwappedForBase(optionMarket, msg.sender, amountQuote, baseReceived);
+  }
+
+  function estimateExchangeToExactBase(ExchangeParams memory exchangeParams, uint amountBase)
+    public
+    pure
+    returns (uint quoteNeeded)
+  {
+    return
+      amountBase.divideDecimalRound(DecimalMath.UNIT - exchangeParams.quoteBaseFeeRate).multiplyDecimalRound(
+        exchangeParams.spotPrice
+      );
+  }
+
+  /////////////////////////////////////////
+  // Exchanging BaseAsset for QuoteAsset //
+  /////////////////////////////////////////
+  function exchangeFromExactBase(address optionMarket, uint amountBase) external returns (uint quoteReceived) {
+    return _exchangeBaseForQuote(optionMarket, amountBase);
+  }
+
+  function exchangeToExactQuote(
+    ExchangeParams memory exchangeParams,
+    address optionMarket,
+    uint amountQuote
+  ) external returns (uint quoteSpent, uint quoteReceived) {
+    return exchangeToExactQuoteWithLimit(exchangeParams, optionMarket, amountQuote, type(uint).max);
+  }
+
+  function exchangeToExactQuoteWithLimit(
+    ExchangeParams memory exchangeParams,
+    address optionMarket,
+    uint amountQuote,
+    uint baseLimit
+  ) public returns (uint baseSpent, uint quoteReceived) {
+    uint baseToSpend = estimateExchangeToExactQuote(exchangeParams, amountQuote);
+    if (baseToSpend > baseLimit) {
+      revert BaseQuoteExchangeExceedsLimit(
+        address(this),
+        amountQuote,
+        baseToSpend,
+        baseLimit,
+        exchangeParams.spotPrice,
+        exchangeParams.baseKey,
+        exchangeParams.quoteKey
+      );
+    }
+
+    return (baseToSpend, _exchangeBaseForQuote(optionMarket, baseToSpend));
+  }
+
+  function _exchangeBaseForQuote(address optionMarket, uint amountBase) internal returns (uint quoteReceived) {
+    if (amountBase == 0) {
+      return 0;
+    }
+    // swap exactly `amountBase` baseAsset for quoteAsset
+    quoteReceived = synthetix.exchangeOnBehalfWithTracking(
+      msg.sender,
+      baseKey[optionMarket],
+      amountBase,
+      quoteKey[optionMarket],
+      rewardAddress[optionMarket],
+      trackingCode[optionMarket]
+    );
+    if (amountBase > 1e10 && quoteReceived == 0) {
+      revert ReceivedZeroFromExchange(
+        address(this),
+        baseKey[optionMarket],
+        quoteKey[optionMarket],
+        amountBase,
+        quoteReceived
+      );
+    }
+    emit BaseSwappedForQuote(optionMarket, msg.sender, amountBase, quoteReceived);
+  }
+
+  function estimateExchangeToExactQuote(ExchangeParams memory exchangeParams, uint amountQuote)
+    public
+    pure
+    returns (uint baseNeeded)
+  {
+    return
+      amountQuote.divideDecimalRound(DecimalMath.UNIT - exchangeParams.baseQuoteFeeRate).divideDecimalRound(
+        exchangeParams.spotPrice
+      );
+  }
+
+  ///////////////
+  // Modifiers //
+  ///////////////
+
+  modifier notPaused(address _contractAddress) {
+    if (isGlobalPaused) {
+      revert AllMarketsPaused(address(this), _contractAddress);
+    }
+    if (isMarketPaused[_contractAddress]) {
+      revert MarketIsPaused(address(this), _contractAddress);
+    }
+    _;
+  }
+
+  ////////////
+  // Events //
+  ////////////
+
+  /**
+   * @dev Emitted when the address resolver is set.
+   */
+  event AddressResolverSet(IAddressResolver addressResolver);
+  /**
+   * @dev Emitted when synthetix contracts are updated.
+   */
+  event SynthetixAddressesUpdated(
+    ISynthetix synthetix,
+    IExchanger exchanger,
+    IExchangeRates exchangeRates,
+    ICollateralShort collateralShort,
+    IDelegateApprovals delegateApprovals
+  );
+  /**
+   * @dev Emitted when values for a given option market are set.
+   */
+  event GlobalsSetForContract(
+    address indexed market,
+    bytes32 quoteKey,
+    bytes32 baseKey,
+    address rewardAddress,
+    bytes32 trackingCode
+  );
+  /**
+   * @dev Emitted when GlobalPause.
+   */
+  event GlobalPausedSet(bool isPaused);
+  /**
+   * @dev Emitted when single market paused.
+   */
+  event MarketPausedSet(address contractAddress, bool isPaused);
+  /**
+   * @dev Emitted when trading cut-off is set.
+   */
+  event TradingCutoffSet(address indexed contractAddress, uint tradingCutoff);
+  /**
+   * @dev Emitted when quote key is set.
+   */
+  event QuoteKeySet(address indexed contractAddress, bytes32 quoteKey);
+  /**
+   * @dev Emitted when base key is set.
+   */
+  event BaseKeySet(address indexed contractAddress, bytes32 baseKey);
+  /**
+   * @dev Emitted when an exchange for base to quote occurs.
+   * Which base and quote were swapped can be determined by the given marketAddress.
+   */
+  event BaseSwappedForQuote(
+    address indexed marketAddress,
+    address indexed exchanger,
+    uint baseSwapped,
+    uint quoteReceived
+  );
+  /**
+   * @dev Emitted when an exchange for quote to base occurs.
+   * Which base and quote were swapped can be determined by the given marketAddress.
+   */
+  event QuoteSwappedForBase(
+    address indexed marketAddress,
+    address indexed exchanger,
+    uint quoteSwapped,
+    uint baseReceived
+  );
+
+  ////////////
+  // Errors //
+  ////////////
+  // Admin
+  error InvalidRewardAddress(address thrower, address rewardAddress);
+
+  // Market Paused
+  error AllMarketsPaused(address thrower, address marketAddress);
+  error MarketIsPaused(address thrower, address marketAddress);
+
+  // Exchanging
+  error ReceivedZeroFromExchange(
+    address thrower,
+    bytes32 fromKey,
+    bytes32 toKey,
+    uint amountSwapped,
+    uint amountReceived
+  );
+  error QuoteBaseExchangeExceedsLimit(
+    address thrower,
+    uint amountBaseRequested,
+    uint quoteToSpend,
+    uint quoteLimit,
+    uint spotPrice,
+    bytes32 quoteKey,
+    bytes32 baseKey
+  );
+  error BaseQuoteExchangeExceedsLimit(
+    address thrower,
+    uint amountQuoteRequested,
+    uint baseToSpend,
+    uint baseLimit,
+    uint spotPrice,
+    bytes32 baseKey,
+    bytes32 quoteKey
+  );
+  error RateIsInvalid(address thrower, uint spotPrice, bool invalid);
+}

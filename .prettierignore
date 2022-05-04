@@ -1,0 +1,16 @@
+# folders
+artifacts/
+build/
+cache/
+coverage/
+dist/
+lib/
+node_modules/
+typechain/
+typechain-types/
+contracts/mocks/
+contracts/test/
+
+# files
+coverage.json
+package.json

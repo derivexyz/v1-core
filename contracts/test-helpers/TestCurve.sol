@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+pragma solidity 0.8.9;
+import "../interfaces/ICurve.sol";
+import "./TestERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/// @title Router token swapping functionality
+/// @notice Functions for swapping tokens via Curve
+contract TestCurve is ICurve, Ownable {
+  bool initialized = false;
+
+  mapping(address => uint) public rates;
+  mapping(int128 => address) public curveStables;
+
+  constructor() {}
+
+  function setRate(address token, uint rate) external onlyOwner {
+    rates[token] = rate;
+  }
+
+  // function addCurveStable(address stablecoin, int128 desiredIndex) external onlyOwner {
+  //   curveStables[desiredIndex] = stablecoin;
+  // }
+
+  function get_best_rate(
+    address _from,
+    address _to,
+    uint _amount
+  ) external view returns (address pool, uint amountOut) {
+    // grab the rates of each token
+    uint _fromRate = rates[address(_from)];
+    uint _toRate = rates[address(_to)];
+
+    amountOut = (_amount * _toRate) / _fromRate;
+    pool = address(0); // should be same address that is used in exchange_with_best_rate
+  }
+
+  function exchange_with_best_rate(
+    address _from,
+    address _to,
+    uint _amount,
+    uint _expected,
+    address _receiver
+  ) external payable override returns (uint amountOut) {
+    // turn the _from into an ERC20 token
+    // turn the _to into an ERC20 token
+    TestERC20 fromToken = TestERC20(_from);
+    TestERC20 toToken = TestERC20(_to);
+
+    // if either _from or _to is zero throw error
+    require(
+      fromToken != TestERC20(address(0)) && toToken != TestERC20(address(0)),
+      "token in or token out is zero address"
+    );
+
+    // if balance of the sender is less than _amount throw error
+    uint bal = fromToken.balanceOf(_receiver);
+    require(bal >= _amount, "not enough to exchange");
+
+    // burn the tokens sent
+    fromToken.burn(_receiver, _amount);
+
+    // grab the rates of each token
+    uint _fromRate = rates[address(_from)];
+    uint _toRate = rates[address(_to)];
+
+    // if the amount we get out is less than expected throw error
+    // amountOut = (_amount * _fromRate) / _toRate;
+    amountOut = (_amount * _toRate) / _fromRate;
+    require(amountOut >= _expected, "not enough expected");
+
+    // mint the amountOut
+    toToken.mint(_receiver, amountOut);
+    return amountOut;
+  }
+
+  // old exchanging function, currently unused
+  function exchange_underlying(
+    int128 _from,
+    int128 _to,
+    uint _amount,
+    uint _expected
+  ) external payable override returns (uint amountOut) {
+    // turn the _from into an ERC20 token
+    // turn the _to into an ERC20 token
+    TestERC20 fromToken = TestERC20(curveStables[_from]);
+    TestERC20 toToken = TestERC20(curveStables[_to]);
+
+    // if either _from or _to is zero throw error
+    require(
+      fromToken != TestERC20(address(0)) && toToken != TestERC20(address(0)),
+      "token in or token out is zero address"
+    );
+
+    // if balance of the sender is less than _amount throw error
+    uint bal = fromToken.balanceOf(msg.sender);
+    require(bal >= _amount, "not enough to exchange");
+
+    // burn the tokens sent
+    fromToken.burn(msg.sender, _amount);
+
+    // grab the rates of each token
+    uint _fromRate = rates[address(curveStables[_from])];
+    uint _toRate = rates[address(curveStables[_to])];
+
+    // if the amount we get out is less than expected throw error
+    // amountOut = (_amount * _fromRate) / _toRate;
+    amountOut = (_amount * _toRate) / _fromRate;
+    require(amountOut >= _expected, "not enough expected");
+
+    // mint the amountOut
+    toToken.mint(msg.sender, amountOut);
+    return amountOut;
+  }
+}

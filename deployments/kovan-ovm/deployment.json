@@ -1,0 +1,227 @@
+{
+  "globals": {
+    "TestFaucet": {
+      "contractName": "TestFaucet",
+      "source": "TestFaucet",
+      "address": "0xF4bD9680E1D6539EF607f335ac256560D7d3882A",
+      "txn": "0xe7964288a1f5d75fe7acc6fd539423f653d50ed681de5e79e710a5e441213127",
+      "blockNumber": 1868619
+    },
+    "SynthetixAdapter": {
+      "contractName": "SynthetixAdapter",
+      "source": "SynthetixAdapter",
+      "address": "0xe98b9A14d8f4a24b62db6Ade47b80031dDF89cA4",
+      "txn": "0x55485bf88047cdf818505a88f3099af7740858576b816265b41f6af4ca5cc97b",
+      "blockNumber": 1868664
+    },
+    "OptionMarketViewer": {
+      "contractName": "OptionMarketViewer",
+      "source": "OptionMarketViewer",
+      "address": "0xe3501e51102BF281dd7394Ab1090e2bD42919244",
+      "txn": "0x86df65fdccbe6d669ee42cb51958dec4de093bcb68663528d6de034643b4d9d0",
+      "blockNumber": 1868668
+    },
+    "OptionMarketWrapper": {
+      "contractName": "OptionMarketWrapper",
+      "source": "OptionMarketWrapper",
+      "address": "0xFBd10da2cb0d91Da8F501f1a73512ceF092d26A9",
+      "txn": "0xc1a3dea34972c0d57087765b857d618f40360948bb7ae316c4ffe53d177d7ed7",
+      "blockNumber": 1868687
+    },
+    "LyraRegistry": {
+      "contractName": "LyraRegistry",
+      "source": "LyraRegistry",
+      "address": "0xD4B98Fae8e570dF2B2e32aFd26844c351b0dEa86",
+      "txn": "0x979b5f87adbdab94473ca6a26d66a7961830b11e554be5268aeabfcc591ae9ef",
+      "blockNumber": 1868704
+    },
+    "GWAV": {
+      "contractName": "GWAV",
+      "source": "GWAV",
+      "address": "0x57E49A8dd61Dac38C19B4EB0BD560cA56B4ee6c8",
+      "txn": "0xd63edded88d1411c30e82c5a20e4f9af52c4024b2b3e92bfb4b346181f9828c3",
+      "blockNumber": 1868711
+    },
+    "BlackScholes": {
+      "contractName": "BlackScholes",
+      "source": "BlackScholes",
+      "address": "0x9315abd7d83be7625bb88Ff9fa43c6D6BB82Ffe0",
+      "txn": "0xfe0ba234ea0dfa855a3ca160c8152982a094b1d346b83bdde8b52ad551318950",
+      "blockNumber": 1868721
+    },
+    "BasicFeeCounter": {
+      "contractName": "BasicFeeCounter",
+      "source": "BasicFeeCounter",
+      "address": "...",
+      "txn": "...",
+      "blockNumber": 0
+    },
+    "QuoteAsset": {
+      "contractName": "QuoteAsset",
+      "source": "TestERC20Fail",
+      "address": "0xDF7BCAAe1cdd43a76E127B69F8d73cC34A89Ab99",
+      "txn": "0x8dc8eca260bd51d81c9b1e38ed0dfbafbd8d74c96e11edf5b7460e292f04d634",
+      "blockNumber": 1868585
+    }
+  },
+  "markets": {
+    "sETH": {
+      "OptionMarket": {
+        "contractName": "OptionMarket",
+        "source": "OptionMarket",
+        "address": "0x817A19695a18Bf62Bb3a208AFEa0b1B265d46354",
+        "txn": "0x01f95a4c2635286ad1e378123d2f5d68945be93397813ec18e47c5b8d1f1ae4f",
+        "blockNumber": 1868816
+      },
+      "OptionMarketPricer": {
+        "contractName": "OptionMarketPricer",
+        "source": "OptionMarketPricer",
+        "address": "0xcbE6fd7440779f3Ac3fdd642Eca7548A19e1EC63",
+        "txn": "0x1274376c0aed1035caf7086dd3b1047b7727c83b595bf849847205450ee75829",
+        "blockNumber": 1868827
+      },
+      "OptionGreekCache": {
+        "contractName": "OptionGreekCache",
+        "source": "OptionGreekCache",
+        "address": "0xde3E0cFc996CE0eC205E2a131F7E05CAcB1bc90c",
+        "txn": "0x85132b6fc1d81ef11cefa9be75160c5e2ac157161323bb9fd2936d0b29dd0b85",
+        "blockNumber": 1868841
+      },
+      "OptionToken": {
+        "contractName": "OptionToken",
+        "source": "OptionToken",
+        "address": "0x9887EcFbb8C743fCdd0cBaaa1Bae86E05Fb64bb5",
+        "txn": "0x14e3869c099c67256c220a582e3237b57c57cd77e25c64636947415fc3bf2913",
+        "blockNumber": 1868851
+      },
+      "LiquidityPool": {
+        "contractName": "LiquidityPool",
+        "source": "LiquidityPool",
+        "address": "0x18D84990e0e4F2001D2D47300B5cCC316ec0Cc93",
+        "txn": "0xb804cc6475a39aaddd912755e822057a5fd960b9f066c947fbe5d7b6db5fd868",
+        "blockNumber": 1868855
+      },
+      "LiquidityTokens": {
+        "contractName": "LiquidityTokens",
+        "source": "LiquidityTokens",
+        "address": "0x6e83AeBee0C39D827f981e29581CA69f950C3d77",
+        "txn": "0x57216106978fdbd3d49adc8c2452f4e5a059eacb01ed654233c54316cff6845a",
+        "blockNumber": 1868876
+      },
+      "ShortCollateral": {
+        "contractName": "ShortCollateral",
+        "source": "ShortCollateral",
+        "address": "0x9f0927d7F236533d50F44444dfC37036c5BDd2Fe",
+        "txn": "0x739602c417ec4eacef727055744069da0837b1a4a7cab925aaaa9ea3ab4486c6",
+        "blockNumber": 1868885
+      },
+      "PoolHedger": {
+        "contractName": "PoolHedger",
+        "source": "PoolHedger",
+        "address": "0xA34A5E09C9b5d5F8Fa2765D25574cbB15af8A1E5",
+        "txn": "0x525e1c059f839e615e2b847b28a129f83422215c9dab172be6a584c73040237b",
+        "blockNumber": 1868896
+      },
+      "GWAVOracle": {
+        "contractName": "GWAVOracle",
+        "source": "GWAVOracle",
+        "address": "need to deploy...",
+        "txn": "need to deploy...",
+        "blockNumber": 0
+      },
+      "BasicLiquidityCounter": {
+        "contractName": "BasicLiquidityCounter",
+        "source": "BasicLiquidityCounter",
+        "address": "0x95fb6e79511A73D80186fc7Bda471571a91e21Bc",
+        "txn": "0xd4e8dfc87a77d2703d1ecec0b9a216c860fe2f22a35c8eba2fef2995a293d1e1",
+        "blockNumber": 1868890
+      },
+      "BaseAsset": {
+        "contractName": "BaseAsset",
+        "source": "TestERC20Fail",
+        "address": "0x313dEd458c3903E82A9d965d65984E8be0252A90",
+        "txn": "0xcd08e4c66c69b3b30873e30d35cfead126f19a266f45136f8134a9582e350982",
+        "blockNumber": 1868810
+      }
+    },
+    "sBTC": {
+      "OptionMarket": {
+        "contractName": "OptionMarket",
+        "source": "OptionMarket",
+        "address": "0xdF83F58E7fb7239a8862Eb0c7F2d7A83f054a0d8",
+        "txn": "0x51bf428bca31cf1e72fcfc27dff03a5ea9b04b980f9b1b8c6acf79c8ee93251e",
+        "blockNumber": 1869087
+      },
+      "OptionMarketPricer": {
+        "contractName": "OptionMarketPricer",
+        "source": "OptionMarketPricer",
+        "address": "0x86e3B517d561F843D04e066D737d7dad944bEbdA",
+        "txn": "0x24d8177c7f1bf037dd711b7ef34f3a79dd1498197819ec1ba28b8553940fc143",
+        "blockNumber": 1869093
+      },
+      "OptionGreekCache": {
+        "contractName": "OptionGreekCache",
+        "source": "OptionGreekCache",
+        "address": "0xCA72203d5519Bb41241E4b98B9d51ac2D931Def8",
+        "txn": "0xd55e742e6a347a22db1289c14b4793784445d979a034e70080a3c4d168aa0d1d",
+        "blockNumber": 1869097
+      },
+      "OptionToken": {
+        "contractName": "OptionToken",
+        "source": "OptionToken",
+        "address": "0x04Cd876A703DF1B44E4fD92Dd8bf080fb4d9007d",
+        "txn": "0x42895d1323e4c2528ef7824f1c80cd3b6a49a786997da8ae7067d587eb344dd5",
+        "blockNumber": 1869103
+      },
+      "LiquidityPool": {
+        "contractName": "LiquidityPool",
+        "source": "LiquidityPool",
+        "address": "0x317017d4A49DEC50f7269511d8004386Fa057944",
+        "txn": "0x8fde80190f1371a4b50c71918b5149981ef5ec9bf69bb90b324e8551cd78f07d",
+        "blockNumber": 1869108
+      },
+      "LiquidityTokens": {
+        "contractName": "LiquidityTokens",
+        "source": "LiquidityTokens",
+        "address": "0x7b14DEe781CaB1089e631be31Bd91081e579f551",
+        "txn": "0xb4e38664b85672e4b5333bd4ff9bbaf01afb12807681fe3f713a240c52fe90bb",
+        "blockNumber": 1869114
+      },
+      "ShortCollateral": {
+        "contractName": "ShortCollateral",
+        "source": "ShortCollateral",
+        "address": "0x3189B00668D91f27EDd8F59Fa97BC16E28d69cf9",
+        "txn": "0xc0ea509e9fad92248984cf8ad4d04fc895c5b6baf7a3166e94cf59a87d146258",
+        "blockNumber": 1869122
+      },
+      "PoolHedger": {
+        "contractName": "PoolHedger",
+        "source": "PoolHedger",
+        "address": "0x0Ad16ca0c588b8eacaC30FE50EFA31CBF5D050FF",
+        "txn": "0x66cb4628b582e0c116b713b0af1fdb11d60c614462b3f21dd99a6293f218a773",
+        "blockNumber": 1869139
+      },
+      "GWAVOracle": {
+        "contractName": "GWAVOracle",
+        "source": "GWAVOracle",
+        "address": "need to deploy...",
+        "txn": "need to deploy...",
+        "blockNumber": 0
+      },
+      "BasicLiquidityCounter": {
+        "contractName": "BasicLiquidityCounter",
+        "source": "BasicLiquidityCounter",
+        "address": "0xc0bfa84c4d24c33bE7cc5f35a1c96034952637A3",
+        "txn": "0xc8b25de8492fd524e4ae2fab687d8d1e203e26961fe4516b7210d74338602ded",
+        "blockNumber": 1869125
+      },
+      "BaseAsset": {
+        "contractName": "BaseAsset",
+        "source": "TestERC20Fail",
+        "address": "0x8475CA6E6DcC0A1Fe3872e42705d780F5F793b64",
+        "txn": "0x6be8c3dfd3032add9456e4d711bf5e4877ce18daaf830cc426dfe7917a059e56",
+        "blockNumber": 1869076
+      }
+    }
+  }
+}

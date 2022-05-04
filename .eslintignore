@@ -1,0 +1,20 @@
+# folders
+artifacts/
+build/
+cache/
+coverage/
+dist/
+lib/
+node_modules/
+typechain/
+typechain-types/
+test-old/
+contracts/interfaces/
+contracts/synthetix/
+contracts/test-helpers/
+
+# files
+.solcover.js
+coverage.json
+package.json
+docify.js
