@@ -90,7 +90,7 @@ describe('getVarianceFee', async () => {
   it('Computes the fee correctly given different parameters', async () => {
     const initial = await getVarianceFee();
     assertVarianceParameters(initial, {
-      varianceFee: toBN('11.4'),
+      varianceFee: toBN('0.035'),
     });
 
     // amount doubled - coefficients the same, just result doubled
@@ -216,7 +216,7 @@ describe('getVarianceFee', async () => {
     res = await getVarianceFee(toBN('1'), {}, { isForceClose: true });
     assertVarianceParameters(res, {
       varianceFee: 0,
-      varianceFeeCoefficient: toBN('2'),
+      varianceFeeCoefficient: toBN('0.25'),
     });
   });
 
@@ -237,31 +237,31 @@ describe('getVarianceFee', async () => {
   it('changes based on changes in skew', async () => {
     let res = await getVarianceFee();
     assertVarianceParameters(res, {
-      varianceFee: toBN('11.4'),
+      varianceFee: toBN('0.035'),
       skewCoefficient: toBN('1'),
     });
 
     res = await getVarianceFee(toBN('1.1'));
     assertVarianceParameters(res, {
-      varianceFee: toBN('14.82'),
+      varianceFee: toBN('0.0455'),
       skewCoefficient: toBN('1.3'),
     });
 
     res = await getVarianceFee(toBN('0.9'));
     assertVarianceParameters(res, {
-      varianceFee: toBN('14.82'),
+      varianceFee: toBN('0.0455'),
       skewCoefficient: toBN('1.3'),
     });
 
     res = await getVarianceFee(toBN('1.5'));
     assertVarianceParameters(res, {
-      varianceFee: toBN('28.5'),
+      varianceFee: toBN('0.0875'),
       skewCoefficient: toBN('2.5'),
     });
 
     res = await getVarianceFee(toBN('0.5'));
     assertVarianceParameters(res, {
-      varianceFee: toBN('28.5'),
+      varianceFee: toBN('0.0875'),
       skewCoefficient: toBN('2.5'),
     });
   });
@@ -269,51 +269,51 @@ describe('getVarianceFee', async () => {
   it('changes based on changes in variance', async () => {
     let res = await getVarianceFee();
     assertVarianceParameters(res, {
-      varianceFee: toBN('11.4'),
+      varianceFee: toBN('0.035'),
       ivVarianceCoefficient: toBN('1'),
     });
 
     res = await getVarianceFee(toBN('1'), { ivVariance: toBN('0.1') });
     assertVarianceParameters(res, {
-      varianceFee: toBN('13.11'),
+      varianceFee: toBN('0.04025'),
       ivVarianceCoefficient: toBN('1.15'),
     });
 
     res = await getVarianceFee(toBN('1'), { ivVariance: toBN('0.3') });
     assertVarianceParameters(res, {
-      varianceFee: toBN('16.53'),
+      varianceFee: toBN('0.05075'),
       ivVarianceCoefficient: toBN('1.45'),
     });
 
     res = await getVarianceFee(toBN('1'), { ivVariance: toBN('0.6') });
     assertVarianceParameters(res, {
-      varianceFee: toBN('21.66'),
+      varianceFee: toBN('0.0665'),
       ivVarianceCoefficient: toBN('1.9'),
     });
   });
   it('changes based on changes in vega', async () => {
     let res = await getVarianceFee(toBN('1'), { vega: 0 });
     assertVarianceParameters(res, {
-      varianceFee: toBN('10'),
-      vegaCoefficient: toBN('2'),
+      varianceFee: toBN('0'),
+      vegaCoefficient: toBN('0'),
     });
 
     res = await getVarianceFee(toBN('1'), { vega: toBN('20') });
     assertVarianceParameters(res, {
-      varianceFee: toBN('12'),
-      vegaCoefficient: toBN('2.4'),
+      varianceFee: toBN('0.05'),
+      vegaCoefficient: toBN('0.2'),
     });
 
     res = await getVarianceFee(toBN('1'), { vega: toBN('50') });
     assertVarianceParameters(res, {
-      varianceFee: toBN('15'),
-      vegaCoefficient: toBN('3'),
+      varianceFee: toBN('0.125'),
+      vegaCoefficient: toBN('0.5'),
     });
 
     res = await getVarianceFee(toBN('1'), { vega: toBN('200') });
     assertVarianceParameters(res, {
-      varianceFee: toBN('30'),
-      vegaCoefficient: toBN('6'),
+      varianceFee: toBN('0.5'),
+      vegaCoefficient: toBN('2'),
     });
   });
   it('disables the fee if any coefficient == 0', async () => {

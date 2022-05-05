@@ -92,10 +92,10 @@ describe('Successful Close', async () => {
           // }
           if (price == '0.0001') {
             if (optionType == OptionType.SHORT_CALL_BASE) {
-              expect(oldBalance).to.gt(newBalance); // variance fee
+              expect(oldBalance).to.eq(newBalance); // variance fee
               expect(oldBalance).to.lt(newBalance.add(100)); // variance fee
             } else if (optionType == OptionType.SHORT_CALL_QUOTE || optionType == OptionType.SHORT_PUT_QUOTE) {
-              expect(oldBalance.add(collaterals[optionType])).to.gt(newBalance);
+              expect(oldBalance.add(collaterals[optionType])).to.eq(newBalance);
               expect(oldBalance.add(collaterals[optionType])).to.lt(newBalance.add(100)); // variance fee
             } else {
               expect(oldBalance).to.eq(newBalance); // variance fee

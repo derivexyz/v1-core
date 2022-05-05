@@ -80,7 +80,7 @@ describe('Liquidity Accounting', async () => {
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
       assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.175754'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('497810.51'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('497782.0899'), toBN('0.01'));
     });
 
     it('uses whole pool for pendingDelta if large long call open', async () => {
@@ -97,7 +97,7 @@ describe('Liquidity Accounting', async () => {
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
       assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.175754'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('497811.29'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('497782.8718'), toBN('0.01'));
     });
     it('uses whole pool for pendingDelta if large long put open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithLongPut();
@@ -113,7 +113,7 @@ describe('Liquidity Accounting', async () => {
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
       assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('2683.85'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('497050.51'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('497021.94'), toBN('0.01'));
     });
     it('uses whole pool for pendingDelta if large short call open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithShortCallBase();
@@ -129,7 +129,7 @@ describe('Liquidity Accounting', async () => {
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInLongDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
       assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('400.0878'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('499579.80'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('499551.2317'), toBN('0.01'));
     });
     it('uses whole pool for pendingDelta if large short put open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithShortPut();
@@ -147,7 +147,7 @@ describe('Liquidity Accounting', async () => {
       const postNAV = (await getLiquidity()).NAV;
 
       expect(postNAV).to.be.gt(preNAV);
-      assertCloseTo(postNAV.sub(preNAV), toBN('33642.97'), toBN('1'));
+      assertCloseTo(postNAV.sub(preNAV), toBN('21883.9889'), toBN('1'));
     });
   });
 
@@ -228,16 +228,9 @@ describe('Liquidity Accounting', async () => {
     it('updates liquidity when hedge occurs', async () => {
       const [, oldLiquidity] = await openLongPutAndGetLiquidity(toBN('100'));
 
-      console.log('expectedHedge_old', await hre.f.c.poolHedger.getCappedExpectedHedge());
-      console.log('currentHedge_old', await hre.f.c.poolHedger.getCurrentHedgedNetDelta());
-      console.log(oldLiquidity);
-
       await hre.f.c.poolHedger.hedgeDelta();
       const newLiquidity = await getLiquidity();
 
-      console.log('expectedHedge_old', await hre.f.c.poolHedger.getCappedExpectedHedge());
-      console.log('currentHedge_new', await hre.f.c.poolHedger.getCurrentHedgedNetDelta());
-      console.log(newLiquidity);
       const changeInFreeLiq = newLiquidity.freeLiquidity.sub(oldLiquidity.freeLiquidity);
       const quoteToHedgeDiscrepancy = oldLiquidity.pendingDeltaLiquidity.sub(newLiquidity.usedDeltaLiquidity);
 

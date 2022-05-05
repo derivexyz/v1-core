@@ -200,7 +200,7 @@ describe('Process Deposit', async () => {
       // NAV unaware of undercollateralized short put
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       let poolValue = await hre.f.c.liquidityPool.getTotalPoolValueQuote();
-      assertCloseToPercentage(poolValue, toBN('394677.26'), toBN('0.0001'));
+      assertCloseToPercentage(poolValue, toBN('388052.405'), toBN('0.0001'));
 
       // process first deposit before settlement
       await hre.f.c.liquidityPool.processDepositQueue(1);
@@ -208,8 +208,8 @@ describe('Process Deposit', async () => {
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('100'));
       assertCloseToPercentage(
         await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address),
-        toBN('126.68'),
-        toBN('0.0001'),
+        toBN('128.736'),
+        toBN('0.001'),
       );
 
       // settle board
@@ -220,7 +220,7 @@ describe('Process Deposit', async () => {
 
       // NAV aware of undercollateralized short put
       poolValue = await hre.f.c.liquidityPool.getTotalPoolValueQuote();
-      assertCloseToPercentage(poolValue, toBN('391777.33'), toBN('0.0001'));
+      assertCloseToPercentage(poolValue, toBN('385490.6206'), toBN('0.001'));
 
       // process second deposit post settlement
       await hre.f.c.liquidityPool.processDepositQueue(1);
@@ -228,8 +228,8 @@ describe('Process Deposit', async () => {
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
       assertCloseToPercentage(
         await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address),
-        toBN('127.65'),
-        toBN('0.0001'),
+        toBN('129.738'),
+        toBN('0.001'),
       );
     });
 
@@ -248,14 +248,14 @@ describe('Process Deposit', async () => {
       // NAV calculation
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       const poolValue = await hre.f.c.liquidityPool.getTotalPoolValueQuote();
-      assertCloseTo(poolValue, toBN('535298.13'), toBN('0.1'));
+      assertCloseTo(poolValue, toBN('528673.306'), toBN('0.5'));
 
       // process both deposits
       await hre.f.c.liquidityPool.processDepositQueue(2);
       expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(2);
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
-      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address), toBN('93.40'), toBN('0.01'));
-      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address), toBN('93.40'), toBN('0.01'));
+      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address), toBN('94.51589'), toBN('0.1'));
+      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address), toBN('94.51589'), toBN('0.1'));
     });
   });
 });

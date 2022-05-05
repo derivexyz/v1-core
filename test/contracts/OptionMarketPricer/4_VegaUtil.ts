@@ -38,7 +38,7 @@ describe('getVegaUtil', async () => {
 
   it('correctly computes the fee', async () => {
     // if this is wrong check pricing calcs were not changed.
-    expect(await getVegaUtilFee()).eq(toBN('0.96'));
+    expect(await getVegaUtilFee()).eq(toBN('0.016'));
   });
 
   it('amount is equal to zero', async () => {

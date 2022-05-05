@@ -5,7 +5,7 @@ import { deployTestSystem } from '../test/utils/deployTestSystem';
 import { getGlobalDeploys, getMarketDeploys, LyraGlobal, LyraMarket } from '../test/utils/package/parseFiles';
 import { seedTestSystem } from '../test/utils/seedTestSystem';
 
-// run this script using `yarn hardhat run --network local` if running directly from repo (not @lyrafinance/core)
+// run this script using `yarn hardhat run --network local` if running directly from repo (not @lyrafinance/protocol)
 // otherwise OZ will think it's deploying to hardhat network and not local
 async function main() {
   // 1. get deployer and network

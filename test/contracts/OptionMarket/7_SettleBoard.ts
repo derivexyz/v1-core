@@ -253,7 +253,7 @@ describe('OptionMarket - SettleBoard', () => {
           setCollateralTo: partialBaseCollat,
         });
         await fastForward(MONTH_SEC);
-        assertCloseTo(await getQuoteBalance(hre.f.deployer.address), toBN('1002543.46'));
+        assertCloseTo(await getQuoteBalance(hre.f.deployer.address), toBN('1002878.515'));
         expect(await getBaseBalance(hre.f.c.shortCollateral.address)).to.eq(partialBaseCollat);
       });
 
@@ -266,7 +266,6 @@ describe('OptionMarket - SettleBoard', () => {
       });
 
       it('sends collateral to LP and sells into quote correctly if ITM', async () => {
-        console.log("HELLO")
         await setETHPrice(toBN('2000'));
         await settleBoard();
         await exchangeBase();
@@ -277,7 +276,7 @@ describe('OptionMarket - SettleBoard', () => {
 
         // TODO: double check values with mech
         assertCloseTo(scBaseBal, toBN('2.48111'), toBN('0.001'));
-        assertCloseTo(lpQuoteBal, toBN('502402.01'), toBN('0.1'));
+        assertCloseTo(lpQuoteBal, toBN('502100.473'), toBN('0.1'));
       });
     });
 
@@ -293,7 +292,7 @@ describe('OptionMarket - SettleBoard', () => {
 
         await fastForward(MONTH_SEC);
         expect((await hre.f.c.liquidityPool.lockedCollateral()).quote).to.eq(0);
-        assertCloseTo(await getQuoteBalance(hre.f.deployer.address), toBN('992543.46'));
+        assertCloseTo(await getQuoteBalance(hre.f.deployer.address), toBN('992878.515'));
         expect(await getQuoteBalance(hre.f.c.shortCollateral.address)).to.eq(partialQuoteCollat);
       });
 
@@ -315,7 +314,7 @@ describe('OptionMarket - SettleBoard', () => {
 
         // TODO: double check values with mech
         expect(scBaseBal).to.eq(toBN('5000'));
-        assertCloseTo(lpQuoteBal, toBN('502402.01'), toBN('0.1'));
+        assertCloseTo(lpQuoteBal, toBN('502100.473'), toBN('0.1'));
       });
     });
 
@@ -331,7 +330,7 @@ describe('OptionMarket - SettleBoard', () => {
 
         await fastForward(MONTH_SEC);
         expect((await hre.f.c.liquidityPool.lockedCollateral()).quote).to.eq(0);
-        assertCloseTo(await getQuoteBalance(hre.f.deployer.address), toBN('990090.68'));
+        assertCloseTo(await getQuoteBalance(hre.f.deployer.address), toBN('990425.7347'));
         expect(await getQuoteBalance(hre.f.c.shortCollateral.address)).to.eq(partialQuoteCollat);
       });
 
@@ -351,7 +350,7 @@ describe('OptionMarket - SettleBoard', () => {
 
         // TODO: double check values with mech
         expect(scBaseBal).to.eq(toBN('5000'));
-        assertCloseTo(lpQuoteBal, toBN('504857.27'), toBN('0.1'));
+        assertCloseTo(lpQuoteBal, toBN('504555.7323'), toBN('0.1'));
       });
     });
   });
@@ -387,7 +386,7 @@ describe('OptionMarket - SettleBoard', () => {
 
       // original quote - premium paid + AMM profit
       // TODO: double check values with mech
-      assertCloseTo(await getQuoteBalance(hre.f.c.liquidityPool.address), toBN('503469.39'));
+      assertCloseTo(await getQuoteBalance(hre.f.c.liquidityPool.address), toBN('503412.0666'));
       expect(await hre.f.c.liquidityPool.insolventSettlementAmount()).to.eq(0);
       expect(await hre.f.c.shortCollateral.LPBaseExcess()).to.eq(0);
       expect(await hre.f.c.shortCollateral.LPQuoteExcess()).to.eq(0);
@@ -418,7 +417,7 @@ describe('OptionMarket - SettleBoard', () => {
 
       // AMM profit = (2,000 - 500) * 5 = 7,500
       // original quote - premium paid + AMM profit
-      assertCloseTo(await getQuoteBalance(hre.f.c.liquidityPool.address), toBN('505086.815'));
+      assertCloseTo(await getQuoteBalance(hre.f.c.liquidityPool.address), toBN('504622.94856'));
       expect(await hre.f.c.liquidityPool.insolventSettlementAmount()).to.eq(0);
       expect(await hre.f.c.shortCollateral.LPBaseExcess()).to.eq(0);
       expect(await hre.f.c.shortCollateral.LPQuoteExcess()).to.eq(0);

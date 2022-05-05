@@ -44,8 +44,7 @@ import { PartialCollateralParametersStruct } from '../../typechain-types/OptionT
 import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
 import * as defaultParams from './defaultParams';
 import { DEFAULT_SECURITY_MODULE } from './defaultParams';
-import { artifacts } from './package/index-artifacts';
-import { exportGlobalDeployment, exportMarketDeployment, getSynthetixContract } from './package/parseFiles';
+import { exportGlobalDeployment, exportMarketDeployment, getLocalRealSynthetixContract } from './package/parseFiles';
 import { changeRate, compileAndDeployRealSynthetix, mintsUSD, setDebtLimit } from './package/realSynthetixUtils';
 import { hre } from './testSetup';
 
@@ -73,6 +72,7 @@ export type GlobalTestSystemContracts = {
     ethMockAggregator?: Contract;
     btcMockAggregator?: Contract;
     collateralManager?: Contract;
+    systemSettings?: Contract;
   };
 };
 
@@ -201,13 +201,13 @@ export async function deployGlobalTestContracts(
   ////////////////////////
 
   const gwav = (await (
-    (await ethers.getContractFactory(artifacts.GWAV.abi, artifacts.GWAV.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('GWAV')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as GWAV;
 
   const blackScholes = (await (
-    (await ethers.getContractFactory(artifacts.BlackScholes.abi, artifacts.BlackScholes.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('BlackScholes')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as BlackScholes;
@@ -225,8 +225,7 @@ export async function deployGlobalTestContracts(
     // implementation contracts stored in '.openzeppelin' in project root
     const synthetixAdapterImplementation = (
       (await ethers.getContractFactory(
-        artifacts.SynthetixAdapter.abi,
-        artifacts.SynthetixAdapter.bytecode,
+        'SynthetixAdapter',
       )) as ContractFactory
     ).connect(deployer);
 
@@ -248,8 +247,7 @@ export async function deployGlobalTestContracts(
     // Deploy directly if testing as npm package
     synthetixAdapter = (await (
       (await ethers.getContractFactory(
-        artifacts.SynthetixAdapter.abi,
-        artifacts.SynthetixAdapter.bytecode,
+        'SynthetixAdapter'
       )) as ContractFactory
     )
       .connect(deployer)
@@ -265,8 +263,7 @@ export async function deployGlobalTestContracts(
 
   const optionMarketViewer = (await (
     (await ethers.getContractFactory(
-      artifacts.OptionMarketViewer.abi,
-      artifacts.OptionMarketViewer.bytecode,
+      'OptionMarketViewer'
     )) as ContractFactory
   )
     .connect(deployer)
@@ -274,30 +271,28 @@ export async function deployGlobalTestContracts(
 
   const optionMarketWrapper = (await (
     (await ethers.getContractFactory(
-      artifacts.OptionMarketWrapper.abi,
-      artifacts.OptionMarketWrapper.bytecode,
+      'OptionMarketWrapper',
     )) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as OptionMarketWrapper;
 
   const lyraRegistry = (await (
-    (await ethers.getContractFactory(artifacts.LyraRegistry.abi, artifacts.LyraRegistry.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('LyraRegistry')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as LyraRegistry;
 
   const basicFeeCounter = (await (
     (await ethers.getContractFactory(
-      artifacts.BasicFeeCounter.abi,
-      artifacts.BasicFeeCounter.bytecode,
+      'BasicFeeCounter',
     )) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as BasicFeeCounter;
 
   const testCurve = (await (
-    (await ethers.getContractFactory(artifacts.TestCurve.abi, artifacts.TestCurve.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('TestCurve')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as TestCurve; // test curve for now
@@ -325,8 +320,7 @@ export async function deployGlobalTestContracts(
 
     const snxMockAggregator = (await (
       (await ethers.getContractFactory(
-        artifacts.MockAggregator.abi,
-        artifacts.MockAggregator.bytecode,
+        'MockAggregatorV2V3',
       )) as ContractFactory
     )
       .connect(deployer)
@@ -334,8 +328,7 @@ export async function deployGlobalTestContracts(
 
     const ethMockAggregator = (await (
       (await ethers.getContractFactory(
-        artifacts.MockAggregator.abi,
-        artifacts.MockAggregator.bytecode,
+        'MockAggregatorV2V3',
       )) as ContractFactory
     )
       .connect(deployer)
@@ -343,8 +336,7 @@ export async function deployGlobalTestContracts(
 
     const btcMockAggregator = (await (
       (await ethers.getContractFactory(
-        artifacts.MockAggregator.abi,
-        artifacts.MockAggregator.bytecode,
+        'MockAggregatorV2V3',
       )) as ContractFactory
     )
       .connect(deployer)
@@ -352,32 +344,24 @@ export async function deployGlobalTestContracts(
 
     testSystem.snx = {
       isMockSNX: false,
-      addressResolver: await getSynthetixContract(deployer, 'local', 'AddressResolver'),
-      collateralShort: await getSynthetixContract(deployer, 'local', 'CollateralShort'),
-      synthetix: await getSynthetixContract(deployer, 'local', 'Synthetix'),
-      delegateApprovals: await getSynthetixContract(deployer, 'local', 'DelegateApprovals'),
-      quoteAsset: await getSynthetixContract(deployer, 'local', `ProxyERC20sUSD`), // not ProxysUSD?
-      exchangeRates: await getSynthetixContract(deployer, 'local', `ExchangeRates`),
-      exchanger: await getSynthetixContract(deployer, 'local', `Exchanger`),
-      collateralManager: await getSynthetixContract(deployer, 'local', 'CollateralManager'),
+      addressResolver: await getLocalRealSynthetixContract(deployer, 'local', 'AddressResolver'),
+      collateralShort: await getLocalRealSynthetixContract(deployer, 'local', 'CollateralShort'),
+      synthetix: await getLocalRealSynthetixContract(deployer, 'local', 'Synthetix'),
+      delegateApprovals: await getLocalRealSynthetixContract(deployer, 'local', 'DelegateApprovals'),
+      quoteAsset: await getLocalRealSynthetixContract(deployer, 'local', `ProxyERC20sUSD`), // not ProxysUSD?
+      exchangeRates: await getLocalRealSynthetixContract(deployer, 'local', `ExchangeRates`),
+      exchanger: await getLocalRealSynthetixContract(deployer, 'local', `Exchanger`),
+      collateralManager: await getLocalRealSynthetixContract(deployer, 'local', 'CollateralManager'),
+      systemSettings: await getLocalRealSynthetixContract(deployer, 'local', 'SystemSettings'),
       snxMockAggregator: snxMockAggregator as Contract,
       ethMockAggregator: ethMockAggregator as Contract,
       btcMockAggregator: btcMockAggregator as Contract,
     };
 
     await testSystem.snx.collateralManager.addCollaterals([testSystem.snx.collateralShort.address]);
-
-    // removing delay params
-    await ((await getSynthetixContract(deployer, 'local', `SystemSettings`)) as Contract).setWaitingPeriodSecs(
-      toBN('0'),
-    );
-    await ((await getSynthetixContract(deployer, 'local', `SystemSettings`)) as Contract).setInteractionDelay(
-      testSystem.snx.collateralShort.address,
-      toBN('0'),
-    );
-    await ((await getSynthetixContract(deployer, 'local', `SystemSettings`)) as Contract).setRateStalePeriod(
-      ethers.BigNumber.from(YEAR_SEC),
-    ); // check
+    await testSystem.snx.systemSettings.setWaitingPeriodSecs(toBN('0'));
+    await testSystem.snx.systemSettings.setInteractionDelay(testSystem.snx.collateralShort.address, toBN('0'));
+    await testSystem.snx.systemSettings.setRateStalePeriod(ethers.BigNumber.from(YEAR_SEC));
   }
 
   if (exportAddresses) {
@@ -398,22 +382,21 @@ export async function deployMarketTestContracts(
   /////////////////
 
   const optionMarket = (await (
-    (await ethers.getContractFactory(artifacts.OptionMarket.abi, artifacts.OptionMarket.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('OptionMarket')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as OptionMarket;
 
   const optionMarketPricer = (await (
     (await ethers.getContractFactory(
-      artifacts.OptionMarketPricer.abi,
-      artifacts.OptionMarketPricer.bytecode,
+      'OptionMarketPricer',
     )) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as OptionMarketPricer;
 
   const optionGreekCache = (await (
-    await ethers.getContractFactoryFromArtifact(artifacts.OptionGreekCache, {
+    await ethers.getContractFactory('OptionGreekCache', {
       signer: deployer,
       libraries: {
         GWAV: existingSystem.gwav.address,
@@ -425,15 +408,14 @@ export async function deployMarketTestContracts(
     .deploy()) as OptionGreekCache;
 
   const liquidityPool = (await (
-    (await ethers.getContractFactory(artifacts.LiquidityPool.abi, artifacts.LiquidityPool.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('LiquidityPool')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as LiquidityPool;
 
   const liquidityTokens = (await (
     (await ethers.getContractFactory(
-      artifacts.LiquidityTokens.abi,
-      artifacts.LiquidityTokens.bytecode,
+      'LiquidityTokens',
     )) as ContractFactory
   )
     .connect(deployer)
@@ -441,36 +423,34 @@ export async function deployMarketTestContracts(
 
   const basicLiquidityCounter = (await (
     (await ethers.getContractFactory(
-      artifacts.BasicLiquidityCounter.abi,
-      artifacts.BasicLiquidityCounter.bytecode,
+      'BasicLiquidityCounter',
     )) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as BasicLiquidityCounter;
 
   const optionToken = (await (
-    (await ethers.getContractFactory(artifacts.OptionToken.abi, artifacts.OptionToken.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('OptionToken')) as ContractFactory
   )
     .connect(deployer)
     .deploy(`sUSD/${market} Option Tokens`, 'LyraEOT')) as OptionToken;
 
   const shortCollateral = (await (
     (await ethers.getContractFactory(
-      artifacts.ShortCollateral.abi,
-      artifacts.ShortCollateral.bytecode,
+      'ShortCollateral',
     )) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as ShortCollateral;
 
   const poolHedger = (await (
-    (await ethers.getContractFactory(artifacts.PoolHedger.abi, artifacts.PoolHedger.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('PoolHedger')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as PoolHedger;
 
   const GWAVOracle = (await (
-    await ethers.getContractFactoryFromArtifact(artifacts.GWAVOracle, {
+    await ethers.getContractFactory('GWAVOracle', {
       signer: deployer,
       libraries: {
         BlackScholes: existingSystem.blackScholes.address,
@@ -482,7 +462,7 @@ export async function deployMarketTestContracts(
 
   // TODO: consider moving to global state in the future.
   const keeperHelper = (await (
-    (await ethers.getContractFactory(artifacts.KeeperHelper.abi, artifacts.KeeperHelper.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('KeeperHelper')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as KeeperHelper;
@@ -510,14 +490,13 @@ export async function deployMarketTestContracts(
     const baseName = 'Synthetic ' + market.slice(1);
     marketSystem.snx.baseAsset = (await (
       (await ethers.getContractFactory(
-        artifacts.TestERC20Fail.abi,
-        artifacts.TestERC20Fail.bytecode,
+        'TestERC20Fail',
       )) as ContractFactory
     )
       .connect(deployer)
       .deploy(baseName, market)) as TestERC20Fail;
   } else {
-    marketSystem.snx.baseAsset = await getSynthetixContract(deployer, 'local', `Proxy${market}`);
+    marketSystem.snx.baseAsset = await getLocalRealSynthetixContract(deployer, 'local', `Proxy${market}`);
   }
 
   if (exportAddresses) {
@@ -844,30 +823,28 @@ export async function deployMockGlobalSNX(deployer: Signer) {
   const isMockSNX: boolean = true;
 
   const exchanger = (await (
-    (await ethers.getContractFactory(artifacts.TestExchanger.abi, artifacts.TestExchanger.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('TestExchanger')) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as TestExchanger;
 
   const exchangeRates = (await (
     (await ethers.getContractFactory(
-      artifacts.TestExchangeRates.abi,
-      artifacts.TestExchangeRates.bytecode,
+      'TestExchangeRates',
     )) as ContractFactory
   )
     .connect(deployer)
     .deploy()) as TestExchangeRates;
 
   const quoteAsset = (await (
-    (await ethers.getContractFactory(artifacts.TestERC20Fail.abi, artifacts.TestERC20Fail.bytecode)) as ContractFactory
+    (await ethers.getContractFactory('TestERC20Fail')) as ContractFactory
   )
     .connect(deployer)
     .deploy('Synthetic USD', 'sUSD')) as TestERC20Fail;
 
   const synthetix = (await (
     (await ethers.getContractFactory(
-      artifacts.TestSynthetixReturnZero.abi,
-      artifacts.TestSynthetixReturnZero.bytecode,
+      'TestSynthetixReturnZero',
     )) as ContractFactory
   )
     .connect(deployer)
@@ -875,8 +852,7 @@ export async function deployMockGlobalSNX(deployer: Signer) {
 
   const delegateApprovals = (await (
     (await ethers.getContractFactory(
-      artifacts.TestDelegateApprovals.abi,
-      artifacts.TestDelegateApprovals.bytecode,
+      'TestDelegateApprovals',
     )) as ContractFactory
   )
     .connect(deployer)
@@ -884,8 +860,7 @@ export async function deployMockGlobalSNX(deployer: Signer) {
 
   const collateralShort = (await (
     (await ethers.getContractFactory(
-      artifacts.TestCollateralShort.abi,
-      artifacts.TestCollateralShort.bytecode,
+      'TestCollateralShort',
     )) as ContractFactory
   )
     .connect(deployer)
@@ -893,8 +868,7 @@ export async function deployMockGlobalSNX(deployer: Signer) {
 
   const addressResolver = (await (
     (await ethers.getContractFactory(
-      artifacts.TestAddressResolver.abi,
-      artifacts.TestAddressResolver.bytecode,
+      'TestAddressResolver',
     )) as ContractFactory
   )
     .connect(deployer)
@@ -937,7 +911,6 @@ export function newTestSystemForMarket(
       quoteAsset: testSystem.snx.quoteAsset,
       exchangeRates: testSystem.snx.exchangeRates,
       exchanger: testSystem.snx.exchanger,
-
       baseAsset: marketTestSystem.snx.baseAsset,
     };
 
@@ -946,6 +919,7 @@ export function newTestSystemForMarket(
       newTestSystem.snx.ethMockAggregator = testSystem.snx.ethMockAggregator;
       newTestSystem.snx.btcMockAggregator = testSystem.snx.btcMockAggregator;
       newTestSystem.snx.collateralManager = testSystem.snx.collateralManager;
+      newTestSystem.snx.systemSettings = testSystem.snx.systemSettings;
     }
     // Assigning market
     newTestSystem.optionMarket = marketTestSystem.optionMarket;

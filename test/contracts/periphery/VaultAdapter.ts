@@ -1,5 +1,5 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { BigNumber } from 'ethers';
+import { BigNumber, BigNumberish } from 'ethers';
 import { ethers } from 'hardhat';
 import { DAY_SEC, fromBN, MAX_UINT, MONTH_SEC, OptionType, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { TestVaultAdapter } from '../../../typechain-types';
@@ -164,6 +164,8 @@ describe('VaultAdapter tests', () => {
       assertCloseTo(params[1], toBN('0.75'));
       assertCloseTo(params[2], toBN('0.5'));
       assertCloseTo(params[3], toBN('0.15'));
+      assertCloseTo(params[4], BigNumber.from(DAY_SEC / 2));
+      assertCloseTo(params[5], toBN('0.25'));
     });
 
     it('getExchangeParams', async () => {

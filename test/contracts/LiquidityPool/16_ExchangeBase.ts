@@ -31,8 +31,8 @@ describe('ExchangeBase', async () => {
     await fillLiquidityWithLongCall();
     const liquidity = await getLiquidity();
 
-    assertCloseToPercentage(liquidity.freeLiquidity, toBN('78558'));
-    assertCloseToPercentage(liquidity.burnableLiquidity, toBN('426961'));
+    assertCloseToPercentage(liquidity.freeLiquidity, toBN('66799.8045'));
+    assertCloseToPercentage(liquidity.burnableLiquidity, toBN('415202.4785'));
     assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('348402'));
     assertCloseToPercentage(liquidity.pendingDeltaLiquidity, toBN('127026'));
 

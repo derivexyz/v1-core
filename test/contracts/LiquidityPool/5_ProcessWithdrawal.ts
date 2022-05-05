@@ -215,11 +215,11 @@ describe('Process withdrawal', async () => {
       // assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('75488.496'), toBN('1'));
 
       expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(0);
-      assertCloseTo(newQuote.sub(oldQuote), toBN('127390.67'), toBN('2'));
+      assertCloseTo(newQuote.sub(oldQuote), toBN('123787.16386'), toBN('2'));
       await validateWithdrawalRecord(
         0,
         hre.f.deployer.address,
-        toBN('72827.18'),
+        toBN('75556.3265'),
         newQuote.sub(oldQuote),
         await getTxTimestamp(firstTx),
       );

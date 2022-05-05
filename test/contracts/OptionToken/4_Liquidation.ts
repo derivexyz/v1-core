@@ -46,7 +46,7 @@ describe('Liquidation', () => {
     const isQuote = [true, false, true];
     const openTypes = [openDefaultShortCallQuote, openDefaultShortCallBase, openDefaultShortPutQuote];
     const prices = [toBN('10000'), toBN('10000'), toBN('500')];
-    const insolvencies = [toBN('7907.21'), toBN('3974.41'), toBN('45.32')];
+    const insolvencies = [toBN('7907.21'), toBN('3974.41'), toBN('40.1')];
 
     types.forEach(async (type, i) => {
       it(`calculates fees, sets state and routes funds when solvent: ${type}`, async () => {

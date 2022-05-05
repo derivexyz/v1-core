@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+import { fetchJson } from '@ethersproject/web';
 import chalk from 'chalk';
 import { BaseContract, Signer } from 'ethers';
 import fs from 'fs';
@@ -67,9 +69,27 @@ export type lyraDeployment = {
 };
 
 // loads all of the lyra contracts into a test system dir? ah but not very compatible with ethers vs
-export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
-  const lyraDeployment: lyraDeployment = require(getDeploymentPath(network));
-  console.log(chalk.greenBright(`\n=== Loaded deployed contracts from ${getDeploymentPath(network)} ===\n`));
+export async function getGlobalDeploys(network: AllowedNetworks): Promise<LyraGlobal> {
+  const lyraDeployment = await getDeployment(network);
+
+  let snxDeployment;
+  let quoteName;
+  if (network == 'local') {
+    snxDeployment = lyraDeployment;
+    quoteName = 'QuoteAsset';
+  } else if (network == 'kovan-ovm') {
+    snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/synthetix.mocked.json');
+    quoteName = `ProxyERC20sUSD`
+  } else {
+    try {
+      snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/synthetix.json');
+      quoteName = `ProxyERC20sUSD`
+    } catch(e) {
+      throw new Error('mainnet contracts not deployed yet...');
+    }
+  }
+
+  console.log(chalk.greenBright(`\n=== Loaded global contracts from ${network} ===\n`));
 
   return {
     TestFaucet: assignGlobalArtifact('TestFaucet', lyraDeployment, artifacts),
@@ -80,13 +100,31 @@ export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
     GWAV: assignGlobalArtifact('GWAV', lyraDeployment, artifacts),
     BlackScholes: assignGlobalArtifact('BlackScholes', lyraDeployment, artifacts),
     BasicFeeCounter: assignGlobalArtifact('BasicFeeCounter', lyraDeployment, artifacts),
-    QuoteAsset: assignGlobalArtifact('QuoteAsset', lyraDeployment, artifacts, 'TestERC20Fail'),
+    QuoteAsset: assignGlobalArtifact(quoteName, snxDeployment, artifacts, 'TestERC20Fail'),
   };
 }
 
-export function getMarketDeploys(network: AllowedNetworks, market: string): LyraMarket {
-  const lyraDeployment: lyraDeployment = require(getDeploymentPath(network));
-  console.log(chalk.greenBright(`\n=== Loaded deployed contracts from ${getDeploymentPath(network)} ===\n`));
+export async function getMarketDeploys(network: AllowedNetworks, market: string): Promise<LyraMarket> {
+  const lyraDeployment = await getDeployment(network);
+
+  let snxDeployment;
+  let baseName;
+  if (network == 'local') {
+    snxDeployment = lyraDeployment;
+    baseName = 'BaseAsset';
+  } else if (network == 'kovan-ovm') {
+    snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/synthetix.mocked.json');
+    baseName = `Proxy${market}`
+  } else {
+    try {
+      snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/synthetix.json');
+      baseName = `Proxy${market}`
+    } catch(e) {
+      throw new Error('mainnet contracts not deployed yet...');
+    }
+  }
+
+  console.log(chalk.greenBright(`\n=== Loaded market contracts for ${network} ===\n`));
 
   return {
     OptionMarket: assignMarketArtifact('OptionMarket', lyraDeployment, artifacts, market),
@@ -99,57 +137,80 @@ export function getMarketDeploys(network: AllowedNetworks, market: string): Lyra
     BasicLiquidityCounter: assignMarketArtifact('BasicLiquidityCounter', lyraDeployment, artifacts, market),
     PoolHedger: assignMarketArtifact('PoolHedger', lyraDeployment, artifacts, market),
     GWAVOracle: assignMarketArtifact('GWAVOracle', lyraDeployment, artifacts, market),
-    BaseAsset: assignMarketArtifact('BaseAsset', lyraDeployment, artifacts, market, 'TestERC20Fail'),
+    BaseAsset: assignMarketArtifact(baseName, snxDeployment, artifacts, market, 'TestERC20Fail'),
   };
 }
 
 export function assignGlobalArtifact(
   contractName: string,
-  deployment: lyraDeployment,
+  deployment: any,
   artifacts: any,
   source?: string,
 ): LyraArtifact {
-  return {
-    contractName: contractName,
-    address: deployment.globals[contractName].address,
-    abi: artifacts[source || contractName].abi,
-    bytecode: artifacts[source || contractName].bytecode,
-    linkReferences: artifacts[source || contractName].linkReferences,
-    blockNumber: deployment.globals[contractName].blockNumber || 0,
-    txn: deployment.globals[contractName].txn || '',
-  };
+  const target = ((deployment.globals == undefined) ? deployment.targets : deployment.globals);
+
+  try {
+    return {
+      contractName: contractName,
+      address: target[contractName].address,
+      abi: artifacts[source || contractName].abi,
+      bytecode: artifacts[source || contractName].bytecode,
+      linkReferences: artifacts[source || contractName].linkReferences,
+      blockNumber: target[contractName].blockNumber || 0,
+      txn: target[contractName].txn || ''
+    };
+  } catch(e) {
+    console.log("Could not locate contract: ", contractName);
+    return {...EMPTY_LYRA_ARTIFACT};
+  }
 }
 
 export function assignMarketArtifact(
   contractName: string,
-  deployment: lyraDeployment,
+  deployment: any,
   artifacts: any,
   market: string,
   source?: string,
 ): LyraArtifact {
-  return {
-    contractName: contractName,
-    address: deployment.markets[market][contractName].address,
-    abi: artifacts[source || contractName].abi,
-    bytecode: artifacts[source || contractName].bytecode,
-    linkReferences: artifacts[source || contractName].linkReferences,
-    blockNumber: deployment.markets[market][contractName].blockNumber || 0,
-    txn: deployment.markets[market][contractName].txn || '',
-  };
+  let target;
+  if (deployment.targets == undefined) { // local lyra
+    target = deployment.markets[market];
+  } else if (deployment.targets.markets == undefined) { // real kovan/mainnet snx
+    target = deployment.targets
+  } else { // kovan/mainnet lyra
+    target = deployment.targets.markets[market];
+  }
+
+  try {
+    return {
+      contractName: contractName,
+      address: target[contractName].address,
+      abi: artifacts[source || contractName].abi,
+      bytecode: artifacts[source || contractName].bytecode,
+      linkReferences: artifacts[source || contractName].linkReferences,
+      blockNumber: target[contractName].blockNumber || 0,
+      txn: target[contractName].txn || ''
+    };
+  } catch(e) {
+    console.log("Could not locate contract: ", contractName);
+    return {...EMPTY_LYRA_ARTIFACT};
+  }
 }
 
-export function getDeploymentPath(network: AllowedNetworks) {
-  let filePath: string;
+export async function getDeployment(network: AllowedNetworks) {
   if (network == 'local') {
-    filePath = path.join('.lyra', 'local', 'lyra.json');
+    return require(resolve(path.join('.lyra', 'local', 'lyra.json')));
   } else if (network == 'kovan-ovm') {
-    filePath = path.join(__dirname, '../../../deployments/', 'kovan-ovm', 'deployment.json');
+    return await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/lyra.realPricing.json');
   } else if (network == 'mainnet-ovm') {
-    throw new Error('mainnet contracts not deployed yet...');
+    try {
+      return await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/lyra.json');
+    } catch(e) {
+      throw new Error('mainnet contracts not deployed yet...');
+    }
   } else {
     throw 'Unrecognized network';
   }
-  return resolve(filePath);
 }
 
 // todo: need to append to current market addresses
@@ -236,7 +297,7 @@ export function deleteRecursive(path: string) {
   }
 }
 
-export async function getSynthetixContract(
+export async function getLocalRealSynthetixContract(
   deployer: Signer,
   network: AllowedNetworks,
   contractName: string,
@@ -249,3 +310,16 @@ export async function getSynthetixContract(
   );
   // need to figure out where this is dissappearing
 }
+
+export const EMPTY_LYRA_ARTIFACT = {
+  contractName: '',
+  address: '',
+  abi: '',
+  bytecode: '',
+  linkReferences: '',
+  blockNumber: 0,
+  txn: ''
+};
+
+export const PUBLIC_DEPLOYMENTS = 
+  'https://raw.githubusercontent.com/lyra-finance/lyra-protocol/avalon/deployments';

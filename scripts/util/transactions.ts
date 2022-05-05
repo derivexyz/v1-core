@@ -85,9 +85,9 @@ export async function deployProxyWithLibraries(
   libs?: any,
   ...args: any
 ): Promise<Contract> {
-  const isProxy: boolean = true;
   const contract = await deployProxyContract(contractName, deploymentParams.deployer, libs, ...args);
-  // addLyraContract(deploymentParams, contractName + 'Proxy', contract, market);
+  // TODO:
+  //  addLyraContract(deploymentParams, contractName + 'Proxy', contract, market);
   addLyraContract(deploymentParams, contractName, contract, market);
   return contract;
 }

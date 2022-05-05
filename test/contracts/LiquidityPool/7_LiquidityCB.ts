@@ -47,7 +47,7 @@ describe('Liquidity Circuit Breaker', async () => {
     await openDefaultLongCall();
 
     // confirm freeLiquidity < 1% and CB triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.6'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.479'), toBN('0.1'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).to.eq(liquidityCBTimeout + (await currentTime()));
   });
 
@@ -60,7 +60,7 @@ describe('Liquidity Circuit Breaker', async () => {
     await openDefaultLongCall();
 
     // confirm freeLiquidity > 1% and CB not triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('7772.20'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('7771.639'), toBN('0.1'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).to.eq(0);
   });
   it('CBTimestamp keeps increasing if freeLiquidity not available', async () => {
@@ -111,7 +111,7 @@ describe('Liquidity Circuit Breaker', async () => {
 
     // confirm freeLiquidity > 1% and CB stops triggering
     const secondTimestamp = await currentTime();
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('120834.45'), toBN('0.5'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('106412.087'), toBN('0.5'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(liquidityCBTimeout + firstTimestamp);
     expect(await hre.f.c.liquidityPool.CBTimestamp()).lt(liquidityCBTimeout + secondTimestamp);
     expect(await hre.f.c.liquidityPool.CBTimestamp()).gt(secondTimestamp);

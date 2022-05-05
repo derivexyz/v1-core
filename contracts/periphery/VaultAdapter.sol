@@ -104,6 +104,8 @@ contract VaultAdapter is Ownable {
     uint skewAdjustmentParam;
     int rateAndCarry;
     int deltaCutOff;
+    uint tradingCutoff;
+    int minForceCloseDelta;
   }
 
   struct ExchangeRateParams {
@@ -374,7 +376,9 @@ contract VaultAdapter is Ownable {
         standardSize: optionPricer.getPricingParams().standardSize,
         skewAdjustmentParam: optionPricer.getPricingParams().skewAdjustmentFactor,
         rateAndCarry: greekCache.getGreekCacheParams().rateAndCarry,
-        deltaCutOff: optionPricer.getTradeLimitParams().minDelta
+        deltaCutOff: optionPricer.getTradeLimitParams().minDelta,
+        tradingCutoff: optionPricer.getTradeLimitParams().tradingCutoff,
+        minForceCloseDelta: optionPricer.getTradeLimitParams().minForceCloseDelta
       });
   }
 

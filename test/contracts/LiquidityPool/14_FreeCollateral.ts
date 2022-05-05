@@ -36,7 +36,7 @@ describe('Free Collateral', async () => {
 
       expect(oldUsedCollat).to.be.gt(newUsedCollat);
       expect(newUsedCollat).to.be.eq(toBN('0'));
-      assertCloseTo(newBalance.sub(oldBalance), toBN('15.75'), toBN('0.1'));
+      assertCloseTo(newBalance.sub(oldBalance), toBN('47.3055'), toBN('0.1'));
       assertCloseTo(newBalance.sub(oldBalance), closeEvent.trade.totalCost, toBN('0.1'));
 
       expect(newAccruedFees.sub(oldAccruedFees)).to.be.eq(closeEvent.trade.reservedFee);
@@ -68,7 +68,7 @@ describe('Free Collateral', async () => {
 
       expect(oldUsedCollat).to.be.eq(toBN('1'));
       expect(newUsedCollat).to.be.eq(toBN('0'));
-      assertCloseTo(newBalance.sub(oldBalance), toBN('261.03'), toBN('0.1'));
+      assertCloseTo(newBalance.sub(oldBalance), toBN('292.5838'), toBN('0.1'));
       assertCloseTo(newBalance.sub(oldBalance), closeEvent.trade.totalCost, toBN('0.1'));
       expect(newAccruedFees.sub(oldAccruedFees)).to.be.eq(closeEvent.trade.reservedFee);
       expect(calculateReservedFee(closeEvent, DEFAULT_OPTION_MARKET_PARAMS.feePortionReserved)).to.eq(

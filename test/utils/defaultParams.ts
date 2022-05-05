@@ -75,7 +75,7 @@ export const DEFAULT_PRICING_PARAMS: PricingParametersStruct = {
   spotPriceFeeCoefficient: toBN('0.01'),
   spotPriceFee1xPoint: WEEK_SEC * 6,
   spotPriceFee2xPoint: WEEK_SEC * 12,
-  vegaFeeCoefficient: toBN('6000'),
+  vegaFeeCoefficient: toBN('100'),
   standardSize: toBN('5'),
   skewAdjustmentFactor: toBN('0.75'),
 };
@@ -96,13 +96,13 @@ export const DEFAULT_TRADE_LIMIT_PARAMS: TradeLimitParametersStruct = {
 };
 
 export const DEFAULT_VARIANCE_FEE_PARAMS: VarianceFeeParametersStruct = {
-  defaultVarianceFeeCoefficient: toBN('5'),
-  forceCloseVarianceFeeCoefficient: toBN('2'),
+  defaultVarianceFeeCoefficient: toBN('0.25'),
+  forceCloseVarianceFeeCoefficient: toBN('0.25'),
   skewAdjustmentCoefficient: toBN('3'),
   referenceSkew: toBN('1'),
   minimumStaticSkewAdjustment: toBN('1'),
-  vegaCoefficient: toBN('0.02'),
-  minimumStaticVega: toBN('2'),
+  vegaCoefficient: toBN('0.01'),
+  minimumStaticVega: toBN('0'),
   ivVarianceCoefficient: toBN('1.5'),
   minimumStaticIvVariance: toBN('1'),
 };
@@ -153,21 +153,21 @@ export function getMarketPricingParams(market?: string): PricingParametersStruct
       ...DEFAULT_PRICING_PARAMS,
       optionPriceFeeCoefficient: toBN('0.015'),
       standardSize: toBN('5'),
-      vegaFeeCoefficient: toBN('600000'),
+      vegaFeeCoefficient: toBN('15000'),
     };
   } else if (market == 'sLINK') {
     return {
       ...DEFAULT_PRICING_PARAMS,
       optionPriceFeeCoefficient: toBN('0.03'),
       standardSize: toBN('40'),
-      vegaFeeCoefficient: toBN('400'),
+      vegaFeeCoefficient: toBN('10'),
     };
   } else if (market == 'sSOL') {
     return {
       ...DEFAULT_PRICING_PARAMS,
       optionPriceFeeCoefficient: toBN('0.015'),
       standardSize: toBN('100'),
-      vegaFeeCoefficient: toBN('2000'),
+      vegaFeeCoefficient: toBN('50'),
     };
   } else {
     return DEFAULT_PRICING_PARAMS;
