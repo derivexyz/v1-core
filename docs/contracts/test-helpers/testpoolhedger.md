@@ -12,7 +12,7 @@
 
 - `setShortToExt(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) (external)`
 
-- `sendAllQuoteToLPExt() (external)`
+- `_sendAllQuoteToLPExt() (external)`
 
 ### Function `hedgeDeltaExt(int256 expectedHedge) external`
 
@@ -24,4 +24,4 @@
 
 ### Function `setShortToExt(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) external`
 
-### Function `sendAllQuoteToLPExt() external`
+### Function `_sendAllQuoteToLPExt() external`

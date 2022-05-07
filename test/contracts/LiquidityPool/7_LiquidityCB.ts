@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { currentTime, HOUR_SEC, OptionType, toBN } from '../../../scripts/util/web3utils';
+import { currentTime, HOUR_SEC, OptionType, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { assertCloseTo } from '../../utils/assert';
 import {
   closePositionWithOverrides,
@@ -28,7 +28,7 @@ describe('Liquidity Circuit Breaker', async () => {
     expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(0);
     const [, liquidity] = await fillLiquidityWithLongPut();
     expect(liquidity.freeLiquidity).eq(0);
-    expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(liquidityCBTimeout + await currentTime());
+    expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(liquidityCBTimeout + (await currentTime()));
 
     // CB blocks deposits/withdrawals
     const quoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address);
@@ -123,6 +123,24 @@ describe('Liquidity Circuit Breaker', async () => {
     await hre.f.c.liquidityPool.processWithdrawalQueue(2);
     expect(quoteBal).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address));
     expect(lpBal).to.eq(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[0].address));
+  });
+
+  it('CBTimestamp increased: due to withdrawals', async () => {
+    // Open long call to not bypass CB update
+    await openDefaultLongCall();
+    expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(0);
+    expect(liquidityCBThreshold).to.eq(toBN('0.01'));
+
+    // Withdraw 99% liquidity
+    await initiatePercentLPWithdrawal(hre.f.signers[0], toBN('0.995'));
+
+    // confirm freeLiquidity < 1% and CB triggered
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.479'), toBN('0.1'));
+
+    // process withdraw to trigger CB
+    await fastForward(WEEK_SEC);
+    await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    expect(await hre.f.c.liquidityPool.CBTimestamp()).to.eq(liquidityCBTimeout + (await currentTime()));
   });
 });
 

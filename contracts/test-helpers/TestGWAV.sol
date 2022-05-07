@@ -13,17 +13,17 @@ contract TestGWAV {
   GWAV.Params public gwav;
 
   function initialize(uint currentVal, uint currentTimestamp) public {
-    gwav.initialize(currentVal, currentTimestamp);
+    gwav._initialize(currentVal, currentTimestamp);
   }
 
   function recordMany(uint[] memory vals, uint[] memory timestamps) public {
     for (uint i = 0; i < vals.length; i++) {
-      gwav.write(vals[i], timestamps[i]);
+      gwav._write(vals[i], timestamps[i]);
     }
   }
 
   function recordObservation(uint currentVal, uint currentTimestamp) public {
-    gwav.write(currentVal, currentTimestamp);
+    gwav._write(currentVal, currentTimestamp);
   }
 
   function getGWAVBetween(uint timeA, uint timeB) public view returns (uint) {

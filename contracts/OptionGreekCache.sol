@@ -324,7 +324,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     boardCache.iv = board.iv;
     boardCache.updatedAt = block.timestamp;
     emit BoardCacheUpdated(boardCache);
-    boardIVGWAV[board.id].initialize(board.iv, block.timestamp);
+    boardIVGWAV[board.id]._initialize(board.iv, block.timestamp);
     emit BoardIvUpdated(boardCache.id, board.iv, globalCache.maxIvVariance);
 
     liveBoards.push(board.id);
@@ -416,7 +416,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
 
     emit StrikeCacheUpdated(strikeCache);
 
-    strikeSkewGWAV[strikeId].initialize(
+    strikeSkewGWAV[strikeId]._initialize(
       _max(_min(skew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
       block.timestamp
     );
@@ -843,7 +843,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   /// @dev updates baseIv for a given board, updating the baseIv gwav
   function _updateBoardIv(OptionBoardCache storage boardCache, uint newIv) internal {
     boardCache.iv = newIv;
-    boardIVGWAV[boardCache.id].write(newIv, block.timestamp);
+    boardIVGWAV[boardCache.id]._write(newIv, block.timestamp);
     _updateBoardIvVariance(boardCache);
     _updateMaxIvVariance();
 
@@ -858,19 +858,12 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   ) internal {
     strikeCache.skew = newSkew;
 
-    strikeSkewGWAV[strikeCache.id].write(
+    strikeSkewGWAV[strikeCache.id]._write(
       _max(_min(newSkew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
       block.timestamp
     );
     // Update variance
-    uint gwavSkew = strikeSkewGWAV[strikeCache.id].getGWAVForPeriod(greekCacheParams.varianceSkewGWAVPeriod, 0);
-
-    if (gwavSkew >= strikeCache.skew) {
-      strikeCache.skewVariance = gwavSkew - strikeCache.skew;
-    } else {
-      strikeCache.skewVariance = strikeCache.skew - gwavSkew;
-    }
-
+    _updateStrikeSkewVariance(strikeCache);
     _updateMaxSkewVariance(boardCache);
 
     emit StrikeSkewUpdated(strikeCache.id, newSkew, globalCache.maxSkewVariance);

@@ -10,12 +10,12 @@ contract TestPoolHedger is PoolHedger {
 
   function increaseLongExt(SynthetixAdapter.ExchangeParams memory exchangeParams, uint amount) external {
     // Last field is optional, only for event
-    increaseLong(exchangeParams, amount, 0);
+    _increaseLong(exchangeParams, amount, 0);
   }
 
   function decreaseLongExt(uint amount) external {
     // Last field is optional, only for event
-    decreaseLong(amount, 0);
+    _decreaseLong(amount, 0);
   }
 
   function callTransferQuoteToHedge(SynthetixAdapter.ExchangeParams memory exchangeParams, uint amount) external {
@@ -28,10 +28,10 @@ contract TestPoolHedger is PoolHedger {
     uint currentShort,
     uint currentCollateral
   ) external {
-    setShortTo(exchangeParams, desiredShort, currentShort, currentCollateral);
+    _setShortTo(exchangeParams, desiredShort, currentShort, currentCollateral);
   }
 
-  function sendAllQuoteToLPExt() external {
-    sendAllQuoteToLP();
+  function _sendAllQuoteToLPExt() external {
+    _sendAllQuoteToLP();
   }
 }

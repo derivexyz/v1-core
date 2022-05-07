@@ -99,6 +99,14 @@ describe('Initiate Withdraw', async () => {
 
     // console.log("") // deal with fantom "AssertionError: Expected "0" to be equal 2" error
   });
+  it('token price remains unchanged upon initiated withdrawal', async () => {
+    const oldTokenPrice = await hre.f.c.liquidityPool.getTokenPrice();
+    await hre.f.c.liquidityPool.connect(alice).initiateWithdraw(alice.address, toBN('10000'));
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0); // make sure not processed
+    expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).eq(toBN('10000')); // still queued
+    const newtokenPrice = await hre.f.c.liquidityPool.getTokenPrice();
+    expect(oldTokenPrice).to.eq(newtokenPrice);
+  });
 });
 
 export async function validateWithdrawalRecord(

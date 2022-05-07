@@ -174,7 +174,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
 
     for (uint i = 0; i < optionPositions.length; i++) {
       OptionToken.PositionWithOwner memory position = optionPositions[i];
-
+      uint insolventAmount;
       (uint strikePrice, uint priceAtExpiry, uint ammShortCallBaseProfitRatio) = optionMarket.getSettlementParameters(
         position.strikeId
       );
@@ -188,7 +188,6 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
       } else if (position.optionType == OptionMarket.OptionType.LONG_PUT) {
         settlementAmounts[i] = _sendLongPutProceeds(position.owner, position.amount, strikePrice, priceAtExpiry);
       } else if (position.optionType == OptionMarket.OptionType.SHORT_CALL_BASE) {
-        uint insolventAmount;
         (settlementAmounts[i], insolventAmount) = _sendShortCallBaseProceeds(
           position.owner,
           position.collateral,
@@ -197,7 +196,6 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         );
         baseInsolventAmount += insolventAmount;
       } else if (position.optionType == OptionMarket.OptionType.SHORT_CALL_QUOTE) {
-        uint insolventAmount;
         (settlementAmounts[i], insolventAmount) = _sendShortCallQuoteProceeds(
           position.owner,
           position.collateral,
@@ -208,7 +206,6 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         quoteInsolventAmount += insolventAmount;
       } else {
         // OptionMarket.OptionType.SHORT_PUT_QUOTE
-        uint insolventAmount;
         (settlementAmounts[i], insolventAmount) = _sendShortPutQuoteProceeds(
           position.owner,
           position.collateral,
@@ -226,7 +223,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         strikePrice,
         priceAtExpiry,
         position.optionType,
-        position.amount
+        position.amount,
+        insolventAmount
       );
     }
 
@@ -413,7 +411,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     uint strikePrice,
     uint priceAtExpiry,
     OptionMarket.OptionType optionType,
-    uint amount
+    uint amount,
+    uint insolventAmount
   );
 
   /**

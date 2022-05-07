@@ -79,12 +79,12 @@ export async function getGlobalDeploys(network: AllowedNetworks): Promise<LyraGl
     quoteName = 'QuoteAsset';
   } else if (network == 'kovan-ovm') {
     snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/synthetix.mocked.json');
-    quoteName = `ProxyERC20sUSD`
+    quoteName = `ProxyERC20sUSD`;
   } else {
     try {
       snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/synthetix.json');
-      quoteName = `ProxyERC20sUSD`
-    } catch(e) {
+      quoteName = `ProxyERC20sUSD`;
+    } catch (e) {
       throw new Error('mainnet contracts not deployed yet...');
     }
   }
@@ -114,12 +114,12 @@ export async function getMarketDeploys(network: AllowedNetworks, market: string)
     baseName = 'BaseAsset';
   } else if (network == 'kovan-ovm') {
     snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/synthetix.mocked.json');
-    baseName = `Proxy${market}`
+    baseName = `Proxy${market}`;
   } else {
     try {
       snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/synthetix.json');
-      baseName = `Proxy${market}`
-    } catch(e) {
+      baseName = `Proxy${market}`;
+    } catch (e) {
       throw new Error('mainnet contracts not deployed yet...');
     }
   }
@@ -147,7 +147,7 @@ export function assignGlobalArtifact(
   artifacts: any,
   source?: string,
 ): LyraArtifact {
-  const target = ((deployment.globals == undefined) ? deployment.targets : deployment.globals);
+  const target = deployment.globals == undefined ? deployment.targets : deployment.globals;
 
   try {
     return {
@@ -157,11 +157,11 @@ export function assignGlobalArtifact(
       bytecode: artifacts[source || contractName].bytecode,
       linkReferences: artifacts[source || contractName].linkReferences,
       blockNumber: target[contractName].blockNumber || 0,
-      txn: target[contractName].txn || ''
+      txn: target[contractName].txn || '',
     };
-  } catch(e) {
-    console.log("Could not locate contract: ", contractName);
-    return {...EMPTY_LYRA_ARTIFACT};
+  } catch (e) {
+    console.log('Could not locate contract: ', contractName);
+    return { ...EMPTY_LYRA_ARTIFACT };
   }
 }
 
@@ -173,11 +173,14 @@ export function assignMarketArtifact(
   source?: string,
 ): LyraArtifact {
   let target;
-  if (deployment.targets == undefined) { // local lyra
+  if (deployment.targets == undefined) {
+    // local lyra
     target = deployment.markets[market];
-  } else if (deployment.targets.markets == undefined) { // real kovan/mainnet snx
-    target = deployment.targets
-  } else { // kovan/mainnet lyra
+  } else if (deployment.targets.markets == undefined) {
+    // real kovan/mainnet snx
+    target = deployment.targets;
+  } else {
+    // kovan/mainnet lyra
     target = deployment.targets.markets[market];
   }
 
@@ -189,11 +192,11 @@ export function assignMarketArtifact(
       bytecode: artifacts[source || contractName].bytecode,
       linkReferences: artifacts[source || contractName].linkReferences,
       blockNumber: target[contractName].blockNumber || 0,
-      txn: target[contractName].txn || ''
+      txn: target[contractName].txn || '',
     };
-  } catch(e) {
-    console.log("Could not locate contract: ", contractName);
-    return {...EMPTY_LYRA_ARTIFACT};
+  } catch (e) {
+    console.log('Could not locate contract: ', contractName);
+    return { ...EMPTY_LYRA_ARTIFACT };
   }
 }
 
@@ -205,7 +208,7 @@ export async function getDeployment(network: AllowedNetworks) {
   } else if (network == 'mainnet-ovm') {
     try {
       return await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/lyra.json');
-    } catch(e) {
+    } catch (e) {
       throw new Error('mainnet contracts not deployed yet...');
     }
   } else {
@@ -318,8 +321,7 @@ export const EMPTY_LYRA_ARTIFACT = {
   bytecode: '',
   linkReferences: '',
   blockNumber: 0,
-  txn: ''
+  txn: '',
 };
 
-export const PUBLIC_DEPLOYMENTS = 
-  'https://raw.githubusercontent.com/lyra-finance/lyra-protocol/avalon/deployments';
+export const PUBLIC_DEPLOYMENTS = 'https://raw.githubusercontent.com/lyra-finance/lyra-protocol/avalon/deployments';

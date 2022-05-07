@@ -16,7 +16,7 @@ of precision.
 
 - `vega(struct BlackScholes.BlackScholesInputs bsInput) (public)`
 
-- `d1d2(uint256 tAnnualised, uint256 volatility, uint256 spot, uint256 strikePrice, int256 rate) (internal)`
+- `_d1d2(uint256 tAnnualised, uint256 volatility, uint256 spot, uint256 strikePrice, int256 rate) (internal)`
 
 - `_optionPrices(uint256 tAnnualised, uint256 spot, uint256 strikePrice, int256 rate, int256 d1, int256 d2) (internal)`
 
@@ -28,17 +28,17 @@ of precision.
 
 - `_getVegaNormalisationFactorPrecise(uint256 timeToExpirySec) (internal)`
 
-- `abs(int256 x) (internal)`
+- `_abs(int256 x) (internal)`
 
-- `sqrt(uint256 x) (internal)`
+- `_sqrt(uint256 x) (internal)`
 
-- `sqrtPrecise(uint256 x) (internal)`
+- `_sqrtPrecise(uint256 x) (internal)`
 
-- `stdNormal(int256 x) (internal)`
+- `_stdNormal(int256 x) (internal)`
 
-- `stdNormalCDF(int256 x) (internal)`
+- `_stdNormalCDF(int256 x) (internal)`
 
-- `annualise(uint256 secs) (internal)`
+- `_annualise(uint256 secs) (internal)`
 
 ### Function `optionPrices(struct BlackScholes.BlackScholesInputs bsInput) → uint256 call, uint256 put public`
 
@@ -56,7 +56,7 @@ Returns call delta given parameters.
 
 Returns non-normalized vega given parameters. Quoted in cents.
 
-### Function `d1d2(uint256 tAnnualised, uint256 volatility, uint256 spot, uint256 strikePrice, int256 rate) → int256 d1, int256 d2 internal`
+### Function `_d1d2(uint256 tAnnualised, uint256 volatility, uint256 spot, uint256 strikePrice, int256 rate) → int256 d1, int256 d2 internal`
 
 Returns internal coefficients of the Black-Scholes call price formula, d1 and d2.
 
@@ -124,26 +124,26 @@ Returns the option's vega value with expiry modified to be at least VEGA_STANDAR
 
 ### Function `_getVegaNormalisationFactorPrecise(uint256 timeToExpirySec) → uint256 internal`
 
-### Function `abs(int256 x) → uint256 internal`
+### Function `_abs(int256 x) → uint256 internal`
 
 Returns absolute value of an int as a uint.
 
-### Function `sqrt(uint256 x) → uint256 y internal`
+### Function `_sqrt(uint256 x) → uint256 y internal`
 
 Returns the square root of the value using Newton's method. This ignores the unit, so numbers should be
 
 multiplied by their unit before being passed in.
 
-### Function `sqrtPrecise(uint256 x) → uint256 internal`
+### Function `_sqrtPrecise(uint256 x) → uint256 internal`
 
 Returns the square root of the value using Newton's method.
 
-### Function `stdNormal(int256 x) → uint256 internal`
+### Function `_stdNormal(int256 x) → uint256 internal`
 
 The standard normal distribution of the value.
 
-### Function `stdNormalCDF(int256 x) → uint256 internal`
+### Function `_stdNormalCDF(int256 x) → uint256 internal`
 
-### Function `annualise(uint256 secs) → uint256 yearFraction internal`
+### Function `_annualise(uint256 secs) → uint256 yearFraction internal`
 
 Converts an integer number of seconds to a fractional number of years.

@@ -35,15 +35,15 @@ contract TestVaultAdapter is VaultAdapter {
   }
 
   function openPositionExt(TradeInputParameters memory params) external returns (TradeResult memory result) {
-    result = openPosition(params);
+    result = _openPosition(params);
   }
 
   function closePositionExt(TradeInputParameters memory params) external returns (TradeResult memory result) {
-    result = closePosition(params);
+    result = _closePosition(params);
   }
 
   function forceClosePositionExt(TradeInputParameters memory params) external returns (TradeResult memory result) {
-    result = forceClosePosition(params);
+    result = _forceClosePosition(params);
   }
 
   function splitPositionExt(
@@ -52,27 +52,27 @@ contract TestVaultAdapter is VaultAdapter {
     uint newCollateral,
     address recipient
   ) external returns (uint newPositionId) {
-    newPositionId = splitPosition(positionId, newAmount, newCollateral, recipient);
+    newPositionId = _splitPosition(positionId, newAmount, newCollateral, recipient);
   }
 
   function mergePositionsExt(uint[] memory positionIds) external {
-    mergePositions(positionIds);
+    _mergePositions(positionIds);
   }
 
   function exchangeFromExactQuoteExt(uint amountQuote, uint minBaseReceived) external returns (uint baseReceived) {
-    baseReceived = exchangeFromExactQuote(amountQuote, minBaseReceived);
+    baseReceived = _exchangeFromExactQuote(amountQuote, minBaseReceived);
   }
 
   function exchangeToExactQuoteExt(uint amountQuote, uint maxBaseUsed) external returns (uint quoteReceived) {
-    quoteReceived = exchangeToExactQuote(amountQuote, maxBaseUsed);
+    quoteReceived = _exchangeToExactQuote(amountQuote, maxBaseUsed);
   }
 
   function exchangeFromExactBaseExt(uint amountBase, uint minQuoteReceived) external returns (uint quoteReceived) {
-    quoteReceived = exchangeFromExactBase(amountBase, minQuoteReceived);
+    quoteReceived = _exchangeFromExactBase(amountBase, minQuoteReceived);
   }
 
   function exchangeToExactBaseExt(uint amountBase, uint maxQuoteUsed) external returns (uint baseReceived) {
-    baseReceived = exchangeToExactBase(amountBase, maxQuoteUsed);
+    baseReceived = _exchangeToExactBase(amountBase, maxQuoteUsed);
   }
 
   function swapStablesExt(
@@ -82,43 +82,43 @@ contract TestVaultAdapter is VaultAdapter {
     uint expected,
     address receiver
   ) external returns (uint amountOut, int swapFee) {
-    (amountOut, swapFee) = swapStables(from, to, amount, expected, receiver);
+    (amountOut, swapFee) = _swapStables(from, to, amount, expected, receiver);
   }
 
   function getBoardExt(uint boardId) external view returns (Board memory board) {
-    board = getBoard(boardId);
+    board = _getBoard(boardId);
   }
 
   function getStrikesExt(uint[] memory strikeIds) external view returns (Strike[] memory allStrikes) {
-    allStrikes = getStrikes(strikeIds);
+    allStrikes = _getStrikes(strikeIds);
   }
 
   function getVolsExt(uint[] memory strikeIds) external view returns (uint[] memory vols) {
-    vols = getVols(strikeIds);
+    vols = _getVols(strikeIds);
   }
 
   function getDeltasExt(uint[] memory strikeIds) external view returns (int[] memory callDeltas) {
-    callDeltas = getDeltas(strikeIds);
+    callDeltas = _getDeltas(strikeIds);
   }
 
   function getVegasExt(uint[] memory strikeIds) external view returns (uint[] memory vegas) {
-    vegas = getVegas(strikeIds);
+    vegas = _getVegas(strikeIds);
   }
 
   function getPurePremiumForStrikeExt(uint strikeId) external view returns (uint call, uint put) {
-    (call, put) = getPurePremiumForStrike(strikeId);
+    (call, put) = _getPurePremiumForStrike(strikeId);
   }
 
   function getFreeLiquidityExt() external view returns (uint freeLiquidity) {
-    freeLiquidity = getFreeLiquidity();
+    freeLiquidity = _getFreeLiquidity();
   }
 
   function getMarketParamsExt() external view returns (MarketParams memory params) {
-    params = getMarketParams();
+    params = _getMarketParams();
   }
 
   function getExchangeParamsExt() external view returns (ExchangeRateParams memory params) {
-    params = getExchangeParams();
+    params = _getExchangeParams();
   }
 
   function getMinCollateralExt(
@@ -128,11 +128,11 @@ contract TestVaultAdapter is VaultAdapter {
     uint spotPrice,
     uint amount
   ) external view returns (uint minCollateral) {
-    minCollateral = getMinCollateral(optionType, strikePrice, expiry, spotPrice, amount);
+    minCollateral = _getMinCollateral(optionType, strikePrice, expiry, spotPrice, amount);
   }
 
   function getMinCollateralForPositionExt(uint positionId) external view returns (uint minCollateral) {
-    minCollateral = getMinCollateralForPosition(positionId);
+    minCollateral = _getMinCollateralForPosition(positionId);
   }
 
   function getMinCollateralForStrikeExt(
@@ -140,14 +140,14 @@ contract TestVaultAdapter is VaultAdapter {
     uint strikeId,
     uint amount
   ) external view returns (uint minCollateral) {
-    minCollateral = getMinCollateralForStrike(optionType, strikeId, amount);
+    minCollateral = _getMinCollateralForStrike(optionType, strikeId, amount);
   }
 
   function getPositionsExt(uint[] memory positionIds) external view returns (OptionPosition[] memory allPositions) {
-    allPositions = getPositions(positionIds);
+    allPositions = _getPositions(positionIds);
   }
 
   function getLiveBoardsExt() external view returns (uint[] memory liveBoards) {
-    liveBoards = getLiveBoards();
+    liveBoards = _getLiveBoards();
   }
 }

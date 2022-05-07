@@ -48,7 +48,7 @@ Mints new tokens and transfers them to `owner`.
 
 ### Function `burn(address owner, uint256 tokenAmount) external`
 
-Mints new tokens and transfers them to `owner`.
+Burn new tokens and transfers them to `owner`.
 
 ### Function `_afterTokenTransfer(address from, address to, uint256 amount) internal`
 

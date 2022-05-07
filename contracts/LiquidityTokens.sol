@@ -22,7 +22,7 @@ contract LiquidityTokens is ERC20, Owned, SimpleInitializeable {
 
   /// @dev The liquidityPool for which these tokens represent a share of
   address public liquidityPool;
-  /// @dev contract to keep track of the historical liquidity
+  /// @dev Contract to call when liquidity gets updated. Basically a hook for future contracts to use.
   ILiquidityTracker public liquidityTracker;
 
   ///////////
@@ -63,7 +63,7 @@ contract LiquidityTokens is ERC20, Owned, SimpleInitializeable {
   }
 
   /**
-   * @dev Mints new tokens and transfers them to `owner`.
+   * @dev Burn new tokens and transfers them to `owner`.
    */
   function burn(address owner, uint tokenAmount) external onlyLiquidityPool {
     _burn(owner, tokenAmount);

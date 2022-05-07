@@ -6,6 +6,7 @@ node_modules/
 **/.DS_Store
 #Hardhat files
 cache/
+out/
 artifacts/
 typechain/
 artifacts-ovm/

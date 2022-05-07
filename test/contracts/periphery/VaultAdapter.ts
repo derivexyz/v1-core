@@ -1,5 +1,5 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { BigNumber, BigNumberish } from 'ethers';
+import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import { DAY_SEC, fromBN, MAX_UINT, MONTH_SEC, OptionType, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { TestVaultAdapter } from '../../../typechain-types';

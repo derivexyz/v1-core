@@ -60,6 +60,16 @@ describe('OptionGreekCache - Min Collat Pricing', () => {
 
         expect(realCollat).to.gt(DEFAULT_MIN_COLLATERAL_PARAMS.minStaticQuoteCollateral);
         assertCloseToPercentage(realCollat, expectedCollat, toBN('0.001'));
+
+        expect(
+          await hre.f.c.optionGreekCache.getMinCollateral(
+            optionType,
+            toBN('1000'),
+            (await currentTime()) + MONTH_SEC,
+            await getSpotPrice(),
+            0,
+          ),
+        ).eq(0);
       });
     });
 

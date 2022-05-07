@@ -32,19 +32,19 @@ movements in the underlying asset price.
 
 - `_hedgeDelta(int256 expectedHedge) (internal)`
 
-- `updatePosition(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) (internal)`
+- `_updatePosition(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) (internal)`
 
-- `increaseLong(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amount, uint256 currentBalance) (internal)`
+- `_increaseLong(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amount, uint256 currentBalance) (internal)`
 
-- `decreaseLong(uint256 amount, uint256 currentBalance) (internal)`
+- `_decreaseLong(uint256 amount, uint256 currentBalance) (internal)`
 
-- `setShortTo(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 startShort, uint256 startCollateral) (internal)`
+- `_setShortTo(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 startShort, uint256 startCollateral) (internal)`
 
 - `_updateCollateral(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 shortBalance, uint256 startCollateral) (internal)`
 
 - `getCappedExpectedHedge() (public)`
 
-- `sendAllQuoteToLP() (internal)`
+- `_sendAllQuoteToLP() (internal)`
 
 - `getPoolHedgerParams() (external)`
 
@@ -112,7 +112,7 @@ Returns short balance and collateral.
 
 ### Function `getCurrentHedgedNetDelta() → int256 external`
 
-Returns the current hedged netDelta position
+Returns the current hedged netDelta position.
 
 ### Function `getHedgingLiquidity(contract ICollateralShort short, uint256 spotPrice) → uint256 pendingDeltaLiquidity, uint256 usedDeltaLiquidity external`
 
@@ -136,7 +136,7 @@ I.e. to go from a long position to asho
 
 - `expectedHedge`: The expected final hedge value.
 
-### Function `updatePosition(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) → int256 internal`
+### Function `_updatePosition(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) → int256 internal`
 
 Updates the hedge contract based off a new netDelta.
 
@@ -152,7 +152,7 @@ Updates the hedge contract based off a new netDelta.
 
 - `expectedHedge`: The amount of baseAsset exposure needed to hedge delta risk.
 
-### Function `increaseLong(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
+### Function `_increaseLong(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
 
 Increases the long exposure of the hedge contract.
 
@@ -162,7 +162,7 @@ Increases the long exposure of the hedge contract.
 
 - `amount`: The amount of baseAsset to purchase.
 
-### Function `decreaseLong(uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
+### Function `_decreaseLong(uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
 
 Decreases the long exposure of the hedge contract.
 
@@ -170,7 +170,7 @@ Decreases the long exposure of the hedge contract.
 
 - `amount`: The amount of baseAsset to sell.
 
-### Function `setShortTo(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 startShort, uint256 startCollateral) → uint256 newShort internal`
+### Function `_setShortTo(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 startShort, uint256 startCollateral) → uint256 newShort internal`
 
 Increases or decreases short to get to this amount of shorted baseAsset at the shortBuffer ratio. Note,
 
@@ -196,7 +196,7 @@ Calculates the expected delta hedge that hedger must perform and
 
 adjusts the result down to the hedgeCap param if needed.
 
-### Function `sendAllQuoteToLP() internal`
+### Function `_sendAllQuoteToLP() internal`
 
 Sends all quote asset deposited in this contract to the `LiquidityPool`.
 

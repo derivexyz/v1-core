@@ -58,9 +58,9 @@ describe('Successful Open', async () => {
           // expect correct balance changes and token minting
           if (optionType == OptionType.LONG_CALL || optionType == OptionType.LONG_PUT) {
             if (price == '0.0001') {
-              expect(oldBalance.sub(newBalance)).to.eq(0); 
+              expect(oldBalance.sub(newBalance)).to.eq(0);
             } else {
-              expect(oldBalance.sub(newBalance)).to.gt(0); 
+              expect(oldBalance.sub(newBalance)).to.gt(0);
             }
             expect(oldBalance.sub(newBalance)).to.lt(1000);
           } else {

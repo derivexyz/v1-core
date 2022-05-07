@@ -1,19 +1,35 @@
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
-import { DAY_SEC, getTxTimestamp, HOUR_SEC, MONTH_SEC, toBN, UNIT } from '../../../scripts/util/web3utils';
+import {
+  DAY_SEC,
+  getTxTimestamp,
+  HOUR_SEC,
+  MONTH_SEC,
+  OptionType,
+  toBN,
+  UNIT,
+  WEEK_SEC,
+} from '../../../scripts/util/web3utils';
 import { assertCloseTo, assertCloseToPercentage } from '../../utils/assert';
 import {
   expectBalance,
   expectCorrectSettlement,
   fillLiquidityWithLongCall,
+  getLiquidity,
   initiateFullLPWithdrawal,
   openAllTrades,
+  openPositionWithOverrides,
   partiallyFillLiquidityWithLongCall,
 } from '../../utils/contractHelpers';
-import { DEFAULT_GREEK_CACHE_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
+import {
+  DEFAULT_GREEK_CACHE_PARAMS,
+  DEFAULT_LIQUIDITY_POOL_PARAMS,
+  DEFAULT_POOL_HEDGER_PARAMS,
+  DEFAULT_PRICING_PARAMS,
+} from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
-import { createDefaultBoardWithOverrides } from '../../utils/seedTestSystem';
+import { createDefaultBoardWithOverrides, mockPrice, seedBalanceAndApprovalFor } from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
 import { validateWithdrawalRecord } from './4_InitiateWithdrawal';
 
@@ -249,7 +265,55 @@ describe('Process withdrawal', async () => {
 
   describe('edge cases', async () => {
     beforeEach(seedFixture);
-    it.skip('processess withdrawal after value of pool drops 90%'); // catastrophic insolvency situation
+    it('processess withdrawal after value of pool drops 90%', async () => {
+      // remove hedging & reducing slippage
+      await hre.f.c.poolHedger.setPoolHedgerParams({
+        ...DEFAULT_POOL_HEDGER_PARAMS,
+        hedgeCap: toBN('0'),
+      });
+
+      await hre.f.c.optionMarketPricer.setPricingParams({
+        ...DEFAULT_PRICING_PARAMS,
+        standardSize: toBN('5000'),
+      });
+
+      // initiate deposit and withdrawal
+      await seedBalanceAndApprovalFor(hre.f.deployer, hre.f.c, toBN('100000000'));
+      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.alice.address, toBN('100'));
+      await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, toBN('100'));
+      expect(await hre.f.c.liquidityPool.getTokenPrice()).to.eq(toBN('1'));
+
+      await openAllTrades(); // just to mix it up a bit
+      await openPositionWithOverrides(hre.f.c, {
+        strikeId: 2,
+        optionType: OptionType.SHORT_CALL_QUOTE,
+        amount: toBN('6000'),
+        setCollateralTo: toBN('100000000'),
+      });
+
+      // ensure optionValue dumps & most NAV is in optionValue
+      assertCloseToPercentage(await hre.f.c.optionGreekCache.getGlobalOptionValue(), toBN('-625000'), toBN('0.05'));
+      assertCloseToPercentage(await hre.f.c.liquidityPool.getTokenPrice(), toBN('1.25'), toBN('0.1'));
+      expect((await getLiquidity()).freeLiquidity).to.lt(toBN('50000'));
+
+      // dump price to make all calls OTM
+      await mockPrice(hre.f.c, toBN('1250'), 'sETH');
+      await fastForward(WEEK_SEC); // let GWAV catch up
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(1);
+      assertCloseToPercentage(await hre.f.c.optionGreekCache.getGlobalOptionValue(), toBN('-19000'), toBN('0.05'));
+      assertCloseToPercentage(await hre.f.c.liquidityPool.getTokenPrice(), toBN('0.065'), toBN('0.1'));
+
+      // process withdrawals
+      await hre.f.c.liquidityPool.processDepositQueue(2);
+      assertCloseToPercentage(
+        await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address),
+        toBN('1592.6'),
+        toBN('0.1'),
+      );
+
+      await hre.f.c.liquidityPool.processWithdrawalQueue(2);
+      assertCloseToPercentage(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address), toBN('6.5'), toBN('0.1'));
+    });
 
     it('liveBoards != 0, open options == 0, can withdraw 100%', async () => {
       // opening second board to test 100% withdrawal where liveBoards > 0

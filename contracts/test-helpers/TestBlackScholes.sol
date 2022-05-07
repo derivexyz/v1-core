@@ -21,23 +21,23 @@ contract TestBlackScholes {
   }
 
   function sqrt_pub(uint x) external pure returns (uint) {
-    return (x * DecimalMath.UNIT).sqrt();
+    return (x * DecimalMath.UNIT)._sqrt();
   }
 
   function abs_pub(int x) external pure returns (uint) {
-    return x.abs();
+    return x._abs();
   }
 
   function stdNormal_pub(int x) external pure returns (uint) {
-    return x.stdNormal().preciseDecimalToDecimal();
+    return x._stdNormal().preciseDecimalToDecimal();
   }
 
   function stdNormalCDF_pub(int x) external pure returns (uint) {
-    return x.stdNormalCDF().preciseDecimalToDecimal();
+    return x._stdNormalCDF().preciseDecimalToDecimal();
   }
 
   function annualise_pub(uint secs) external pure returns (uint yearFraction) {
-    return secs.annualise().preciseDecimalToDecimal();
+    return secs._annualise().preciseDecimalToDecimal();
   }
 
   function d1d2_pub(
@@ -47,7 +47,7 @@ contract TestBlackScholes {
     uint strikePrice,
     int rate
   ) external pure returns (int d1, int d2) {
-    (d1, d2) = tAnnualised.d1d2(volatility, spot, strikePrice, rate);
+    (d1, d2) = tAnnualised._d1d2(volatility, spot, strikePrice, rate);
     return (d1.preciseDecimalToDecimal(), d2.preciseDecimalToDecimal());
   }
 

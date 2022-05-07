@@ -62,11 +62,11 @@ library BlackScholes {
    * @dev Returns call and put prices for options with given parameters.
    */
   function optionPrices(BlackScholesInputs memory bsInput) public pure returns (uint call, uint put) {
-    uint tAnnualised = annualise(bsInput.timeToExpirySec);
+    uint tAnnualised = _annualise(bsInput.timeToExpirySec);
     uint spotPrecise = bsInput.spotDecimal.decimalToPreciseDecimal();
     uint strikePricePrecise = bsInput.strikePriceDecimal.decimalToPreciseDecimal();
     int ratePrecise = bsInput.rateDecimal.decimalToPreciseDecimal();
-    (int d1, int d2) = d1d2(
+    (int d1, int d2) = _d1d2(
       tAnnualised,
       bsInput.volatilityDecimal.decimalToPreciseDecimal(),
       spotPrecise,
@@ -81,10 +81,10 @@ library BlackScholes {
    * @dev Returns call/put prices and delta/stdVega for options with given parameters.
    */
   function pricesDeltaStdVega(BlackScholesInputs memory bsInput) public pure returns (PricesDeltaStdVega memory) {
-    uint tAnnualised = annualise(bsInput.timeToExpirySec);
+    uint tAnnualised = _annualise(bsInput.timeToExpirySec);
     uint spotPrecise = bsInput.spotDecimal.decimalToPreciseDecimal();
 
-    (int d1, int d2) = d1d2(
+    (int d1, int d2) = _d1d2(
       tAnnualised,
       bsInput.volatilityDecimal.decimalToPreciseDecimal(),
       spotPrecise,
@@ -118,10 +118,10 @@ library BlackScholes {
    */
 
   function delta(BlackScholesInputs memory bsInput) public pure returns (int callDeltaDecimal, int putDeltaDecimal) {
-    uint tAnnualised = annualise(bsInput.timeToExpirySec);
+    uint tAnnualised = _annualise(bsInput.timeToExpirySec);
     uint spotPrecise = bsInput.spotDecimal.decimalToPreciseDecimal();
 
-    (int d1, ) = d1d2(
+    (int d1, ) = _d1d2(
       tAnnualised,
       bsInput.volatilityDecimal.decimalToPreciseDecimal(),
       spotPrecise,
@@ -137,10 +137,10 @@ library BlackScholes {
    * @dev Returns non-normalized vega given parameters. Quoted in cents.
    */
   function vega(BlackScholesInputs memory bsInput) public pure returns (uint vegaDecimal) {
-    uint tAnnualised = annualise(bsInput.timeToExpirySec);
+    uint tAnnualised = _annualise(bsInput.timeToExpirySec);
     uint spotPrecise = bsInput.spotDecimal.decimalToPreciseDecimal();
 
-    (int d1, ) = d1d2(
+    (int d1, ) = _d1d2(
       tAnnualised,
       bsInput.volatilityDecimal.decimalToPreciseDecimal(),
       spotPrecise,
@@ -162,7 +162,7 @@ library BlackScholes {
    * @param strikePrice The strikePrice price of the option
    * @param rate The percentage risk free rate + carry cost
    */
-  function d1d2(
+  function _d1d2(
     uint tAnnualised,
     uint volatility,
     uint spot,
@@ -175,7 +175,7 @@ library BlackScholes {
     tAnnualised = tAnnualised < MIN_T_ANNUALISED ? MIN_T_ANNUALISED : tAnnualised;
     volatility = volatility < MIN_VOLATILITY ? MIN_VOLATILITY : volatility;
 
-    int vtSqrt = int(volatility.multiplyDecimalRoundPrecise(sqrtPrecise(tAnnualised)));
+    int vtSqrt = int(volatility.multiplyDecimalRoundPrecise(_sqrtPrecise(tAnnualised)));
     int log = FixedPointMathLib.lnPrecise(int(spot.divideDecimalRoundPrecise(strikePrice)));
     int v2t = (int(volatility.multiplyDecimalRoundPrecise(volatility) / 2) + rate).multiplyDecimalRoundPrecise(
       int(tAnnualised)
@@ -204,8 +204,8 @@ library BlackScholes {
     uint strikePricePV = strikePrice.multiplyDecimalRoundPrecise(
       FixedPointMathLib.expPrecise(int(-rate.multiplyDecimalRoundPrecise(int(tAnnualised))))
     );
-    uint spotNd1 = spot.multiplyDecimalRoundPrecise(stdNormalCDF(d1));
-    uint strikePriceNd2 = strikePricePV.multiplyDecimalRoundPrecise(stdNormalCDF(d2));
+    uint spotNd1 = spot.multiplyDecimalRoundPrecise(_stdNormalCDF(d1));
+    uint strikePriceNd2 = strikePricePV.multiplyDecimalRoundPrecise(_stdNormalCDF(d2));
 
     // We clamp to zero if the minuend is less than the subtrahend
     // In some scenarios it may be better to compute put price instead and derive call from it depending on which way
@@ -224,7 +224,7 @@ library BlackScholes {
    * @param d1 Internal coefficient of Black-Scholes
    */
   function _delta(int d1) internal pure returns (int callDelta, int putDelta) {
-    callDelta = int(stdNormalCDF(d1));
+    callDelta = int(_stdNormalCDF(d1));
     putDelta = callDelta - int(PRECISE_UNIT);
   }
 
@@ -240,7 +240,7 @@ library BlackScholes {
     uint spot,
     int d1
   ) internal pure returns (uint) {
-    return sqrtPrecise(tAnnualised).multiplyDecimalRoundPrecise(stdNormal(d1).multiplyDecimalRoundPrecise(spot));
+    return _sqrtPrecise(tAnnualised).multiplyDecimalRoundPrecise(_stdNormal(d1).multiplyDecimalRoundPrecise(spot));
   }
 
   /**
@@ -254,7 +254,7 @@ library BlackScholes {
     uint spot,
     uint timeToExpirySec
   ) internal pure returns (uint, uint) {
-    uint tAnnualised = annualise(timeToExpirySec);
+    uint tAnnualised = _annualise(timeToExpirySec);
     uint normalisationFactor = _getVegaNormalisationFactorPrecise(timeToExpirySec);
     uint vegaPrecise = _vega(tAnnualised, spot, d1);
     return (vegaPrecise, vegaPrecise.multiplyDecimalRoundPrecise(normalisationFactor));
@@ -266,7 +266,7 @@ library BlackScholes {
     timeToExpirySec = timeToExpirySec < VEGA_STANDARDISATION_MIN_DAYS ? VEGA_STANDARDISATION_MIN_DAYS : timeToExpirySec;
     uint daysToExpiry = (timeToExpirySec * PRECISE_UNIT) / 1 days;
     uint thirty = 30 * PRECISE_UNIT;
-    return sqrtPrecise(thirty.divideDecimalRoundPrecise(daysToExpiry)) / 100;
+    return _sqrtPrecise(thirty.divideDecimalRoundPrecise(daysToExpiry)) / 100;
   }
 
   /////////////////////
@@ -276,7 +276,7 @@ library BlackScholes {
   /**
    * @dev Returns absolute value of an int as a uint.
    */
-  function abs(int x) internal pure returns (uint) {
+  function _abs(int x) internal pure returns (uint) {
     return uint(x < 0 ? -x : x);
   }
 
@@ -284,7 +284,7 @@ library BlackScholes {
    * @dev Returns the square root of the value using Newton's method. This ignores the unit, so numbers should be
    * multiplied by their unit before being passed in.
    */
-  function sqrt(uint x) internal pure returns (uint y) {
+  function _sqrt(uint x) internal pure returns (uint y) {
     uint z = (x + 1) / 2;
     y = x;
     while (z < y) {
@@ -296,16 +296,16 @@ library BlackScholes {
   /**
    * @dev Returns the square root of the value using Newton's method.
    */
-  function sqrtPrecise(uint x) internal pure returns (uint) {
+  function _sqrtPrecise(uint x) internal pure returns (uint) {
     // Add in an extra unit factor for the square root to gobble;
     // otherwise, sqrt(x * UNIT) = sqrt(x) * sqrt(UNIT)
-    return sqrt(x * PRECISE_UNIT);
+    return _sqrt(x * PRECISE_UNIT);
   }
 
   /**
    * @dev The standard normal distribution of the value.
    */
-  function stdNormal(int x) internal pure returns (uint) {
+  function _stdNormal(int x) internal pure returns (uint) {
     return FixedPointMathLib.expPrecise(int(-x.multiplyDecimalRoundPrecise(x / 2))).divideDecimalRoundPrecise(SQRT_TWOPI);
   }
 
@@ -313,7 +313,7 @@ library BlackScholes {
    * @dev The standard normal cumulative distribution of the value. Only has to operate precisely between -1 and 1 for
    * the calculation of option prices, but handles up to -4 with good accuracy.
    */
-  function stdNormalCDF(int x) internal pure returns (uint) {
+  function _stdNormalCDF(int x) internal pure returns (uint) {
     // Based on testing, errors are ~0.1% at -4, which is still acceptable; and around 0.3% at -4.5.
     // This function seems to become increasingly inaccurate past -5 ( >%5 inaccuracy)
     // At that range, the values are so low at that we will return 0, as it won't affect any usage of this value.
@@ -326,7 +326,7 @@ library BlackScholes {
       return PRECISE_UNIT;
     }
 
-    int t1 = int(1e7 + int((2315419 * abs(x)) / PRECISE_UNIT));
+    int t1 = int(1e7 + int((2315419 * _abs(x)) / PRECISE_UNIT));
     int exponent = x.multiplyDecimalRoundPrecise(x / 2);
     int d = int((3989423 * PRECISE_UNIT) / FixedPointMathLib.expPrecise(exponent));
     uint prob = uint(
@@ -343,7 +343,7 @@ library BlackScholes {
   /**
    * @dev Converts an integer number of seconds to a fractional number of years.
    */
-  function annualise(uint secs) internal pure returns (uint yearFraction) {
+  function _annualise(uint secs) internal pure returns (uint yearFraction) {
     return secs.divideDecimalRoundPrecise(SECONDS_PER_YEAR);
   }
 }

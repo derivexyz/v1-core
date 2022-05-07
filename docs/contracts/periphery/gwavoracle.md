@@ -14,6 +14,8 @@
 
 - `vegaGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
 
+- `pricesGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+
 - `_getBsInput(uint256 strikeId) (internal)`
 
 ### Function `init(contract OptionMarket _optionMarket, contract OptionGreekCache _greekCache, contract SynthetixAdapter _synthetixAdapter) external`
@@ -37,5 +39,7 @@ Initializes the contract
 ### Function `deltaGWAV(uint256 strikeId, uint256 secondsAgo) → int256 callDelta external`
 
 ### Function `vegaGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 vega external`
+
+### Function `pricesGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 callPrice, uint256 putPrice external`
 
 ### Function `_getBsInput(uint256 strikeId) → struct BlackScholes.BlackScholesInputs bsInput internal`

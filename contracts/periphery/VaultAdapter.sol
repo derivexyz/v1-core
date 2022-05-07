@@ -188,7 +188,7 @@ contract VaultAdapter is Ownable {
   ////////////////////
 
   // setTrustedCounter must be set for approved addresses
-  function openPosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
+  function _openPosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
     OptionMarket.Result memory result = optionMarket.openPosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
       feeCounter.addFees(address(optionMarket), params.rewardRecipient, result.totalFee);
@@ -196,7 +196,7 @@ contract VaultAdapter is Ownable {
     return TradeResult({positionId: result.positionId, totalCost: result.totalCost, totalFee: result.totalFee});
   }
 
-  function closePosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
+  function _closePosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
     OptionMarket.Result memory result = optionMarket.closePosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
       feeCounter.addFees(address(optionMarket), params.rewardRecipient, result.totalFee);
@@ -204,7 +204,7 @@ contract VaultAdapter is Ownable {
     return TradeResult({positionId: result.positionId, totalCost: result.totalCost, totalFee: result.totalFee});
   }
 
-  function forceClosePosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
+  function _forceClosePosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
     OptionMarket.Result memory result = optionMarket.forceClosePosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
       feeCounter.addFees(address(optionMarket), params.rewardRecipient, result.totalFee);
@@ -216,12 +216,12 @@ contract VaultAdapter is Ownable {
   // Exchange //
   //////////////
 
-  function exchangeFromExactQuote(uint amountQuote, uint minBaseReceived) internal returns (uint baseReceived) {
+  function _exchangeFromExactQuote(uint amountQuote, uint minBaseReceived) internal returns (uint baseReceived) {
     baseReceived = synthetixAdapter.exchangeFromExactQuote(address(optionMarket), amountQuote);
     require(baseReceived >= minBaseReceived, "base received too low");
   }
 
-  function exchangeToExactQuote(uint amountQuote, uint maxBaseUsed) internal returns (uint quoteReceived) {
+  function _exchangeToExactQuote(uint amountQuote, uint maxBaseUsed) internal returns (uint quoteReceived) {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     (, quoteReceived) = synthetixAdapter.exchangeToExactQuoteWithLimit(
       exchangeParams,
@@ -231,12 +231,12 @@ contract VaultAdapter is Ownable {
     );
   }
 
-  function exchangeFromExactBase(uint amountBase, uint minQuoteReceived) internal returns (uint quoteReceived) {
+  function _exchangeFromExactBase(uint amountBase, uint minQuoteReceived) internal returns (uint quoteReceived) {
     quoteReceived = synthetixAdapter.exchangeFromExactBase(address(optionMarket), amountBase);
     require(quoteReceived >= minQuoteReceived, "quote received too low");
   }
 
-  function exchangeToExactBase(uint amountBase, uint maxQuoteUsed) internal returns (uint baseReceived) {
+  function _exchangeToExactBase(uint amountBase, uint maxQuoteUsed) internal returns (uint baseReceived) {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     (, baseReceived) = synthetixAdapter.exchangeToExactBaseWithLimit(
       exchangeParams,
@@ -246,7 +246,7 @@ contract VaultAdapter is Ownable {
     );
   }
 
-  function swapStables(
+  function _swapStables(
     address from,
     address to,
     uint amount,
@@ -255,8 +255,7 @@ contract VaultAdapter is Ownable {
   ) internal returns (uint amountOut, int swapFee) {
     int balStart = int(ERC20(from).balanceOf(address(this)));
     amountOut = curveSwap.exchange_with_best_rate(from, to, amount, expected, receiver);
-    int balEnd = int(ERC20(from).balanceOf(address(this)));
-    swapFee = balStart - balEnd - int(amountOut);
+    swapFee = balStart - int(amountOut);
   }
 
   //////////////////////////
@@ -264,7 +263,7 @@ contract VaultAdapter is Ownable {
   //////////////////////////
 
   // option token spilt
-  function splitPosition(
+  function _splitPosition(
     uint positionId,
     uint newAmount,
     uint newCollateral,
@@ -274,7 +273,7 @@ contract VaultAdapter is Ownable {
   }
 
   // option token merge
-  function mergePositions(uint[] memory positionIds) internal {
+  function _mergePositions(uint[] memory positionIds) internal {
     optionToken.merge(positionIds);
   }
 
@@ -282,18 +281,18 @@ contract VaultAdapter is Ownable {
   // Market Getters //
   ////////////////////
 
-  function getLiveBoards() internal view returns (uint[] memory liveBoards) {
+  function _getLiveBoards() internal view returns (uint[] memory liveBoards) {
     liveBoards = optionMarket.getLiveBoards();
   }
 
   // get all board related info (non GWAV)
-  function getBoard(uint boardId) internal view returns (Board memory) {
+  function _getBoard(uint boardId) internal view returns (Board memory) {
     OptionMarket.OptionBoard memory board = optionMarket.getOptionBoard(boardId);
     return Board({id: board.id, expiry: board.expiry, boardIv: board.iv, strikeIds: board.strikeIds});
   }
 
   // get all strike related info (non GWAV)
-  function getStrikes(uint[] memory strikeIds) internal view returns (Strike[] memory allStrikes) {
+  function _getStrikes(uint[] memory strikeIds) internal view returns (Strike[] memory allStrikes) {
     allStrikes = new Strike[](strikeIds.length);
 
     for (uint i = 0; i < strikeIds.length; i++) {
@@ -313,7 +312,7 @@ contract VaultAdapter is Ownable {
   }
 
   // iv * skew only
-  function getVols(uint[] memory strikeIds) internal view returns (uint[] memory vols) {
+  function _getVols(uint[] memory strikeIds) internal view returns (uint[] memory vols) {
     vols = new uint[](strikeIds.length);
 
     for (uint i = 0; i < strikeIds.length; i++) {
@@ -327,7 +326,7 @@ contract VaultAdapter is Ownable {
   }
 
   // get deltas only
-  function getDeltas(uint[] memory strikeIds) internal view returns (int[] memory callDeltas) {
+  function _getDeltas(uint[] memory strikeIds) internal view returns (int[] memory callDeltas) {
     callDeltas = new int[](strikeIds.length);
     for (uint i = 0; i < strikeIds.length; i++) {
       BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeIds[i]);
@@ -335,7 +334,7 @@ contract VaultAdapter is Ownable {
     }
   }
 
-  function getVegas(uint[] memory strikeIds) internal view returns (uint[] memory vegas) {
+  function _getVegas(uint[] memory strikeIds) internal view returns (uint[] memory vegas) {
     vegas = new uint[](strikeIds.length);
     for (uint i = 0; i < strikeIds.length; i++) {
       BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeIds[i]);
@@ -344,7 +343,7 @@ contract VaultAdapter is Ownable {
   }
 
   // get pure black-scholes premium
-  function getPurePremium(
+  function _getPurePremium(
     uint secondsToExpiry,
     uint vol,
     uint spotPrice,
@@ -361,16 +360,16 @@ contract VaultAdapter is Ownable {
   }
 
   // get pure black-scholes premium
-  function getPurePremiumForStrike(uint strikeId) internal view returns (uint call, uint put) {
+  function _getPurePremiumForStrike(uint strikeId) internal view returns (uint call, uint put) {
     BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeId);
     (call, put) = BlackScholes.optionPrices(bsInput);
   }
 
-  function getFreeLiquidity() internal view returns (uint freeLiquidity) {
+  function _getFreeLiquidity() internal view returns (uint freeLiquidity) {
     freeLiquidity = liquidityPool.getLiquidityParams().freeLiquidity;
   }
 
-  function getMarketParams() internal view returns (MarketParams memory) {
+  function _getMarketParams() internal view returns (MarketParams memory) {
     return
       MarketParams({
         standardSize: optionPricer.getPricingParams().standardSize,
@@ -383,7 +382,7 @@ contract VaultAdapter is Ownable {
   }
 
   // get spot price of sAsset and exchange fee percentages
-  function getExchangeParams() internal view returns (ExchangeRateParams memory) {
+  function _getExchangeParams() internal view returns (ExchangeRateParams memory) {
     SynthetixAdapter.ExchangeParams memory params = synthetixAdapter.getExchangeParams(address(optionMarket));
     return
       ExchangeRateParams({
@@ -397,7 +396,7 @@ contract VaultAdapter is Ownable {
   // Option Position Getters //
   /////////////////////////////
 
-  function getPositions(uint[] memory positionIds) internal view returns (OptionPosition[] memory) {
+  function _getPositions(uint[] memory positionIds) internal view returns (OptionPosition[] memory) {
     OptionToken.OptionPosition[] memory positions = optionToken.getOptionPositions(positionIds);
 
     OptionPosition[] memory convertedPositions = new OptionPosition[](positions.length);
@@ -415,7 +414,7 @@ contract VaultAdapter is Ownable {
     return convertedPositions;
   }
 
-  function getMinCollateral(
+  function _getMinCollateral(
     OptionType optionType,
     uint strikePrice,
     uint expiry,
@@ -426,7 +425,7 @@ contract VaultAdapter is Ownable {
       greekCache.getMinCollateral(OptionMarket.OptionType(uint(optionType)), strikePrice, expiry, spotPrice, amount);
   }
 
-  function getMinCollateralForPosition(uint positionId) internal view returns (uint) {
+  function _getMinCollateralForPosition(uint positionId) internal view returns (uint) {
     OptionToken.PositionWithOwner memory position = optionToken.getPositionWithOwner(positionId);
     if (_isLong(OptionType(uint(position.optionType)))) return 0;
 
@@ -435,7 +434,7 @@ contract VaultAdapter is Ownable {
     (strikePrice, expiry) = optionMarket.getStrikeAndExpiry(position.strikeId);
 
     return
-      getMinCollateral(
+      _getMinCollateral(
         OptionType(uint(position.optionType)),
         strikePrice,
         expiry,
@@ -444,7 +443,7 @@ contract VaultAdapter is Ownable {
       );
   }
 
-  function getMinCollateralForStrike(
+  function _getMinCollateralForStrike(
     OptionType optionType,
     uint strikeId,
     uint amount
@@ -456,7 +455,7 @@ contract VaultAdapter is Ownable {
     (strikePrice, expiry) = optionMarket.getStrikeAndExpiry(strikeId);
 
     return
-      getMinCollateral(
+      _getMinCollateral(
         optionType,
         strikePrice,
         expiry,

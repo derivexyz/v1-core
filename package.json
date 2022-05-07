@@ -1,6 +1,6 @@
 {
-  "name": "@lyrafinance/core",
-  "version": "0.1.1-alpha",
+  "name": "@lyrafinance/protocol",
+  "version": "0.1.0-alpha",
   "description": "core smart contracts for lyra option markets",
   "homepage": "www.lyra.finance",
   "author": "Lyra Finance",
@@ -9,7 +9,7 @@
   "types": "dist/test/utils/package/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lyra-finance/lyra"
+    "url": "https://github.com/lyra-finance/lyra-protocol/tree/avalon"
   },
   "files": [
     "dist/artifacts/@openzeppelin/**/**/**/*.json",
@@ -26,12 +26,19 @@
     "src": "test/**/*.ts scripts/**/*.ts contracts/**/*.sol contracts/*.sol hardhat.config.ts"
   },
   "scripts": {
-    "clean": "hardhat clean && rimraf ./cache && rimraf ./artifacts",
+    "clean": "hardhat clean && rimraf ./cache && rimraf ./artifacts && rimraf ./cache-ovm && rimraf ./artifacts-ovm",
     "compile": "hardhat compile",
     "build": "yarn clean && yarn compile",
     "test": "hardhat test",
     "test:heavy": "hardhat test:heavy",
     "coverage": "hardhat coverage --temp artifacts --network hardhat  --testfiles \"test/contracts/**/*.ts\"",
+    "deployAndSeed": "yarn deployTest --network local && yarn seedTest --network local",
+    "deploy:wait": "wait-port 8545 && yarn deployAndSeed",
+    "deployTest": "hardhat run scripts/deployTest.ts",
+    "deployTestWithRealPricing": "hardhat run scripts/deployTestWithRealPricing.ts",
+    "seedTest": "hardhat run scripts/seedTest.ts",
+    "seedTestWithRealPricing": "hardhat run scripts/seedTestWithRealPricing.ts",
+    "integration": "hardhat run scripts/runIntegrationTest.ts --network local",
     "doc:uml": "sol2uml ./contracts -i mocks,test -f png -o ./docs/uml/lyra.png",
     "docify": "node docify.js",
     "docgen": "yarn doc:uml && yarn docify",
@@ -61,9 +68,9 @@
     "@nomiclabs/hardhat-etherscan": "^2.1.5",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@typechain/ethers-v5": "^8.0.5",
+    "@typechain/hardhat": "^3.0.0",
     "@types/chai": "^4.2.14",
     "@types/fs-extra": "^9.0.13",
-    "@types/lodash": "^4.14.180",
     "@types/mathjs": "^9.4.2",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.11.10",
@@ -102,20 +109,23 @@
   },
   "dependencies": {
     "@ethersproject/abi": "^5.4.0",
+    "@ethersproject/web": "^5.6.0",
     "@openzeppelin/contracts": "^4.4.1",
     "@openzeppelin/contracts-upgradeable": "^4.5.1",
     "@openzeppelin/hardhat-upgrades": "^1.14.0",
     "@typechain/hardhat": "^3.0.0",
+    "@types/lodash": "^4.14.180",
     "hardhat-tracer": "1.0.0-alpha.6",
     "lodash": "^4.17.21",
     "stochastic": "^0.0.14"
   },
-  "peerDependecies": {
-    "@typechain/ethers-v5": "^8.0.5",
+  "peerDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
-    "@openzeppelin/contracts": "^4.4.1",
+    "@typechain/ethers-v5": "^8.0.5",
+    "@typechain/hardhat": "^3.0.0",
+    "ethers": "^5.1.0",
     "hardhat": "^2.8.0",
     "typechain": "^6.0.5",
-    "@typechain/hardhat": "^3.0.0"
+    "hardhat-dependency-compiler": "^1.1.2"
   }
 }

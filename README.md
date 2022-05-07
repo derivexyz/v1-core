@@ -5,17 +5,31 @@
 ## Documentation
 
 Avalon documentation coming soon!
-[Pre-Avalon Docs](https://docs.lyra.finance/implementation/lyra-protocol-architecture)
+[Pre-Avalon Docs](https://docs.lyra.finance/implementation/protocol-architecture)
 
 ## Installation
 ```bash
-$ yarn add @lyrafinance/core
+$ yarn add @lyrafinance/protocol
+$ yarn add hardhat-dependency-compiler
+```
+
+To decode revert messages, make sure to include the dependency compiler in your `hardhat.config.ts`:
+```typescript
+import 'hardhat-dependency-compiler'
+import { lyraContractPaths } from '@lyrafinance/protocol/dist/test/utils/package/index-paths'
+
+export default {
+  // other hardhat config params...
+  dependencyCompiler: {
+    paths: lyraContractPaths,
+  }
+}
 ```
 
 ## Importing Lyra contracts
 
 ```solidity
-import {VaultAdapter} from '@lyrafinance/core/contracts/periphery/VaultAdapter.sol';
+import {VaultAdapter} from '@lyrafinance/protocol/contracts/periphery/VaultAdapter.sol';
 
 contract DeltaStrategy is VaultAdapter {
   // your structured product contract
@@ -29,7 +43,7 @@ Refer to the [Lyra vaults example project](https://github.com/lyra-finance/lyra-
 
 
 ```typescript
-import { TestSystem } from '@lyrafinance/core'
+import { TestSystem } from '@lyrafinance/protocol'
 
 describe('Integration Test', () => {
   before(async () => {
@@ -81,11 +95,11 @@ Refer to the [Lyra vaults example project](https://github.com/lyra-finance/lyra-
 
 ## Calling Lyra on kovan-ovm/mainnet-ovm
 ```typescript
-import { getMarketDeploys, getGlobalDeploys } from '@lyrafinance/core';
+import { getMarketDeploys, getGlobalDeploys } from '@lyrafinance/protocol';
 
 // get lyra address/abi/bytecode/more
-let lyraMarket = getMarketDeploys('kovan-ovm', 'sETH');
-let lyraGlobal = getGlobalDeploys('kovan-ovm');
+let lyraMarket = await getMarketDeploys('kovan-ovm', 'sETH');
+let lyraGlobal = await getGlobalDeploys('kovan-ovm');
 
 const testFaucet = new Contract(lyraGlobal.TestFaucet.address, lyraGlobal.TestFaucet.abi, deployer);
 const sUSD = new Contract(lyraGlobal.QuoteAsset.address, lyraGlobal.QuoteAsset.abi, deployer);
@@ -102,7 +116,7 @@ Refer to the [Lyra vaults example project](https://github.com/lyra-finance/lyra-
 ## Deploy Lyra locally
 ```typescript
 // deployLyraExample.ts
-import { TestSystem } from '@lyrafinance/core';
+import { TestSystem } from '@lyrafinance/protocol';
 
 async function main() {
   // 1. create local deployer and network
@@ -164,8 +178,10 @@ Run your test scripts with the `yarn test --logs` to enable the plug-in.
 ## Useful calls / common errors [WIP]
 
 For local/hardhat:
-- `testSystem.optionGreekCache(baordId)` to prevent stale board reverts
+- `testSystem.optionGreekCache(boardId)` to prevent stale board reverts
 - `testSystem.optionMarket.settleBoard(boardId)` before settling individual positions
 - `testSystem.mockPrice()` to set mock prices 
 - `lyraEvm.fastForward(jumpTime)`to jump to expiry/fast-forward
 - use `DeployOverride` and `SeedOverride` during `testSystem.deploy/seed` for setting custom market params such as `standardSize`, `minDelta` and etc. 
+
+Refer to the [Lyra vaults example project](https://github.com/lyra-finance/lyra-vaults/tree/master/test/integration-tests) for example usage of above functions.

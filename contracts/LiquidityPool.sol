@@ -439,8 +439,8 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     uint queuedTokenValue = tokenPrice.multiplyDecimal(totalQueuedWithdrawals);
 
     Liquidity memory liquidity = _getLiquidity(
-      totalPoolValue,
       exchangeParams.spotPrice,
+      totalPoolValue,
       queuedTokenValue,
       usedDelta,
       pendingDelta
@@ -788,18 +788,20 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     uint usedDeltaLiquidity,
     int optionValue
   ) internal view returns (uint) {
-    uint totalAssetValue = quoteAsset.balanceOf(address(this)) +
-      baseAsset.balanceOf(address(this)).multiplyDecimal(basePrice) +
-      usedDeltaLiquidity -
-      totalOutstandingSettlements -
-      totalQueuedDeposits;
+    int totalAssetValue = SafeCast.toInt256(
+      quoteAsset.balanceOf(address(this)) +
+        baseAsset.balanceOf(address(this)).multiplyDecimal(basePrice) +
+        usedDeltaLiquidity -
+        totalOutstandingSettlements -
+        totalQueuedDeposits
+    );
 
     // Should not be possible due to being fully collateralised
-    if (optionValue > int(totalAssetValue)) {
+    if (optionValue > totalAssetValue) {
       revert OptionValueExceedsTotalAssets(address(this), totalAssetValue, optionValue);
     }
 
-    return uint(int(totalAssetValue) - optionValue);
+    return uint(totalAssetValue - optionValue);
   }
 
   /**
@@ -1108,7 +1110,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   error LockingMoreQuoteThanIsFree(address thrower, uint quoteToLock, uint freeLiquidity, Collateral lockedCollateral);
   error SendPremiumNotEnoughCollateral(address thrower, uint premium, uint reservedFee, uint freeLiquidity);
   error NotEnoughFreeToReclaimInsolvency(address thrower, uint amountQuote, Liquidity liquidity);
-  error OptionValueExceedsTotalAssets(address thrower, uint totalAssetCalue, int optionValue);
+  error OptionValueExceedsTotalAssets(address thrower, int totalAssetValue, int optionValue);
   error InsufficientFreeLiquidityForBaseExchange(
     address thrower,
     uint pendingBase,

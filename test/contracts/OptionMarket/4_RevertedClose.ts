@@ -61,9 +61,7 @@ describe('Reverted Close', async () => {
             amount: toBN('10'),
             setCollateralTo: collaterals[optionType].mul(11),
           }),
-        ).revertedWith(
-          'reverted with panic code 0x11 (Arithmetic operation underflowed or overflowed outside of an unchecked block)',
-        );
+        ).revertedWith('SafeCast: value must be positive');
       });
 
       it('closing non-existent position', async () => {

@@ -49,7 +49,7 @@ library GWAV {
    * @param newVal First observed value for blockTimestamp
    * @param blockTimestamp Timestamp of first Observation
    */
-  function initialize(
+  function _initialize(
     Params storage self,
     uint newVal,
     uint blockTimestamp
@@ -66,7 +66,7 @@ library GWAV {
    * @param nextVal Value at given blockTimestamp
    * @param blockTimestamp Current blockTimestamp
    */
-  function write(
+  function _write(
     Params storage self,
     uint nextVal,
     uint blockTimestamp
@@ -183,7 +183,7 @@ library GWAV {
   /**
    * @notice Finds the first observation before the "target" timestamp
    * @dev Checks for trivial scenarios before entering _binarySearch()
-   * @dev Assumes initialize() has been called
+   * @dev Assumes _initialize() has been called
    * @param self Stores past Observations and the index of the latest Observation
    * @param target BlockTimestamp of target Observation
    */

@@ -28,7 +28,7 @@ export const lyraContractPaths = [
   '@lyrafinance/protocol/contracts/periphery/Wrapper/OptionMarketWrapper.sol',
   '@lyrafinance/protocol/contracts/periphery/Wrapper/OptionMarketWrapperWithSwaps.sol',
 
-  // snx 
+  // snx
   '@lyrafinance/protocol/contracts/synthetix/AbstractOwned.sol',
   '@lyrafinance/protocol/contracts/synthetix/DecimalMath.sol',
   '@lyrafinance/protocol/contracts/synthetix/Owned.sol',
@@ -59,5 +59,5 @@ export const lyraContractPaths = [
   '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol',
   '@openzeppelin/contracts/token/ERC20/ERC20.sol',
   '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol',
-  '@openzeppelin/contracts/access/Ownable.sol'
-]
+  '@openzeppelin/contracts/access/Ownable.sol',
+];

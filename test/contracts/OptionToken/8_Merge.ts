@@ -7,7 +7,7 @@ import {
   openPositionWithOverrides,
   setETHPrice,
 } from '../../utils/contractHelpers';
-import { DEFAULT_BOARD_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_BASE_PRICE, DEFAULT_BOARD_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { allTradesFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -81,6 +81,11 @@ describe('OptionToken - Merge', () => {
     await expect(hre.f.c.optionToken.merge([firstPositionId, secondPositionId])).to.revertedWith(
       'ResultingNewPositionLiquidatable',
     );
+
+    await setETHPrice(DEFAULT_BASE_PRICE);
+
+    // Goes through successfully if the end result isn't liquidatable
+    await hre.f.c.optionToken.merge([firstPositionId, secondPositionId]);
   });
 
   it('cannot merge the same position', async () => {

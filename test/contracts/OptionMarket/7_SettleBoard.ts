@@ -139,12 +139,16 @@ describe('OptionMarket - SettleBoard', () => {
       await settleBoard();
 
       // collects premiums in base from short call base
-      expect(await getBaseBalance(hre.f.c.liquidityPool.address)).gt(toBN('1')).lt(toBN('1.2'));
+      expect(await getBaseBalance(hre.f.c.liquidityPool.address))
+        .gt(toBN('1'))
+        .lt(toBN('1.2'));
 
       await exchangeBase();
 
       expect(await getBaseBalance(hre.f.c.liquidityPool.address)).to.eq(0);
-      expect(await getBaseBalance(hre.f.c.shortCollateral.address)).lt(toBN('1')).gt(toBN('0.8'));
+      expect(await getBaseBalance(hre.f.c.shortCollateral.address))
+        .lt(toBN('1'))
+        .gt(toBN('0.8'));
     });
   });
 

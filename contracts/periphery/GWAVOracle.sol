@@ -77,6 +77,13 @@ contract GWAVOracle is Ownable {
     vega = BlackScholes.vega(bsInput);
   }
 
+  function pricesGWAV(uint strikeId, uint secondsAgo) external view returns (uint callPrice, uint putPrice) {
+    BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeId);
+
+    bsInput.volatilityDecimal = volGWAV(strikeId, secondsAgo);
+    (callPrice, putPrice) = BlackScholes.optionPrices(bsInput);
+  }
+
   //////////
   // Misc //
   //////////

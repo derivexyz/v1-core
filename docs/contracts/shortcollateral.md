@@ -44,7 +44,7 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 - `BoardSettlementCollateralSent(uint256 amountBaseSent, uint256 amountQuoteSent, uint256 lpBaseInsolvency, uint256 lpQuoteInsolvency, uint256 LPBaseExcess, uint256 LPQuoteExcess)`
 
-- `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount)`
+- `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount, uint256 insolventAmount)`
 
 - `QuoteSent(address receiver, uint256 amount)`
 
@@ -130,7 +130,7 @@ sold to the market.
 
 Emitted when a board is settled
 
-### Event `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount)`
+### Event `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount, uint256 insolventAmount)`
 
 Emitted when an Option is settled.
 

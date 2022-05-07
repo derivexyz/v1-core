@@ -2,7 +2,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumberish } from 'ethers';
 import { ethers } from 'hardhat';
 import { currentTime, MONTH_SEC, OptionType, toBN, toBytes32 } from '../../../scripts/util/web3utils';
-import { OptionMarketAddressesStruct } from '../../../typechain-types/OptionMarketViewer';
 import { assertCloseTo } from '../../utils/assert';
 import { openPositionWithOverrides } from '../../utils/contractHelpers';
 import { DEFAULT_BASE_PRICE } from '../../utils/defaultParams';

@@ -457,7 +457,7 @@ export function isInsolvent(
     collat = collat.mul(spot).div(UNIT);
   }
 
-  return (collat.lt(amount.mul(loss).div(UNIT)));
+  return collat.lt(amount.mul(loss).div(UNIT));
 }
 
 async function expectBalChange(

@@ -464,7 +464,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   function addCollateral(uint positionId, uint amountCollateral) external nonReentrant {
-    int pendingCollateral = SafeCast.toInt256(amountCollateral);
+    int pendingCollateral = int(amountCollateral);
     OptionType optionType = optionToken.addCollateral(positionId, amountCollateral);
     _routeUserCollateral(optionType, pendingCollateral);
   }
@@ -886,20 +886,20 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     if (optionType == OptionType.LONG_CALL) {
       exposure += int(strike.longCall);
-      strike.longCall = uint(exposure);
+      strike.longCall = SafeCast.toUint256(exposure);
     } else if (optionType == OptionType.LONG_PUT) {
       exposure += int(strike.longPut);
-      strike.longPut = uint(exposure);
+      strike.longPut = SafeCast.toUint256(exposure);
     } else if (optionType == OptionType.SHORT_CALL_BASE) {
       exposure += int(strike.shortCallBase);
-      strike.shortCallBase = uint(exposure);
+      strike.shortCallBase = SafeCast.toUint256(exposure);
     } else if (optionType == OptionType.SHORT_CALL_QUOTE) {
       exposure += int(strike.shortCallQuote);
-      strike.shortCallQuote = uint(exposure);
+      strike.shortCallQuote = SafeCast.toUint256(exposure);
     } else {
       // OptionType.SHORT_PUT_QUOTE
       exposure += int(strike.shortPut);
-      strike.shortPut = uint(exposure);
+      strike.shortPut = SafeCast.toUint256(exposure);
     }
   }
 

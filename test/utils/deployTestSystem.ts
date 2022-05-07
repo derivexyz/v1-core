@@ -200,15 +200,11 @@ export async function deployGlobalTestContracts(
   // Libraries & Oracle //
   ////////////////////////
 
-  const gwav = (await (
-    (await ethers.getContractFactory('GWAV')) as ContractFactory
-  )
+  const gwav = (await ((await ethers.getContractFactory('GWAV')) as ContractFactory)
     .connect(deployer)
     .deploy()) as GWAV;
 
-  const blackScholes = (await (
-    (await ethers.getContractFactory('BlackScholes')) as ContractFactory
-  )
+  const blackScholes = (await ((await ethers.getContractFactory('BlackScholes')) as ContractFactory)
     .connect(deployer)
     .deploy()) as BlackScholes;
 
@@ -224,9 +220,7 @@ export async function deployGlobalTestContracts(
     // deployProxy automatically runs initialize()
     // implementation contracts stored in '.openzeppelin' in project root
     const synthetixAdapterImplementation = (
-      (await ethers.getContractFactory(
-        'SynthetixAdapter',
-      )) as ContractFactory
+      (await ethers.getContractFactory('SynthetixAdapter')) as ContractFactory
     ).connect(deployer);
 
     try {
@@ -245,11 +239,7 @@ export async function deployGlobalTestContracts(
     }
   } else {
     // Deploy directly if testing as npm package
-    synthetixAdapter = (await (
-      (await ethers.getContractFactory(
-        'SynthetixAdapter'
-      )) as ContractFactory
-    )
+    synthetixAdapter = (await ((await ethers.getContractFactory('SynthetixAdapter')) as ContractFactory)
       .connect(deployer)
       .deploy()) as SynthetixAdapter;
 
@@ -261,39 +251,23 @@ export async function deployGlobalTestContracts(
   // Lyra Globals //
   //////////////////
 
-  const optionMarketViewer = (await (
-    (await ethers.getContractFactory(
-      'OptionMarketViewer'
-    )) as ContractFactory
-  )
+  const optionMarketViewer = (await ((await ethers.getContractFactory('OptionMarketViewer')) as ContractFactory)
     .connect(deployer)
     .deploy()) as OptionMarketViewer;
 
-  const optionMarketWrapper = (await (
-    (await ethers.getContractFactory(
-      'OptionMarketWrapper',
-    )) as ContractFactory
-  )
+  const optionMarketWrapper = (await ((await ethers.getContractFactory('OptionMarketWrapper')) as ContractFactory)
     .connect(deployer)
     .deploy()) as OptionMarketWrapper;
 
-  const lyraRegistry = (await (
-    (await ethers.getContractFactory('LyraRegistry')) as ContractFactory
-  )
+  const lyraRegistry = (await ((await ethers.getContractFactory('LyraRegistry')) as ContractFactory)
     .connect(deployer)
     .deploy()) as LyraRegistry;
 
-  const basicFeeCounter = (await (
-    (await ethers.getContractFactory(
-      'BasicFeeCounter',
-    )) as ContractFactory
-  )
+  const basicFeeCounter = (await ((await ethers.getContractFactory('BasicFeeCounter')) as ContractFactory)
     .connect(deployer)
     .deploy()) as BasicFeeCounter;
 
-  const testCurve = (await (
-    (await ethers.getContractFactory('TestCurve')) as ContractFactory
-  )
+  const testCurve = (await ((await ethers.getContractFactory('TestCurve')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestCurve; // test curve for now
 
@@ -318,27 +292,15 @@ export async function deployGlobalTestContracts(
   } else {
     await compileAndDeployRealSynthetix(overrides.compileSNX || overrides.compileSNX == undefined);
 
-    const snxMockAggregator = (await (
-      (await ethers.getContractFactory(
-        'MockAggregatorV2V3',
-      )) as ContractFactory
-    )
+    const snxMockAggregator = (await ((await ethers.getContractFactory('MockAggregatorV2V3')) as ContractFactory)
       .connect(deployer)
       .deploy()) as MockAggregatorV2V3; // used to mock SNX price
 
-    const ethMockAggregator = (await (
-      (await ethers.getContractFactory(
-        'MockAggregatorV2V3',
-      )) as ContractFactory
-    )
+    const ethMockAggregator = (await ((await ethers.getContractFactory('MockAggregatorV2V3')) as ContractFactory)
       .connect(deployer)
       .deploy()) as MockAggregatorV2V3; // used to mock sETH price
 
-    const btcMockAggregator = (await (
-      (await ethers.getContractFactory(
-        'MockAggregatorV2V3',
-      )) as ContractFactory
-    )
+    const btcMockAggregator = (await ((await ethers.getContractFactory('MockAggregatorV2V3')) as ContractFactory)
       .connect(deployer)
       .deploy()) as MockAggregatorV2V3; // used to mock sBTC price
 
@@ -381,17 +343,11 @@ export async function deployMarketTestContracts(
   // Lyra Market //
   /////////////////
 
-  const optionMarket = (await (
-    (await ethers.getContractFactory('OptionMarket')) as ContractFactory
-  )
+  const optionMarket = (await ((await ethers.getContractFactory('OptionMarket')) as ContractFactory)
     .connect(deployer)
     .deploy()) as OptionMarket;
 
-  const optionMarketPricer = (await (
-    (await ethers.getContractFactory(
-      'OptionMarketPricer',
-    )) as ContractFactory
-  )
+  const optionMarketPricer = (await ((await ethers.getContractFactory('OptionMarketPricer')) as ContractFactory)
     .connect(deployer)
     .deploy()) as OptionMarketPricer;
 
@@ -407,45 +363,27 @@ export async function deployMarketTestContracts(
     .connect(deployer)
     .deploy()) as OptionGreekCache;
 
-  const liquidityPool = (await (
-    (await ethers.getContractFactory('LiquidityPool')) as ContractFactory
-  )
+  const liquidityPool = (await ((await ethers.getContractFactory('LiquidityPool')) as ContractFactory)
     .connect(deployer)
     .deploy()) as LiquidityPool;
 
-  const liquidityTokens = (await (
-    (await ethers.getContractFactory(
-      'LiquidityTokens',
-    )) as ContractFactory
-  )
+  const liquidityTokens = (await ((await ethers.getContractFactory('LiquidityTokens')) as ContractFactory)
     .connect(deployer)
     .deploy(`sUSD/${market} Pool Tokens`, 'LyraELPT')) as LiquidityTokens;
 
-  const basicLiquidityCounter = (await (
-    (await ethers.getContractFactory(
-      'BasicLiquidityCounter',
-    )) as ContractFactory
-  )
+  const basicLiquidityCounter = (await ((await ethers.getContractFactory('BasicLiquidityCounter')) as ContractFactory)
     .connect(deployer)
     .deploy()) as BasicLiquidityCounter;
 
-  const optionToken = (await (
-    (await ethers.getContractFactory('OptionToken')) as ContractFactory
-  )
+  const optionToken = (await ((await ethers.getContractFactory('OptionToken')) as ContractFactory)
     .connect(deployer)
     .deploy(`sUSD/${market} Option Tokens`, 'LyraEOT')) as OptionToken;
 
-  const shortCollateral = (await (
-    (await ethers.getContractFactory(
-      'ShortCollateral',
-    )) as ContractFactory
-  )
+  const shortCollateral = (await ((await ethers.getContractFactory('ShortCollateral')) as ContractFactory)
     .connect(deployer)
     .deploy()) as ShortCollateral;
 
-  const poolHedger = (await (
-    (await ethers.getContractFactory('PoolHedger')) as ContractFactory
-  )
+  const poolHedger = (await ((await ethers.getContractFactory('PoolHedger')) as ContractFactory)
     .connect(deployer)
     .deploy()) as PoolHedger;
 
@@ -461,9 +399,7 @@ export async function deployMarketTestContracts(
     .deploy()) as GWAVOracle;
 
   // TODO: consider moving to global state in the future.
-  const keeperHelper = (await (
-    (await ethers.getContractFactory('KeeperHelper')) as ContractFactory
-  )
+  const keeperHelper = (await ((await ethers.getContractFactory('KeeperHelper')) as ContractFactory)
     .connect(deployer)
     .deploy()) as KeeperHelper;
 
@@ -488,11 +424,7 @@ export async function deployMarketTestContracts(
 
   if (overrides.mockSNX || overrides.mockSNX == undefined) {
     const baseName = 'Synthetic ' + market.slice(1);
-    marketSystem.snx.baseAsset = (await (
-      (await ethers.getContractFactory(
-        'TestERC20Fail',
-      )) as ContractFactory
-    )
+    marketSystem.snx.baseAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
       .connect(deployer)
       .deploy(baseName, market)) as TestERC20Fail;
   } else {
@@ -822,55 +754,31 @@ export async function initMarketTestSystem(
 export async function deployMockGlobalSNX(deployer: Signer) {
   const isMockSNX: boolean = true;
 
-  const exchanger = (await (
-    (await ethers.getContractFactory('TestExchanger')) as ContractFactory
-  )
+  const exchanger = (await ((await ethers.getContractFactory('TestExchanger')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestExchanger;
 
-  const exchangeRates = (await (
-    (await ethers.getContractFactory(
-      'TestExchangeRates',
-    )) as ContractFactory
-  )
+  const exchangeRates = (await ((await ethers.getContractFactory('TestExchangeRates')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestExchangeRates;
 
-  const quoteAsset = (await (
-    (await ethers.getContractFactory('TestERC20Fail')) as ContractFactory
-  )
+  const quoteAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
     .connect(deployer)
     .deploy('Synthetic USD', 'sUSD')) as TestERC20Fail;
 
-  const synthetix = (await (
-    (await ethers.getContractFactory(
-      'TestSynthetixReturnZero',
-    )) as ContractFactory
-  )
+  const synthetix = (await ((await ethers.getContractFactory('TestSynthetixReturnZero')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestSynthetixReturnZero;
 
-  const delegateApprovals = (await (
-    (await ethers.getContractFactory(
-      'TestDelegateApprovals',
-    )) as ContractFactory
-  )
+  const delegateApprovals = (await ((await ethers.getContractFactory('TestDelegateApprovals')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestDelegateApprovals;
 
-  const collateralShort = (await (
-    (await ethers.getContractFactory(
-      'TestCollateralShort',
-    )) as ContractFactory
-  )
+  const collateralShort = (await ((await ethers.getContractFactory('TestCollateralShort')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestCollateralShort;
 
-  const addressResolver = (await (
-    (await ethers.getContractFactory(
-      'TestAddressResolver',
-    )) as ContractFactory
-  )
+  const addressResolver = (await ((await ethers.getContractFactory('TestAddressResolver')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestAddressResolver;
 

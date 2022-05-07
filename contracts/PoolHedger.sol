@@ -3,6 +3,8 @@ pragma solidity 0.8.9;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
 // Inherited
 import "./synthetix/Owned.sol";
 import "./lib/SimpleInitializeable.sol";
@@ -136,7 +138,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
 
     // This will revert if the LP did not provide enough quote
     shortId = exchangeParams.short.open(minCollateral, 0, exchangeParams.baseKey);
-    sendAllQuoteToLP();
+    _sendAllQuoteToLP();
     emit OpenedShortAccount(shortId);
     emit ShortSetTo(0, 0, 0, minCollateral);
   }
@@ -165,17 +167,15 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Returns the current hedged netDelta position
+   * @dev Returns the current hedged netDelta position.
    */
   function getCurrentHedgedNetDelta() external view returns (int) {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
 
     uint longBalance = baseAsset.balanceOf(address(this));
-    if (longBalance > 0) {
-      return int(longBalance);
-    }
     (uint shortBalance, ) = getShortPosition(exchangeParams.short);
-    return -int(shortBalance);
+
+    return SafeCast.toInt256(longBalance) - SafeCast.toInt256(shortBalance);
   }
 
   function getHedgingLiquidity(ICollateralShort short, uint spotPrice)
@@ -249,7 +249,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
 
     // do not change shortBalance
     uint newCollateral = _updateCollateral(exchangeParams, shortBalance, startCollateral);
-    sendAllQuoteToLP();
+    _sendAllQuoteToLP();
     emit ShortSetTo(shortBalance, shortBalance, startCollateral, newCollateral);
   }
 
@@ -268,8 +268,8 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     uint longBalance = baseAsset.balanceOf(address(this));
     (uint shortBalance, uint collateral) = getShortPosition(exchangeParams.short);
 
-    int oldHedge = longBalance != 0 ? int(longBalance) : -int(shortBalance);
-    int newHedge = updatePosition(exchangeParams, longBalance, shortBalance, collateral, expectedHedge);
+    int oldHedge = longBalance != 0 ? SafeCast.toInt256(longBalance) : -SafeCast.toInt256(shortBalance);
+    int newHedge = _updatePosition(exchangeParams, longBalance, shortBalance, collateral, expectedHedge);
 
     emit PositionUpdated(oldHedge, newHedge, expectedHedge);
 
@@ -278,7 +278,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     }
 
     // All proceeds should be sent back to the LP
-    sendAllQuoteToLP();
+    _sendAllQuoteToLP();
   }
 
   /**
@@ -290,7 +290,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param collateral The current quote collateral for shorts of the PoolHedger
    * @param expectedHedge The amount of baseAsset exposure needed to hedge delta risk.
    */
-  function updatePosition(
+  function _updatePosition(
     SynthetixAdapter.ExchangeParams memory exchangeParams,
     uint longBalance,
     uint shortBalance,
@@ -302,27 +302,27 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
       uint expectedLong = uint(expectedHedge);
       // if we have any short open, close it all.
       if (shortBalance > 0 || collateral > 0) {
-        setShortTo(exchangeParams, 0, shortBalance, collateral);
+        _setShortTo(exchangeParams, 0, shortBalance, collateral);
       }
 
       if (expectedLong > longBalance) {
         // Must buy baseAsset
-        return int(increaseLong(exchangeParams, expectedLong - longBalance, longBalance));
+        return SafeCast.toInt256(_increaseLong(exchangeParams, expectedLong - longBalance, longBalance));
       } else if (expectedLong < longBalance) {
         // Must sell baseAsset
-        return int(decreaseLong(longBalance - expectedLong, longBalance));
+        return SafeCast.toInt256(_decreaseLong(longBalance - expectedLong, longBalance));
       } else {
         // longBalance == expectedLong
-        return int(longBalance);
+        return SafeCast.toInt256(longBalance);
       }
     } else {
       // we need to be net short the asset.
       uint expectedShort = uint(-expectedHedge);
       // if we have any of the spot left, sell it all.
       if (longBalance > 0) {
-        decreaseLong(longBalance, longBalance);
+        _decreaseLong(longBalance, longBalance);
       }
-      return -int(setShortTo(exchangeParams, expectedShort, shortBalance, collateral));
+      return -SafeCast.toInt256(_setShortTo(exchangeParams, expectedShort, shortBalance, collateral));
     }
   }
 
@@ -332,7 +332,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param exchangeParams The ExchangeParams.
    * @param amount The amount of baseAsset to purchase.
    */
-  function increaseLong(
+  function _increaseLong(
     SynthetixAdapter.ExchangeParams memory exchangeParams,
     uint amount,
     uint currentBalance
@@ -356,7 +356,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    *
    * @param amount The amount of baseAsset to sell.
    */
-  function decreaseLong(uint amount, uint currentBalance) internal returns (uint newBalance) {
+  function _decreaseLong(uint amount, uint currentBalance) internal returns (uint newBalance) {
     // assumption here is that we have enough to sell, will throw if not
     synthetixAdapter.exchangeFromExactBase(address(optionMarket), amount);
     newBalance = baseAsset.balanceOf(address(this));
@@ -373,7 +373,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param startShort Trusted value for current short amount, in base.
    * @param startCollateral Trusted value for current amount of collateral, in quote.
    */
-  function setShortTo(
+  function _setShortTo(
     SynthetixAdapter.ExchangeParams memory exchangeParams,
     uint desiredShort,
     uint startShort,
@@ -437,9 +437,9 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
 
     // Cap expected hedge
     if (expectedHedge < 0 && exceedsCap) {
-      cappedExpectedHedge = -int(poolHedgerParams.hedgeCap);
+      cappedExpectedHedge = -SafeCast.toInt256(poolHedgerParams.hedgeCap);
     } else if (expectedHedge >= 0 && exceedsCap) {
-      cappedExpectedHedge = int(poolHedgerParams.hedgeCap);
+      cappedExpectedHedge = SafeCast.toInt256(poolHedgerParams.hedgeCap);
     } else {
       cappedExpectedHedge = expectedHedge;
     }
@@ -448,7 +448,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   /**
    * @dev Sends all quote asset deposited in this contract to the `LiquidityPool`.
    */
-  function sendAllQuoteToLP() internal {
+  function _sendAllQuoteToLP() internal {
     uint quoteBal = quoteAsset.balanceOf(address(this));
     if (!quoteAsset.transfer(address(liquidityPool), quoteBal)) {
       revert QuoteTransferFailed(address(this), address(this), address(liquidityPool), quoteBal);

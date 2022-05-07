@@ -8,9 +8,9 @@ requested the closest observations are scaled to the requested timestamp.
 
 ## Functions:
 
-- `initialize(struct GWAV.Params self, uint256 newVal, uint256 blockTimestamp) (internal)`
+- `_initialize(struct GWAV.Params self, uint256 newVal, uint256 blockTimestamp) (internal)`
 
-- `write(struct GWAV.Params self, uint256 nextVal, uint256 blockTimestamp) (internal)`
+- `_write(struct GWAV.Params self, uint256 nextVal, uint256 blockTimestamp) (internal)`
 
 - `getGWAVForPeriod(struct GWAV.Params self, uint256 secondsAgoA, uint256 secondsAgoB) (public)`
 
@@ -22,7 +22,7 @@ requested the closest observations are scaled to the requested timestamp.
 
 - `_initializeWithManualQ(struct GWAV.Params self, int256 qVal, uint256 nextVal, uint256 blockTimestamp) (internal)`
 
-### Function `initialize(struct GWAV.Params self, uint256 newVal, uint256 blockTimestamp) internal`
+### Function `_initialize(struct GWAV.Params self, uint256 newVal, uint256 blockTimestamp) internal`
 
 Initialize the oracle array by writing the first Observation.
 
@@ -40,7 +40,7 @@ after initialization
 
 - `blockTimestamp`: Timestamp of first Observation
 
-### Function `write(struct GWAV.Params self, uint256 nextVal, uint256 blockTimestamp) internal`
+### Function `_write(struct GWAV.Params self, uint256 nextVal, uint256 blockTimestamp) internal`
 
 Writes an oracle Observation to the GWAV array
 
