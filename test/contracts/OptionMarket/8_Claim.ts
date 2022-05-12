@@ -20,32 +20,32 @@ describe('OptionMarket - SM Claim', () => {
     await expect(hre.f.c.optionMarket.connect(hre.f.deployer).smClaim()).to.revertedWith('OnlySecurityModule');
   });
   it('can harvest all quote', async () => {
-    await openAllTrades();
-    const oldOMBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address);
+    await hre.f.c.snx.quoteAsset.mint(hre.f.c.optionMarket.address, toBN('1000'));
     const oldSMBal = await hre.f.c.snx.quoteAsset.balanceOf(sm.address);
-    expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).to.gt(toBN('0'));
+    expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).eq(toBN('1000'));
 
+    await hre.f.c.snx.quoteAsset.setForceFail(true);
+    await expect(hre.f.c.optionMarket.connect(sm).smClaim()).revertedWith('QuoteTransferFailed');
+
+    await hre.f.c.snx.quoteAsset.setForceFail(false);
     await hre.f.c.optionMarket.connect(sm).smClaim();
-    expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).to.eq(toBN('0'));
-    expect(oldSMBal.add(oldOMBal)).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(sm.address));
+
+    expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).to.eq(0);
+    expect(oldSMBal.add(toBN('1000'))).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(sm.address));
   });
   it('can harvest all base if accidentally donated', async () => {
-    await openAllTrades();
-    await hre.f.c.snx.baseAsset.transfer(hre.f.c.optionMarket.address, toBN('1'));
+    await hre.f.c.snx.baseAsset.mint(hre.f.c.optionMarket.address, toBN('1'));
+    const oldSMBal = await hre.f.c.snx.baseAsset.balanceOf(sm.address);
+    expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).eq(toBN('1'));
 
-    const oldOMBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address);
-    const oldSMQuoteBal = await hre.f.c.snx.quoteAsset.balanceOf(sm.address);
-    const oldSMBaseBal = await hre.f.c.snx.baseAsset.balanceOf(sm.address);
+    await hre.f.c.snx.baseAsset.setForceFail(true);
+    await expect(hre.f.c.optionMarket.connect(sm).smClaim()).revertedWith('BaseTransferFailed');
 
-    expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).to.gt(toBN('0'));
-    expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).to.gt(toBN('0'));
-
+    await hre.f.c.snx.baseAsset.setForceFail(false);
     await hre.f.c.optionMarket.connect(sm).smClaim();
-    expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).to.eq(toBN('0'));
-    expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).to.eq(toBN('0'));
 
-    expect(oldSMQuoteBal.add(oldOMBal)).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(sm.address));
-    expect(oldSMBaseBal.add(toBN('1'))).to.eq(await hre.f.c.snx.baseAsset.balanceOf(sm.address));
+    expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).to.eq(0);
+    expect(oldSMBal.add(toBN('1'))).to.eq(await hre.f.c.snx.baseAsset.balanceOf(sm.address));
   });
 
   it('claim 0 amounts', async () => {
@@ -59,7 +59,20 @@ describe('OptionMarket - SM Claim', () => {
     const oldSMBaseBal = await hre.f.c.snx.baseAsset.balanceOf(sm.address);
 
     await hre.f.c.optionMarket.connect(sm).smClaim();
+
     expect(oldSMQuoteBal).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(sm.address));
     expect(oldSMBaseBal).to.eq(await hre.f.c.snx.baseAsset.balanceOf(sm.address));
+  });
+
+  it('claims both balances', async () => {
+    await hre.f.c.snx.baseAsset.mint(hre.f.c.optionMarket.address, toBN('1'));
+    await hre.f.c.snx.quoteAsset.mint(hre.f.c.optionMarket.address, toBN('1000'));
+    const oldSMQuoteBal = await hre.f.c.snx.quoteAsset.balanceOf(sm.address);
+    const oldSMBaseBal = await hre.f.c.snx.baseAsset.balanceOf(sm.address);
+
+    await hre.f.c.optionMarket.connect(sm).smClaim();
+
+    expect(oldSMQuoteBal.add(toBN('1000'))).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(sm.address));
+    expect(oldSMBaseBal.add(toBN('1'))).to.eq(await hre.f.c.snx.baseAsset.balanceOf(sm.address));
   });
 });

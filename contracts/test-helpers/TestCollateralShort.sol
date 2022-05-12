@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: ISC
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 import "./ITestERC20.sol";
 import "../interfaces/ICollateralShort.sol";
@@ -9,7 +9,7 @@ import "../interfaces/IExchangeRates.sol";
 import "../synthetix/DecimalMath.sol";
 import "../SynthetixAdapter.sol";
 
-contract TestCollateralShort is ICollateralShort, Ownable {
+contract TestCollateralShort is ICollateralShort, Owned {
   using DecimalMath for uint;
 
   uint public override minCratio = (12 * DecimalMath.UNIT) / 10;
@@ -27,7 +27,7 @@ contract TestCollateralShort is ICollateralShort, Ownable {
 
   bool public initialized = false;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   function init(SynthetixAdapter _synthetixAdapter, ITestERC20 _quoteAsset) external {
     require(!initialized, "already initialized");

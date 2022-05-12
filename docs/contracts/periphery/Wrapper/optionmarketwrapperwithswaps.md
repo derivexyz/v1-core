@@ -20,7 +20,7 @@ Allows users to open/close positions in any market with multiple stablecoins
 
 - `forceClosePosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) (external)`
 
-- `setCollateralWrapper(uint8 market, uint32 positionId, uint256 setCollateralTo) (external)`
+- `setPositionCollateral(uint8 market, uint32 positionId, uint256 setCollateralTo) (external)`
 
 - `_openPosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) (internal)`
 
@@ -38,7 +38,7 @@ Allows users to open/close positions in any market with multiple stablecoins
 
 - `_isBaseCollateral(enum OptionMarket.OptionType optionType) (internal)`
 
-- `_swapWithCurve(address _from, address _to, uint256 _amount, uint256 _expected, address _receiver) (internal)`
+- `_swapWithCurve(contract ERC20 from, contract ERC20 to, uint256 amount, uint256 expected, address receiver) (internal)`
 
 - `_transferBaseCollateral(enum OptionMarket.OptionType optionType, uint256 currentCollateral, uint256 setCollateralTo, contract ERC20 baseAsset) (internal)`
 
@@ -94,7 +94,7 @@ Adds stablecoin with desired index reflected in the curve contract
 
 ### Function `forceClosePosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) → struct OptionMarketWrapperWithSwaps.ReturnDetails returnDetails external`
 
-### Function `setCollateralWrapper(uint8 market, uint32 positionId, uint256 setCollateralTo) → uint256 newCollateral external`
+### Function `setPositionCollateral(uint8 market, uint32 positionId, uint256 setCollateralTo) → uint256 newCollateral external`
 
 ### Function `_openPosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) → struct OptionMarketWrapperWithSwaps.ReturnDetails returnDetails internal`
 
@@ -148,21 +148,21 @@ Returns excess baseAsset back to user
 
 ### Function `_isBaseCollateral(enum OptionMarket.OptionType optionType) → bool internal`
 
-### Function `_swapWithCurve(address _from, address _to, uint256 _amount, uint256 _expected, address _receiver) → uint256 amountOut, int256 swapFee internal`
+### Function `_swapWithCurve(contract ERC20 from, contract ERC20 to, uint256 amount, uint256 expected, address receiver) → uint256 amountOut, int256 swapFee internal`
 
 Attempts to swap the input token with the desired stablecoin.
 
 #### Parameters:
 
-- `_from`: Index value of coin being sent
+- `from`: The token being swapped
 
-- `_to`: Index of coin being received
+- `to`: The token being received
 
-- `_amount`: Quantity of _from being exchanged
+- `amount`: Quantity of from being exchanged
 
-- `_expected`: Minimum quantity of _to received in order for the transaction to succeed
+- `expected`: Minimum quantity of to received in order for the transaction to succeed
 
-- `_receiver`: The receiving address of the tokens
+- `receiver`: The receiving address of the tokens
 
 ### Function `_transferBaseCollateral(enum OptionMarket.OptionType optionType, uint256 currentCollateral, uint256 setCollateralTo, contract ERC20 baseAsset) internal`
 
@@ -171,6 +171,12 @@ Attempts to swap the input token with the desired stablecoin.
 ### Function `_approveAsset(contract ERC20 asset, address approving) internal`
 
 ### Function `_abs(int256 val) → uint256 internal`
+
+Compute the absolute value of `val`.
+
+#### Parameters:
+
+- `val`: The number to absolute value.
 
 ### Function `_composeTradeParams(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) → struct OptionMarket.TradeInputParameters tradeParameters internal`
 

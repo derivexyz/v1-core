@@ -31,4 +31,11 @@ contract TestERC20Fail is TestERC20 {
     }
     return super.transferFrom(sender, receiver, amount);
   }
+
+  function approve(address spender, uint amount) external override returns (bool) {
+    if (forceFail) {
+      return false;
+    }
+    return super.approve(spender, amount);
+  }
 }

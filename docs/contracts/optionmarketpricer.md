@@ -36,9 +36,9 @@ premium.
 
 - `getVarianceFeeParams() (external)`
 
-- `_min(uint256 a, uint256 b) (internal)`
+- `_min(uint256 x, uint256 y) (internal)`
 
-- `_max(uint256 a, uint256 b) (internal)`
+- `_max(uint256 x, uint256 y) (internal)`
 
 - `_abs(int256 val) (internal)`
 
@@ -170,15 +170,21 @@ component is omitted from the fee.
 
 ### Function `getPricingParams() → struct OptionMarketPricer.PricingParameters external`
 
+returns current pricing paramters
+
 ### Function `getTradeLimitParams() → struct OptionMarketPricer.TradeLimitParameters external`
+
+returns current trade limit parameters
 
 ### Function `getVarianceFeeParams() → struct OptionMarketPricer.VarianceFeeParameters external`
 
-### Function `_min(uint256 a, uint256 b) → uint256 minVal internal`
+returns current variance fee parameters
 
-### Function `_max(uint256 a, uint256 b) → uint256 maxVal internal`
+### Function `_min(uint256 x, uint256 y) → uint256 internal`
 
-### Function `_abs(int256 val) → uint256 absVal internal`
+### Function `_max(uint256 x, uint256 y) → uint256 internal`
+
+### Function `_abs(int256 val) → uint256 internal`
 
 Compute the absolute value of `val`.
 

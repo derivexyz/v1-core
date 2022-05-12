@@ -42,7 +42,7 @@ Holds funds from LPs, which are used for the following purposes:
 
 - `updateCBs() (external)`
 
-- `_updateCBs(struct LiquidityPool.Liquidity liquidity, uint256 maxIvVariance, uint256 maxSkewVariance, int256 optionValue) (internal)`
+- `_updateCBs(struct LiquidityPool.Liquidity liquidity, uint256 maxIvVariance, uint256 maxSkewVariance, int256 optionValueDebt) (internal)`
 
 - `lockQuote(uint256 amount, uint256 freeLiquidity) (external)`
 
@@ -80,7 +80,7 @@ Holds funds from LPs, which are used for the following purposes:
 
 - `getTotalPoolValueQuote() (public)`
 
-- `_getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity, int256 optionValue) (internal)`
+- `_getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity, int256 optionValueDebt) (internal)`
 
 - `_getLiquidity(uint256 basePrice, uint256 totalPoolValue, uint256 reservedTokenValue, uint256 usedDelta, uint256 pendingDelta) (internal)`
 
@@ -160,7 +160,29 @@ Update the pool hedger, can only be done if the value in the pool hedger is 0
 
 ### Function `initiateDeposit(address beneficiary, uint256 amountQuote) external`
 
+LP will send sUSD into the contract in return for LiquidityTokens (representative of their share of the entire pool)
+
+        to be given either instantly (if no live boards) or after the delay period passes (including CBs).
+
+        This action is not reversible.
+
+#### Parameters:
+
+- `beneficiary`: will receive the LiquidityTokens after the deposit is processed
+
+- `amountQuote`: is the amount of sUSD the LP is depositing
+
 ### Function `initiateWithdraw(address beneficiary, uint256 amountLiquidityTokens) external`
+
+LP will send LiquidityTokens into the contract to be burnt instantly, signalling they wish to remove
+
+        their share of the pool represented by the tokens being burnt.
+
+#### Parameters:
+
+- `beneficiary`: will receive the LiquidityTokens after the deposit is processed
+
+- `is`: the amount of sUSD the LP is depositing
 
 ### Function `processDepositQueue(uint256 limit) external`
 
@@ -182,7 +204,9 @@ Update the pool hedger, can only be done if the value in the pool hedger is 0
 
 ### Function `updateCBs() external`
 
-### Function `_updateCBs(struct LiquidityPool.Liquidity liquidity, uint256 maxIvVariance, uint256 maxSkewVariance, int256 optionValue) internal`
+Updates the circuit breaker parameters
+
+### Function `_updateCBs(struct LiquidityPool.Liquidity liquidity, uint256 maxIvVariance, uint256 maxSkewVariance, int256 optionValueDebt) internal`
 
 ### Function `lockQuote(uint256 amount, uint256 freeLiquidity) external`
 
@@ -294,17 +318,23 @@ Requirements:
 
 ### Function `getTotalTokenSupply() → uint256 public`
 
+Get current total liquidity tokens supply
+
 ### Function `getTokenPrice() → uint256 public`
+
+Get current pool token price
 
 ### Function `_getTokenPrice(uint256 totalPoolValue, uint256 totalTokenSupply) → uint256 internal`
 
 ### Function `getLiquidityParams() → struct LiquidityPool.Liquidity external`
 
+Gets current liquidity parameters using current market spot prices
+
 ### Function `getLiquidity(uint256 basePrice, contract ICollateralShort short) → struct LiquidityPool.Liquidity public`
 
 ### Function `getTotalPoolValueQuote() → uint256 public`
 
-### Function `_getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity, int256 optionValue) → uint256 internal`
+### Function `_getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity, int256 optionValueDebt) → uint256 internal`
 
 Returns the total pool value in quoteAsset.
 
@@ -314,7 +344,7 @@ Returns the total pool value in quoteAsset.
 
 - `usedDeltaLiquidity`: The amount of delta liquidity that has been used for hedging.
 
-- `optionValue`: the "debt" the AMM owes to traders in terms of option exposure
+- `optionValueDebt`: the "debt" the AMM owes to traders in terms of option exposure
 
 ### Function `_getLiquidity(uint256 basePrice, uint256 totalPoolValue, uint256 reservedTokenValue, uint256 usedDelta, uint256 pendingDelta) → struct LiquidityPool.Liquidity internal`
 
@@ -326,13 +356,17 @@ Returns the used and free amounts for collateral and delta liquidity.
 
 ### Function `exchangeBase() public`
 
-In-case of base donations, exchanges all non-locked base into quote
+In-case of a mismatch of base balance and lockedCollateral.base; will rebalance the baseAsset balance of the LiquidityPool
 
 ### Function `_maybeExchangeBase(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 freeLiquidity, bool revertBuyOnInsufficientFunds) internal`
 
 ### Function `getLpParams() → struct LiquidityPool.LiquidityPoolParameters external`
 
+returns LiquidityPoolParameters struct
+
 ### Function `updateLiquidationInsolvency(uint256 insolvencyAmountInQuote) external`
+
+updates the liquidation insolvency by quote amount specified
 
 ### Function `_getPoolHedgerLiquidity(contract ICollateralShort short, uint256 basePrice) → uint256 pendingDeltaLiquidity, uint256 usedDeltaLiquidity internal`
 

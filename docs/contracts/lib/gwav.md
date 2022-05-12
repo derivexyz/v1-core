@@ -20,6 +20,8 @@ requested the closest observations are scaled to the requested timestamp.
 
 - `queryFirstBeforeAndScale(struct GWAV.Params self, uint256 currentBlockTimestamp, uint256 secondsAgo) (internal)`
 
+- `_binarySearch(struct GWAV.Params self, uint256 target) (internal)`
+
 - `_initializeWithManualQ(struct GWAV.Params self, int256 qVal, uint256 nextVal, uint256 blockTimestamp) (internal)`
 
 ### Function `_initialize(struct GWAV.Params self, uint256 newVal, uint256 blockTimestamp) internal`
@@ -103,6 +105,24 @@ Reverts if secondsAgo exceeds the currentBlockTimestamp
 - `secondsAgo`: Seconds from currentBlockTimestamp to target Observation
 
 ### Function `queryFirstBeforeAndScale(struct GWAV.Params self, uint256 currentBlockTimestamp, uint256 secondsAgo) → int256 qCumulative, uint256 timestamp internal`
+
+### Function `_binarySearch(struct GWAV.Params self, uint256 target) → uint256 internal`
+
+Finds closest Observation before target using binary search and returns its index
+
+Used when the target is located within the stored observation boundaries
+
+e.g. Older than the most recent observation and younger, or the same age as, the oldest observation
+
+#### Parameters:
+
+- `self`: Stores past Observations and the index of the latest Observation
+
+- `target`: BlockTimestamp of target Observation
+
+#### Return Values:
+
+- foundIndex Returns the Observation which is older than target (instead of newer)
 
 ### Function `_initializeWithManualQ(struct GWAV.Params self, int256 qVal, uint256 nextVal, uint256 blockTimestamp) internal`
 

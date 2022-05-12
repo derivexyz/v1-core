@@ -218,6 +218,14 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Deposits and Withdrawals //
   //////////////////////////////
 
+  /**
+   * @notice LP will send sUSD into the contract in return for LiquidityTokens (representative of their share of the entire pool)
+   *         to be given either instantly (if no live boards) or after the delay period passes (including CBs).
+   *         This action is not reversible.
+   *
+   * @param beneficiary will receive the LiquidityTokens after the deposit is processed
+   * @param amountQuote is the amount of sUSD the LP is depositing
+   */
   function initiateDeposit(address beneficiary, uint amountQuote) external nonReentrant {
     if (beneficiary == address(0)) {
       revert InvalidBeneficiaryAddress(address(this), beneficiary);
@@ -248,6 +256,13 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
+  /**
+   * @notice LP will send LiquidityTokens into the contract to be burnt instantly, signalling they wish to remove
+   *         their share of the pool represented by the tokens being burnt.
+   *
+   * @param beneficiary will receive the LiquidityTokens after the deposit is processed
+   * @param amountLiquidityTokens: is the amount of sUSD the LP is depositing
+   */
   function initiateWithdraw(address beneficiary, uint amountLiquidityTokens) external nonReentrant {
     if (beneficiary == address(0)) {
       revert InvalidBeneficiaryAddress(address(this), beneficiary);
@@ -455,6 +470,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Circuit Breakers //
   //////////////////////
 
+  /// @notice Updates the circuit breaker parameters
   function updateCBs() external nonReentrant {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     OptionGreekCache.GlobalCache memory globalCache = greekCache.getGlobalCache();
@@ -466,10 +482,10 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     Liquidity memory liquidity,
     uint maxIvVariance,
     uint maxSkewVariance,
-    int optionValue
+    int optionValueDebt
   ) internal {
     // don't trigger CBs if pool has no open options
-    if (liquidity.usedCollatLiquidity == 0 && optionValue == 0) {
+    if (liquidity.usedCollatLiquidity == 0 && optionValueDebt == 0) {
       return;
     }
 
@@ -717,7 +733,9 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     insolventSettlementAmount += quoteSpent;
     // It is better for the contract to revert if there is not enough here (due to rounding) to keep accounting in
     // ShortCollateral correct. baseAsset can be donated (sent) to this contract to allow this to pass.
-    baseAsset.transfer(address(shortCollateral), amountBase);
+    if (!baseAsset.transfer(address(shortCollateral), amountBase)) {
+      revert BaseTransferFailed(address(this), address(this), address(shortCollateral), amountBase);
+    }
 
     emit InsolventSettlementAmountUpdated(quoteSpent, insolventSettlementAmount);
   }
@@ -726,10 +744,12 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Getting Pool Token Value //
   //////////////////////////////
 
+  /// @dev Get current total liquidity tokens supply
   function getTotalTokenSupply() public view returns (uint) {
     return liquidityTokens.totalSupply() + totalQueuedWithdrawals;
   }
 
+  /// @dev Get current pool token price
   function getTokenPrice() public view returns (uint) {
     return _getTokenPrice(getTotalPoolValueQuote(), getTotalTokenSupply());
   }
@@ -746,6 +766,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Getting Pool Liquidity //
   ////////////////////////////
 
+  /// @dev Gets current liquidity parameters using current market spot prices
   function getLiquidityParams() external view returns (Liquidity memory) {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     return getLiquidity(exchangeParams.spotPrice, exchangeParams.short);
@@ -754,8 +775,8 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   function getLiquidity(uint basePrice, ICollateralShort short) public view returns (Liquidity memory) {
     // if cache is stale, pendingDelta may be inaccurate
     (uint pendingDelta, uint usedDelta) = _getPoolHedgerLiquidity(short, basePrice);
-    int optionValue = greekCache.getGlobalOptionValue();
-    uint totalPoolValue = _getTotalPoolValueQuote(basePrice, usedDelta, optionValue);
+    int optionValueDebt = greekCache.getGlobalOptionValue();
+    uint totalPoolValue = _getTotalPoolValueQuote(basePrice, usedDelta, optionValueDebt);
     uint tokenPrice = _getTokenPrice(totalPoolValue, getTotalTokenSupply());
 
     return
@@ -770,10 +791,10 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
 
   function getTotalPoolValueQuote() public view returns (uint) {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
-    int optionValue = greekCache.getGlobalOptionValue();
+    int optionValueDebt = greekCache.getGlobalOptionValue();
     (, uint usedDelta) = _getPoolHedgerLiquidity(exchangeParams.short, exchangeParams.spotPrice);
 
-    return _getTotalPoolValueQuote(exchangeParams.spotPrice, usedDelta, optionValue);
+    return _getTotalPoolValueQuote(exchangeParams.spotPrice, usedDelta, optionValueDebt);
   }
 
   /**
@@ -781,12 +802,12 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
    *
    * @param basePrice The price of the baseAsset.
    * @param usedDeltaLiquidity The amount of delta liquidity that has been used for hedging.
-   * @param optionValue the "debt" the AMM owes to traders in terms of option exposure
+   * @param optionValueDebt the "debt" the AMM owes to traders in terms of option exposure
    */
   function _getTotalPoolValueQuote(
     uint basePrice,
     uint usedDeltaLiquidity,
-    int optionValue
+    int optionValueDebt
   ) internal view returns (uint) {
     int totalAssetValue = SafeCast.toInt256(
       quoteAsset.balanceOf(address(this)) +
@@ -797,11 +818,11 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     );
 
     // Should not be possible due to being fully collateralised
-    if (optionValue > totalAssetValue) {
-      revert OptionValueExceedsTotalAssets(address(this), totalAssetValue, optionValue);
+    if (optionValueDebt > totalAssetValue) {
+      revert OptionValueDebtExceedsTotalAssets(address(this), totalAssetValue, optionValueDebt);
     }
 
-    return uint(totalAssetValue - optionValue);
+    return uint(totalAssetValue - optionValueDebt);
   }
 
   /**
@@ -830,12 +851,12 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
       pendingBaseValue = (lockedCollateral.base - baseBalance).multiplyDecimal(basePrice);
     }
 
-    uint usedQuote = totalOutstandingSettlements + totalQueuedDeposits + lockedCollateral.quote;
+    uint usedQuote = totalOutstandingSettlements + totalQueuedDeposits + lockedCollateral.quote + pendingBaseValue;
 
     uint totalQuote = quoteAsset.balanceOf(address(this));
 
-    liquidity.freeLiquidity = totalQuote > (usedQuote + reservedTokenValue + pendingBaseValue)
-      ? totalQuote - (usedQuote + reservedTokenValue + pendingBaseValue)
+    liquidity.freeLiquidity = totalQuote > (usedQuote + reservedTokenValue)
+      ? totalQuote - (usedQuote + reservedTokenValue)
       : 0;
 
     // ensure pendingDelta <= liquidity.freeLiquidity
@@ -852,7 +873,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   /////////////////////
 
   /**
-   * @notice In-case of base donations, exchanges all non-locked base into quote
+   * @notice In-case of a mismatch of base balance and lockedCollateral.base; will rebalance the baseAsset balance of the LiquidityPool
    */
   function exchangeBase() public nonReentrant {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
@@ -903,10 +924,12 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Misc //
   //////////
 
+  /// @notice returns LiquidityPoolParameters struct
   function getLpParams() external view returns (LiquidityPoolParameters memory) {
     return lpParams;
   }
 
+  /// @notice updates the liquidation insolvency by quote amount specified
   function updateLiquidationInsolvency(uint insolvencyAmountInQuote) external onlyOptionMarket {
     liquidationInsolventAmount += insolvencyAmountInQuote;
   }
@@ -1110,7 +1133,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   error LockingMoreQuoteThanIsFree(address thrower, uint quoteToLock, uint freeLiquidity, Collateral lockedCollateral);
   error SendPremiumNotEnoughCollateral(address thrower, uint premium, uint reservedFee, uint freeLiquidity);
   error NotEnoughFreeToReclaimInsolvency(address thrower, uint amountQuote, Liquidity liquidity);
-  error OptionValueExceedsTotalAssets(address thrower, int totalAssetValue, int optionValue);
+  error OptionValueDebtExceedsTotalAssets(address thrower, int totalAssetValue, int optionValueDebt);
   error InsufficientFreeLiquidityForBaseExchange(
     address thrower,
     uint pendingBase,
@@ -1125,4 +1148,5 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
 
   // Token transfers
   error QuoteTransferFailed(address thrower, address from, address to, uint amount);
+  error BaseTransferFailed(address thrower, address from, address to, uint amount);
 }

@@ -366,12 +366,16 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     }
     uint quoteBal = quoteAsset.balanceOf(address(this));
     if (quoteBal > 0) {
-      quoteAsset.transfer(msg.sender, quoteBal);
+      if (!quoteAsset.transfer(msg.sender, quoteBal)) {
+        revert QuoteTransferFailed(address(this), address(this), msg.sender, quoteBal);
+      }
     }
     // While fees cannot accrue in base, this can help reclaim any accidental transfers into this contract
     uint baseBal = baseAsset.balanceOf(address(this));
     if (baseBal > 0) {
-      baseAsset.transfer(msg.sender, baseBal);
+      if (!baseAsset.transfer(msg.sender, baseBal)) {
+        revert BaseTransferFailed(address(this), address(this), msg.sender, baseBal);
+      }
     }
     emit SMClaimed(msg.sender, quoteBal, baseBal);
   }
@@ -381,7 +385,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   ///////////
 
   /**
-   * @dev Returns the list of live board ids.
+   * @notice Returns the list of live board ids.
    */
   function getLiveBoards() external view returns (uint[] memory _liveBoards) {
     _liveBoards = new uint[](liveBoards.length);
@@ -390,16 +394,18 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
+  /// @notice Returns the number of current live boards
   function getNumLiveBoards() external view returns (uint numLiveBoards) {
     return liveBoards.length;
   }
 
+  /// @notice Returns the strike and expiry for a given strikeId
   function getStrikeAndExpiry(uint strikeId) external view returns (uint strikePrice, uint expiry) {
     return (strikes[strikeId].strikePrice, optionBoards[strikes[strikeId].boardId].expiry);
   }
 
   /**
-   * @dev Returns the strike ids for a given `boardId`.
+   * @notice Returns the strike ids for a given `boardId`.
    *
    * @param boardId The id of the relevant OptionBoard.
    */
@@ -411,19 +417,30 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     return strikeIds;
   }
 
+  /// @notice Returns the Strike struct for a given strikeId
   function getStrike(uint strikeId) external view returns (Strike memory) {
     return strikes[strikeId];
   }
 
+  /// @notice Returns the OptionBoard struct for a given boardId
   function getOptionBoard(uint boardId) external view returns (OptionBoard memory) {
     return optionBoards[boardId];
   }
 
+  /// @notice Returns the Strike and OptionBoard structs for a given strikeId
   function getStrikeAndBoard(uint strikeId) external view returns (Strike memory, OptionBoard memory) {
     Strike memory strike = strikes[strikeId];
     return (strike, optionBoards[strike.boardId]);
   }
 
+  /**
+   * @notice Returns board and strike details given a boardId
+   *
+   * @return OptionBoard the OptionBoard struct
+   * @return Strike[] the list of board strikes
+   * @return uint[] the list of strike to base returned ratios
+   * @return uint the board to price at expiry
+   */
   function getBoardAndStrikeDetails(uint boardId)
     external
     view
@@ -448,23 +465,47 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   // User functions //
   ////////////////////
 
+  /**
+   * @notice Attempts to open positions within cost bounds.
+   * @dev If a positionId is specified that position is adjusted accordingly
+   *
+   * @param params The parameters for the requested trade
+   */
   function openPosition(TradeInputParameters memory params) external nonReentrant returns (Result memory result) {
     result = _openPosition(params);
     _checkCostInBounds(result.totalCost, params.minTotalCost, params.maxTotalCost);
   }
 
+  /**
+   * @notice Attempts to reduce or fully close position within cost bounds.
+   *
+   * @param params The parameters for the requested trade
+   */
   function closePosition(TradeInputParameters memory params) external nonReentrant returns (Result memory result) {
     result = _closePosition(params, false);
     _checkCostInBounds(result.totalCost, params.minTotalCost, params.maxTotalCost);
   }
 
+  /**
+   * @notice Attempts to reduce or fully close position within cost bounds while ignoring delta trading cutoffs.
+   *
+   * @param params The parameters for the requested trade
+   */
   function forceClosePosition(TradeInputParameters memory params) external nonReentrant returns (Result memory result) {
     result = _closePosition(params, true);
     _checkCostInBounds(result.totalCost, params.minTotalCost, params.maxTotalCost);
   }
 
+  /**
+   * @notice Add collateral of size amountCollateral onto a short position (long or call) specified by positionId;
+   *         this transfers tokens (which may be denominated in the quote or the base asset). This allows you to
+   *         further collateralise a short position in order to, say, prevent imminent liquidation.
+   *
+   * @param positionId addCollateral to this positionId
+   * @param amountCollateral the amount of collateral to be added
+   */
   function addCollateral(uint positionId, uint amountCollateral) external nonReentrant {
-    int pendingCollateral = int(amountCollateral);
+    int pendingCollateral = SafeCast.toInt256(amountCollateral);
     OptionType optionType = optionToken.addCollateral(positionId, amountCollateral);
     _routeUserCollateral(optionType, pendingCollateral);
   }
@@ -734,6 +775,12 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   // Liquidation //
   /////////////////
 
+  /**
+   * @dev Allows you to liquidate an underwater position
+   *
+   * @param positionId the position to be liquidated
+   * @param rewardBeneficiary the address to receive quote/base
+   */
   function liquidatePosition(uint positionId, address rewardBeneficiary) external nonReentrant {
     OptionToken.PositionWithOwner memory position = optionToken.getPositionWithOwner(positionId);
 
@@ -882,23 +929,23 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     Strike storage strike,
     bool isOpen
   ) internal {
-    int exposure = isOpen ? int(amount) : -int(amount);
+    int exposure = isOpen ? SafeCast.toInt256(amount) : -SafeCast.toInt256(amount);
 
     if (optionType == OptionType.LONG_CALL) {
-      exposure += int(strike.longCall);
+      exposure += SafeCast.toInt256(strike.longCall);
       strike.longCall = SafeCast.toUint256(exposure);
     } else if (optionType == OptionType.LONG_PUT) {
-      exposure += int(strike.longPut);
+      exposure += SafeCast.toInt256(strike.longPut);
       strike.longPut = SafeCast.toUint256(exposure);
     } else if (optionType == OptionType.SHORT_CALL_BASE) {
-      exposure += int(strike.shortCallBase);
+      exposure += SafeCast.toInt256(strike.shortCallBase);
       strike.shortCallBase = SafeCast.toUint256(exposure);
     } else if (optionType == OptionType.SHORT_CALL_QUOTE) {
-      exposure += int(strike.shortCallQuote);
+      exposure += SafeCast.toInt256(strike.shortCallQuote);
       strike.shortCallQuote = SafeCast.toUint256(exposure);
     } else {
       // OptionType.SHORT_PUT_QUOTE
-      exposure += int(strike.shortPut);
+      exposure += SafeCast.toInt256(strike.shortPut);
       strike.shortPut = SafeCast.toUint256(exposure);
     }
   }
@@ -1018,6 +1065,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     );
   }
 
+  /// @dev Returns the strike price, price at expiry, strike to base returned for a given strikeId
   function getSettlementParameters(uint strikeId)
     external
     view

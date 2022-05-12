@@ -2,12 +2,12 @@
 pragma solidity 0.8.9;
 
 import "../../OptionMarket.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../../synthetix/Owned.sol";
 
 /**
  * @title BasicOptionMarketWrapper
  */
-contract BasicOptionMarketWrapper is Ownable {
+contract BasicOptionMarketWrapper is Owned {
   struct OptionMarketContracts {
     IERC20 quoteAsset;
     IERC20 baseAsset;
@@ -16,7 +16,7 @@ contract BasicOptionMarketWrapper is Ownable {
 
   mapping(OptionMarket => OptionMarketContracts) public marketContracts;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   function updateMarket(OptionMarket optionMarket, OptionMarketContracts memory _marketContracts) external onlyOwner {
     marketContracts[optionMarket] = _marketContracts;

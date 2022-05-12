@@ -412,8 +412,15 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   // Transfers //
   ///////////////
 
-  /// @notice User can split position into desired amount and collateral
-  /// @dev Only ACTIVE positions can be owned by users, so status does not need to be checked
+  /**
+   * @notice Allows a user to split a position into two. The amount of the original position will
+   *         be subtracted from and a new position will be minted with the desired amount and collateral.
+   * @dev Only ACTIVE positions can be owned by users, so status does not need to be checked
+   *
+   * @param positionId the positionId of the original position to be split
+   * @param newAmount the amount in the new position
+   * @param newCollateral the amount of collateral for the new position
+   */
   function split(
     uint positionId,
     uint newAmount,
@@ -477,8 +484,12 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     );
   }
 
-  /// @notice User can merge many positions with matching strike and optionType into a single position
-  /// @dev Only ACTIVE positions can be owned by users, so status does not need to be checked
+  /**
+   * @notice User can merge many positions with matching strike and optionType into a single position
+   * @dev Only ACTIVE positions can be owned by users, so status does not need to be checked
+   *
+   * @param positionIds the positionIds to be merged together
+   */
   function merge(uint[] memory positionIds) external nonReentrant {
     if (positionIds.length < 2) {
       revert MustMergeTwoOrMorePositions(address(this));
@@ -556,18 +567,22 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   // Util //
   //////////
 
+  /// @dev Returns bool on whether the optionType is SHORT_CALL_BASE, SHORT_CALL_QUOTE or SHORT_PUT_QUOTE
   function _isShort(OptionMarket.OptionType optionType) internal pure returns (bool shortPosition) {
     shortPosition = (uint(optionType) >= uint(OptionMarket.OptionType.SHORT_CALL_BASE)) ? true : false;
   }
 
+  /// @dev Returns the PositionState of a given positionId
   function getPositionState(uint positionId) external view returns (PositionState) {
     return positions[positionId].state;
   }
 
+  /// @dev Returns an OptionPosition struct of a given positionId
   function getOptionPosition(uint positionId) external view returns (OptionPosition memory) {
     return positions[positionId];
   }
 
+  /// @dev Returns an array of OptionPosition structs given an array of positionIds
   function getOptionPositions(uint[] memory positionIds) external view returns (OptionPosition[] memory) {
     OptionPosition[] memory result = new OptionPosition[](positionIds.length);
     for (uint i = 0; i < positionIds.length; i++) {
@@ -576,10 +591,12 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return result;
   }
 
+  /// @dev Returns a PositionWithOwner struct of a given positionId
   function getPositionWithOwner(uint positionId) external view returns (PositionWithOwner memory) {
     return _getPositionWithOwner(positionId);
   }
 
+  /// @dev Returns an array of PositionWithOwner structs given an array of positionIds
   function getPositionsWithOwner(uint[] memory positionIds) external view returns (PositionWithOwner[] memory) {
     PositionWithOwner[] memory result = new PositionWithOwner[](positionIds.length);
     for (uint i = 0; i < positionIds.length; i++) {
@@ -588,12 +605,13 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return result;
   }
 
-  // Note: can run out of gas, don't use in contracts
-  function getOwnerPositions(address owner) external view returns (OptionPosition[] memory) {
-    uint balance = balanceOf(owner);
+  /// @dev can run out of gas, don't use in contracts
+  /// @dev Returns an array of OptionPosition structs owned by a given address
+  function getOwnerPositions(address target) external view returns (OptionPosition[] memory) {
+    uint balance = balanceOf(target);
     OptionPosition[] memory result = new OptionPosition[](balance);
     for (uint i = 0; i < balance; i++) {
-      result[i] = positions[ERC721Enumerable.tokenOfOwnerByIndex(owner, i)];
+      result[i] = positions[ERC721Enumerable.tokenOfOwnerByIndex(target, i)];
     }
     return result;
   }
@@ -612,6 +630,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
       });
   }
 
+  /// @dev returns PartialCollateralParameters struct
   function getPartialCollatParams() external view returns (PartialCollateralParameters memory) {
     return partialCollatParams;
   }

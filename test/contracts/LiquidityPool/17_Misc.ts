@@ -99,7 +99,7 @@ describe('Misc', async () => {
 
     const lpQuoteBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
     await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, lpQuoteBalance);
-    await expect(hre.f.c.liquidityPool.getTotalPoolValueQuote()).revertedWith('OptionValueExceedsTotalAssets');
+    await expect(hre.f.c.liquidityPool.getTotalPoolValueQuote()).revertedWith('OptionValueDebtExceedsTotalAssets');
   });
 
   it.skip('test all modifiers...');

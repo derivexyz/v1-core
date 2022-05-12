@@ -2,11 +2,11 @@
 pragma solidity 0.8.9;
 import "../interfaces/ICurve.sol";
 import "./TestERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 /// @title Router token swapping functionality
 /// @notice Functions for swapping tokens via Curve
-contract TestCurve is ICurve, Ownable {
+contract TestCurve is ICurve, Owned {
   bool initialized = false;
 
   mapping(address => uint) public rates;

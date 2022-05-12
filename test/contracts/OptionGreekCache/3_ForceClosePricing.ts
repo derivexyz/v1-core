@@ -79,7 +79,7 @@ describe('OptionGreekCache - Pricing', () => {
     ALL_TYPES.forEach(async (optionType, i) => {
       describe(`calculates optionPrice and forceCloseVol: ${OptionType[optionType]}`, async () => {
         it('on close: pre cutoff', async () => {
-          const [price, , forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
+          const [price, forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
             {
               ...tradeStruct,
               isBuy: isBuy[i],
@@ -106,7 +106,7 @@ describe('OptionGreekCache - Pricing', () => {
           expect(expectedPrice).to.eq(price);
         });
         it('on close: post cutoff', async () => {
-          const [price, , forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
+          const [price, forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
             {
               ...tradeStruct,
               isBuy: isBuy[i],
@@ -134,7 +134,7 @@ describe('OptionGreekCache - Pricing', () => {
         });
 
         it('on close: override vol with new vol', async () => {
-          const [price, , forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
+          const [price, forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
             {
               ...tradeStruct,
               isBuy: isBuy[i],
@@ -163,7 +163,7 @@ describe('OptionGreekCache - Pricing', () => {
         it('on close: extreme ITM (override price with shocked parity)', async () => {
           if (isBuy[i]) {
             await mockPrice(hre.f.c, ITM[i], 'sETH');
-            const [price, , forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
+            const [price, forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
               {
                 ...tradeStruct,
                 isBuy: isBuy[i],
@@ -196,7 +196,7 @@ describe('OptionGreekCache - Pricing', () => {
           if (isBuy[i]) {
             await mockPrice(hre.f.c, OTM[i], 'sETH');
             await fastForward(2 * WEEK_SEC);
-            const [price, , forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
+            const [price, forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
               {
                 ...tradeStruct,
                 isBuy: isBuy[i],
@@ -227,7 +227,7 @@ describe('OptionGreekCache - Pricing', () => {
 
         it('on liquidation: pre cutoff', async () => {
           if (isBuy[i]) {
-            const [price, , forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
+            const [price, forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
               {
                 ...tradeStruct,
                 isBuy: isBuy[i],
@@ -259,7 +259,7 @@ describe('OptionGreekCache - Pricing', () => {
 
         it('on liquidation: post cutoff', async () => {
           if (isBuy[i]) {
-            const [price, , forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
+            const [price, forceCloseVol] = await hre.f.c.optionGreekCache.getPriceForForceClose(
               {
                 ...tradeStruct,
                 isBuy: isBuy[i],

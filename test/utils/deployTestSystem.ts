@@ -308,7 +308,7 @@ export async function deployGlobalTestContracts(
       isMockSNX: false,
       addressResolver: await getLocalRealSynthetixContract(deployer, 'local', 'AddressResolver'),
       collateralShort: await getLocalRealSynthetixContract(deployer, 'local', 'CollateralShort'),
-      synthetix: await getLocalRealSynthetixContract(deployer, 'local', 'Synthetix'),
+      synthetix: await getLocalRealSynthetixContract(deployer, 'local', 'ProxySynthetix'),
       delegateApprovals: await getLocalRealSynthetixContract(deployer, 'local', 'DelegateApprovals'),
       quoteAsset: await getLocalRealSynthetixContract(deployer, 'local', `ProxyERC20sUSD`), // not ProxysUSD?
       exchangeRates: await getLocalRealSynthetixContract(deployer, 'local', `ExchangeRates`),
@@ -447,7 +447,7 @@ export async function initGlobalTestSystem(
   //////////////////////////
 
   const names = [
-    toBytes32('Synthetix'),
+    toBytes32('ProxySynthetix'),
     toBytes32('Exchanger'),
     toBytes32('ExchangeRates'),
     toBytes32('CollateralShort'),

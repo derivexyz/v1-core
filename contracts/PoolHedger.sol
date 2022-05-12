@@ -104,7 +104,8 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   // Opening Short //
   ///////////////////
   /**
-   * @dev Opens/reopens short account if the old one was closed or liquidated.
+   * @notice Opens/reopens short account if the old one was closed or liquidated.
+   * @dev opens short account with min colalteral and 0 amount
    */
   function openShortAccount() external nonReentrant {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
@@ -126,7 +127,9 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   function _openShortAccount(SynthetixAdapter.ExchangeParams memory exchangeParams) internal {
     uint minCollateral = exchangeParams.short.minCollateral();
 
-    quoteAsset.approve(address(exchangeParams.short), type(uint).max);
+    if (!quoteAsset.approve(address(exchangeParams.short), type(uint).max)) {
+      revert QuoteApprovalFailure(address(this), address(exchangeParams.short), type(uint).max);
+    }
 
     // Open a short with min collateral and 0 amount, to get a static Id for this contract to use.
     liquidityPool.transferQuoteToHedge(exchangeParams, minCollateral);
@@ -178,6 +181,8 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     return SafeCast.toInt256(longBalance) - SafeCast.toInt256(shortBalance);
   }
 
+  /// @notice Returns pending delta hedge liquidity and used delta hedge liquidity
+  /// @dev include funds potentially transferred to the contract
   function getHedgingLiquidity(ICollateralShort short, uint spotPrice)
     external
     view
@@ -218,7 +223,8 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   //////////////
 
   /**
-   * @dev Retrieves the netDelta from the OptionGreekCache and updates the hedge position.
+   * @dev Retrieves the netDelta from the OptionGreekCache and updates the hedge position based off base
+   *      asset balance of the liquidityPool minus netDelta (from OptionGreekCache)
    */
   function hedgeDelta() external nonReentrant {
     // Subtract the baseAsset balance from netDelta, to account for the variance from collateral held by LP.
@@ -456,12 +462,18 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     emit QuoteReturnedToLP(quoteBal);
   }
 
+  /// @dev Returns PoolHedgerParameters struct
   function getPoolHedgerParams() external view returns (PoolHedgerParameters memory) {
     return poolHedgerParams;
   }
 
+  /**
+   * @dev Compute the absolute value of `val`.
+   *
+   * @param val The number to absolute value.
+   */
   function _abs(int val) internal pure returns (uint) {
-    return val >= 0 ? uint(val) : uint(-val);
+    return uint(val < 0 ? -val : val);
   }
 
   /// Modifiers
@@ -518,5 +530,6 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   error OnlyLiquidityPool(address thrower, address caller, address liquidityPool);
 
   // Token transfers
+  error QuoteApprovalFailure(address thrower, address approvee, uint amount);
   error QuoteTransferFailed(address thrower, address from, address to, uint amount);
 }

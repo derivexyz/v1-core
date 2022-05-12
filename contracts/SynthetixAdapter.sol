@@ -45,7 +45,7 @@ contract SynthetixAdapter is OwnedUpgradeable {
 
   IAddressResolver public addressResolver;
 
-  bytes32 private constant CONTRACT_SYNTHETIX = "Synthetix";
+  bytes32 private constant CONTRACT_SYNTHETIX = "ProxySynthetix";
   bytes32 private constant CONTRACT_EXCHANGER = "Exchanger";
   bytes32 private constant CONTRACT_EXCHANGE_RATES = "ExchangeRates";
   bytes32 private constant CONTRACT_COLLATERAL_SHORT = "CollateralShort";
@@ -194,10 +194,27 @@ contract SynthetixAdapter is OwnedUpgradeable {
   /////////////////////////////////////////
   // Exchanging QuoteAsset for BaseAsset //
   /////////////////////////////////////////
+
+  /**
+   * @notice Swap an exact amount of quote for base.
+   *
+   * @param optionMarket The base asset of this option market to receive
+   * @param amountQuote The exact amount of quote to be used for the swap
+   * @return baseReceived The amount of base received from the swap
+   */
   function exchangeFromExactQuote(address optionMarket, uint amountQuote) external returns (uint baseReceived) {
     return _exchangeQuoteForBase(optionMarket, amountQuote);
   }
 
+  /**
+   * @notice Swap quote for an exact amount of base.
+   *
+   * @param exchangeParams The current exchange rates for the swap
+   * @param optionMarket The base asset of this option market to receive
+   * @param amountBase The exact amount of base to receive from the swap
+   * @return quoteSpent The amount of quote spent on the swap
+   * @return baseReceived The amount of base received
+   */
   function exchangeToExactBase(
     ExchangeParams memory exchangeParams,
     address optionMarket,
@@ -206,6 +223,16 @@ contract SynthetixAdapter is OwnedUpgradeable {
     return exchangeToExactBaseWithLimit(exchangeParams, optionMarket, amountBase, type(uint).max);
   }
 
+  /**
+   * @notice Swap quote for base with a limit on the amount of quote to be spent.
+   *
+   * @param exchangeParams The current exchange rates for the swap
+   * @param optionMarket The base asset of this option market to receive
+   * @param amountBase The exact amount of base to receive from the swap
+   * @param quoteLimit The maximum amount of quote to spend for base
+   * @return quoteSpent The amount of quote spent on the swap
+   * @return baseReceived The amount of baes received from the swap
+   */
   function exchangeToExactBaseWithLimit(
     ExchangeParams memory exchangeParams,
     address optionMarket,
@@ -252,6 +279,13 @@ contract SynthetixAdapter is OwnedUpgradeable {
     emit QuoteSwappedForBase(optionMarket, msg.sender, amountQuote, baseReceived);
   }
 
+  /**
+   * @notice Returns an estimated amount of quote required to swap for the specified amount of base.
+   *
+   * @param exchangeParams The current exchange rates for the swap
+   * @param amountBase The amount of base to receive
+   * @return quoteNeeded The amount of quote required to received the amount of base requested
+   */
   function estimateExchangeToExactBase(ExchangeParams memory exchangeParams, uint amountBase)
     public
     pure
@@ -266,18 +300,45 @@ contract SynthetixAdapter is OwnedUpgradeable {
   /////////////////////////////////////////
   // Exchanging BaseAsset for QuoteAsset //
   /////////////////////////////////////////
+
+  /**
+   * @notice Swap an exact amount of base for quote.
+   *
+   * @param optionMarket The base asset of this optionMarket to be used
+   * @param amountBase The exact amount of base to be used for the swap
+   * @return quoteReceived The amount of quote received from the swap
+   */
   function exchangeFromExactBase(address optionMarket, uint amountBase) external returns (uint quoteReceived) {
     return _exchangeBaseForQuote(optionMarket, amountBase);
   }
 
+  /**
+   * @notice Swap base for an exact amount of quote
+   *
+   * @param exchangeParams The current exchange rates for the swap
+   * @param optionMarket The base asset of this optionMarket to be used
+   * @param amountQuote The exact amount of quote to receive
+   * @return baseSpent The amount of baseSpent on the swap
+   * @return quoteReceived The amount of quote received from the swap
+   */
   function exchangeToExactQuote(
     ExchangeParams memory exchangeParams,
     address optionMarket,
     uint amountQuote
-  ) external returns (uint quoteSpent, uint quoteReceived) {
+  ) external returns (uint baseSpent, uint quoteReceived) {
     return exchangeToExactQuoteWithLimit(exchangeParams, optionMarket, amountQuote, type(uint).max);
   }
 
+  /**
+   * @notice Swap base for an exact amount of quote with a limit on the amount of base to be used
+   *
+   * @param exchangeParams The current exchange rates for the swap
+   * @param optionMarket The base asset of this optionMarket to be used
+   * @param amountQuote The exact amount of quote to receive
+   * @param baseLimit The limit on the amount of base to be used
+   * @return baseSpent The amount of base spent on the swap
+   * @return quoteReceived The amount of quote received from the swap
+   */
   function exchangeToExactQuoteWithLimit(
     ExchangeParams memory exchangeParams,
     address optionMarket,
@@ -325,6 +386,13 @@ contract SynthetixAdapter is OwnedUpgradeable {
     emit BaseSwappedForQuote(optionMarket, msg.sender, amountBase, quoteReceived);
   }
 
+  /**
+   * @notice Returns an estimated amount of base required to swap for the amount of quote
+   *
+   * @param exchangeParams The current exchange rates for the swap
+   * @param amountQuote The amount of quote to swap to
+   * @return baseNeeded The amount of base required for the swap
+   */
   function estimateExchangeToExactQuote(ExchangeParams memory exchangeParams, uint amountQuote)
     public
     pure

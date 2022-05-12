@@ -138,23 +138,139 @@ Returns the ExchangeParams.
 
 ### Function `exchangeFromExactQuote(address optionMarket, uint256 amountQuote) → uint256 baseReceived external`
 
+Swap an exact amount of quote for base.
+
+#### Parameters:
+
+- `optionMarket`: The base asset of this option market to receive
+
+- `amountQuote`: The exact amount of quote to be used for the swap
+
+#### Return Values:
+
+- baseReceived The amount of base received from the swap
+
 ### Function `exchangeToExactBase(struct SynthetixAdapter.ExchangeParams exchangeParams, address optionMarket, uint256 amountBase) → uint256 quoteSpent, uint256 baseReceived external`
 
+Swap quote for an exact amount of base.
+
+#### Parameters:
+
+- `exchangeParams`: The current exchange rates for the swap
+
+- `optionMarket`: The base asset of this option market to receive
+
+- `amountBase`: The exact amount of base to receive from the swap
+
+#### Return Values:
+
+- quoteSpent The amount of quote spent on the swap
+
+- baseReceived The amount of base received
+
 ### Function `exchangeToExactBaseWithLimit(struct SynthetixAdapter.ExchangeParams exchangeParams, address optionMarket, uint256 amountBase, uint256 quoteLimit) → uint256 quoteSpent, uint256 baseReceived public`
+
+Swap quote for base with a limit on the amount of quote to be spent.
+
+#### Parameters:
+
+- `exchangeParams`: The current exchange rates for the swap
+
+- `optionMarket`: The base asset of this option market to receive
+
+- `amountBase`: The exact amount of base to receive from the swap
+
+- `quoteLimit`: The maximum amount of quote to spend for base
+
+#### Return Values:
+
+- quoteSpent The amount of quote spent on the swap
+
+- baseReceived The amount of baes received from the swap
 
 ### Function `_exchangeQuoteForBase(address optionMarket, uint256 amountQuote) → uint256 baseReceived internal`
 
 ### Function `estimateExchangeToExactBase(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amountBase) → uint256 quoteNeeded public`
 
+Returns an estimated amount of quote required to swap for the specified amount of base.
+
+#### Parameters:
+
+- `exchangeParams`: The current exchange rates for the swap
+
+- `amountBase`: The amount of base to receive
+
+#### Return Values:
+
+- quoteNeeded The amount of quote required to received the amount of base requested
+
 ### Function `exchangeFromExactBase(address optionMarket, uint256 amountBase) → uint256 quoteReceived external`
 
-### Function `exchangeToExactQuote(struct SynthetixAdapter.ExchangeParams exchangeParams, address optionMarket, uint256 amountQuote) → uint256 quoteSpent, uint256 quoteReceived external`
+Swap an exact amount of base for quote.
+
+#### Parameters:
+
+- `optionMarket`: The base asset of this optionMarket to be used
+
+- `amountBase`: The exact amount of base to be used for the swap
+
+#### Return Values:
+
+- quoteReceived The amount of quote received from the swap
+
+### Function `exchangeToExactQuote(struct SynthetixAdapter.ExchangeParams exchangeParams, address optionMarket, uint256 amountQuote) → uint256 baseSpent, uint256 quoteReceived external`
+
+Swap base for an exact amount of quote
+
+#### Parameters:
+
+- `exchangeParams`: The current exchange rates for the swap
+
+- `optionMarket`: The base asset of this optionMarket to be used
+
+- `amountQuote`: The exact amount of quote to receive
+
+#### Return Values:
+
+- baseSpent The amount of baseSpent on the swap
+
+- quoteReceived The amount of quote received from the swap
 
 ### Function `exchangeToExactQuoteWithLimit(struct SynthetixAdapter.ExchangeParams exchangeParams, address optionMarket, uint256 amountQuote, uint256 baseLimit) → uint256 baseSpent, uint256 quoteReceived public`
+
+Swap base for an exact amount of quote with a limit on the amount of base to be used
+
+#### Parameters:
+
+- `exchangeParams`: The current exchange rates for the swap
+
+- `optionMarket`: The base asset of this optionMarket to be used
+
+- `amountQuote`: The exact amount of quote to receive
+
+- `baseLimit`: The limit on the amount of base to be used
+
+#### Return Values:
+
+- baseSpent The amount of base spent on the swap
+
+- quoteReceived The amount of quote received from the swap
 
 ### Function `_exchangeBaseForQuote(address optionMarket, uint256 amountBase) → uint256 quoteReceived internal`
 
 ### Function `estimateExchangeToExactQuote(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amountQuote) → uint256 baseNeeded public`
+
+Returns an estimated amount of base required to swap for the amount of quote
+
+#### Parameters:
+
+- `exchangeParams`: The current exchange rates for the swap
+
+- `amountQuote`: The amount of quote to swap to
+
+#### Return Values:
+
+- baseNeeded The amount of base required for the swap
 
 ### Event `AddressResolverSet(contract IAddressResolver addressResolver)`
 

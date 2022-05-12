@@ -5,11 +5,11 @@ import "../interfaces/ISwapRouter.sol";
 import "./Path.sol";
 import "./TestERC20.sol";
 import "../synthetix/DecimalMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 /// @title Router token swapping functionality
 /// @notice Functions for swapping tokens via Uniswap V3
-contract TestSwapRouter is ISwapRouter, Ownable {
+contract TestSwapRouter is ISwapRouter, Owned {
   using DecimalMath for uint;
 
   bool public initialized = false;

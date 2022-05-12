@@ -48,7 +48,7 @@ Provides a tokenized representation of each trade position including amount of o
 
 - `getPositionsWithOwner(uint256[] positionIds) (external)`
 
-- `getOwnerPositions(address owner) (external)`
+- `getOwnerPositions(address target) (external)`
 
 - `_getPositionWithOwner(uint256 positionId) (internal)`
 
@@ -98,9 +98,19 @@ Initialise the contract.
 
 ### Function `split(uint256 positionId, uint256 newAmount, uint256 newCollateral, address recipient) → uint256 newPositionId external`
 
-User can split position into desired amount and collateral
+Allows a user to split a position into two. The amount of the original position will
+
+        be subtracted from and a new position will be minted with the desired amount and collateral.
 
 Only ACTIVE positions can be owned by users, so status does not need to be checked
+
+#### Parameters:
+
+- `positionId`: the positionId of the original position to be split
+
+- `newAmount`: the amount in the new position
+
+- `newCollateral`: the amount of collateral for the new position
 
 ### Function `merge(uint256[] positionIds) external`
 
@@ -108,23 +118,45 @@ User can merge many positions with matching strike and optionType into a single 
 
 Only ACTIVE positions can be owned by users, so status does not need to be checked
 
+#### Parameters:
+
+- `positionIds`: the positionIds to be merged together
+
 ### Function `_isShort(enum OptionMarket.OptionType optionType) → bool shortPosition internal`
+
+Returns bool on whether the optionType is SHORT_CALL_BASE, SHORT_CALL_QUOTE or SHORT_PUT_QUOTE
 
 ### Function `getPositionState(uint256 positionId) → enum OptionToken.PositionState external`
 
+Returns the PositionState of a given positionId
+
 ### Function `getOptionPosition(uint256 positionId) → struct OptionToken.OptionPosition external`
+
+Returns an OptionPosition struct of a given positionId
 
 ### Function `getOptionPositions(uint256[] positionIds) → struct OptionToken.OptionPosition[] external`
 
+Returns an array of OptionPosition structs given an array of positionIds
+
 ### Function `getPositionWithOwner(uint256 positionId) → struct OptionToken.PositionWithOwner external`
+
+Returns a PositionWithOwner struct of a given positionId
 
 ### Function `getPositionsWithOwner(uint256[] positionIds) → struct OptionToken.PositionWithOwner[] external`
 
-### Function `getOwnerPositions(address owner) → struct OptionToken.OptionPosition[] external`
+Returns an array of PositionWithOwner structs given an array of positionIds
+
+### Function `getOwnerPositions(address target) → struct OptionToken.OptionPosition[] external`
+
+can run out of gas, don't use in contracts
+
+Returns an array of OptionPosition structs owned by a given address
 
 ### Function `_getPositionWithOwner(uint256 positionId) → struct OptionToken.PositionWithOwner internal`
 
 ### Function `getPartialCollatParams() → struct OptionToken.PartialCollateralParameters external`
+
+returns PartialCollateralParameters struct
 
 ### Function `_beforeTokenTransfer(address from, address to, uint256 tokenId) internal`
 

@@ -28,7 +28,7 @@ of precision.
 
 - `_getVegaNormalisationFactorPrecise(uint256 timeToExpirySec) (internal)`
 
-- `_abs(int256 x) (internal)`
+- `_abs(int256 val) (internal)`
 
 - `_sqrt(uint256 x) (internal)`
 
@@ -124,9 +124,13 @@ Returns the option's vega value with expiry modified to be at least VEGA_STANDAR
 
 ### Function `_getVegaNormalisationFactorPrecise(uint256 timeToExpirySec) → uint256 internal`
 
-### Function `_abs(int256 x) → uint256 internal`
+### Function `_abs(int256 val) → uint256 internal`
 
-Returns absolute value of an int as a uint.
+Compute the absolute value of `val`.
+
+#### Parameters:
+
+- `val`: The number to absolute value.
 
 ### Function `_sqrt(uint256 x) → uint256 y internal`
 

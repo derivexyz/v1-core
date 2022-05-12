@@ -24,11 +24,11 @@ describe('OptionMarketWrapper viewer function tests', () => {
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_BASE);
       console.log(`Position collateral ${result1.collateral}`);
 
-      let details1 = await hre.f.c.optionMarketWrapper.setCollateralWrapper(0, positionId, toBN('1.5'));
+      let details1 = await hre.f.c.optionMarketWrapper.setPositionCollateral(0, positionId, toBN('1.5'));
       let event = getEventArgs(await details1.wait(), 'SetCollateralTo');
       console.log(`Set collateral to ${event}`);
 
-      details1 = await hre.f.c.optionMarketWrapper.setCollateralWrapper(0, positionId, toBN('0.5'));
+      details1 = await hre.f.c.optionMarketWrapper.setPositionCollateral(0, positionId, toBN('0.5'));
       event = getEventArgs(await details1.wait(), 'SetCollateralTo');
       console.log(`Set collateral to ${event}`);
     });
@@ -51,11 +51,11 @@ describe('OptionMarketWrapper viewer function tests', () => {
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_BASE);
       console.log(`Position collateral ${result1.collateral}`);
 
-      let details1 = await hre.f.c.optionMarketWrapper.setCollateralWrapper(0, positionId, toBN('1.5'));
+      let details1 = await hre.f.c.optionMarketWrapper.setPositionCollateral(0, positionId, toBN('1.5'));
       let event = getEventArgs(await details1.wait(), 'SetCollateralTo');
       console.log(`Set collateral to ${event}`);
 
-      details1 = await hre.f.c.optionMarketWrapper.setCollateralWrapper(0, positionId, toBN('0.5'));
+      details1 = await hre.f.c.optionMarketWrapper.setPositionCollateral(0, positionId, toBN('0.5'));
       event = getEventArgs(await details1.wait(), 'SetCollateralTo');
       console.log(`Set collateral to ${event}`);
     });

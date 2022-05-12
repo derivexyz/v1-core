@@ -32,7 +32,7 @@ describe('ExchangeBase', async () => {
     const liquidity = await getLiquidity();
 
     assertCloseToPercentage(liquidity.freeLiquidity, toBN('66799.8045'));
-    assertCloseToPercentage(liquidity.burnableLiquidity, toBN('415202.4785'));
+    assertCloseToPercentage(liquidity.burnableLiquidity, toBN('66799.8045'));
     assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('348402'));
     assertCloseToPercentage(liquidity.pendingDeltaLiquidity, toBN('127026'));
 

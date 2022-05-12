@@ -1,16 +1,16 @@
 //SPDX-License-Identifier:ISC
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 /**
  * @title BasicFeeCounter
  */
-contract BasicFeeCounter is Ownable {
+contract BasicFeeCounter is Owned {
   mapping(address => bool) public trustedCounter;
   mapping(address => mapping(address => uint)) public totalFeesPerMarket;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   function setTrustedCounter(address counter, bool isTrusted) external onlyOwner {
     trustedCounter[counter] = isTrusted;

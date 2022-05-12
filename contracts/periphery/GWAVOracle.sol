@@ -7,14 +7,14 @@ import "../lib/BlackScholes.sol";
 import "../synthetix/DecimalMath.sol";
 
 // Inherited
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 // Interfaces
 import "../OptionMarket.sol";
 import "../OptionGreekCache.sol";
 import "../SynthetixAdapter.sol";
 
-contract GWAVOracle is Ownable {
+contract GWAVOracle is Owned {
   using DecimalMath for uint;
 
   ///////////////
@@ -25,7 +25,7 @@ contract GWAVOracle is Ownable {
   OptionGreekCache internal greekCache;
   SynthetixAdapter internal synthetixAdapter;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   //////////
   // init //

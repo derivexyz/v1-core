@@ -47,7 +47,7 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
 
   IAddressResolver public addressResolver;
 
-  bytes32 private constant CONTRACT_SYNTHETIX = "Synthetix";
+  bytes32 private constant CONTRACT_SYNTHETIX = "ProxySynthetix";
   bytes32 private constant CONTRACT_EXCHANGER = "Exchanger";
   bytes32 private constant CONTRACT_EXCHANGE_RATES = "ExchangeRates";
   bytes32 private constant CONTRACT_COLLATERAL_SHORT = "CollateralShort";

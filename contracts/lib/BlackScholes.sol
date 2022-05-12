@@ -274,10 +274,12 @@ library BlackScholes {
   /////////////////////
 
   /**
-   * @dev Returns absolute value of an int as a uint.
+   * @dev Compute the absolute value of `val`.
+   *
+   * @param val The number to absolute value.
    */
-  function _abs(int x) internal pure returns (uint) {
-    return uint(x < 0 ? -x : x);
+  function _abs(int val) internal pure returns (uint) {
+    return uint(val < 0 ? -val : val);
   }
 
   /**

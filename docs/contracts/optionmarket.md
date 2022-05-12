@@ -180,7 +180,11 @@ Returns the list of live board ids.
 
 ### Function `getNumLiveBoards() → uint256 numLiveBoards external`
 
+Returns the number of current live boards
+
 ### Function `getStrikeAndExpiry(uint256 strikeId) → uint256 strikePrice, uint256 expiry external`
+
+Returns the strike and expiry for a given strikeId
 
 ### Function `getBoardStrikes(uint256 boardId) → uint256[] external`
 
@@ -192,19 +196,69 @@ Returns the strike ids for a given `boardId`.
 
 ### Function `getStrike(uint256 strikeId) → struct OptionMarket.Strike external`
 
+Returns the Strike struct for a given strikeId
+
 ### Function `getOptionBoard(uint256 boardId) → struct OptionMarket.OptionBoard external`
+
+Returns the OptionBoard struct for a given boardId
 
 ### Function `getStrikeAndBoard(uint256 strikeId) → struct OptionMarket.Strike, struct OptionMarket.OptionBoard external`
 
+Returns the Strike and OptionBoard structs for a given strikeId
+
 ### Function `getBoardAndStrikeDetails(uint256 boardId) → struct OptionMarket.OptionBoard, struct OptionMarket.Strike[], uint256[], uint256 external`
+
+Returns board and strike details given a boardId
+
+#### Return Values:
+
+- OptionBoard the OptionBoard struct
+
+- the list of board strikes
+
+- the list of strike to base returned ratios
+
+- uint the board to price at expiry
 
 ### Function `openPosition(struct OptionMarket.TradeInputParameters params) → struct OptionMarket.Result result external`
 
+Attempts to open positions within cost bounds.
+
+If a positionId is specified that position is adjusted accordingly
+
+#### Parameters:
+
+- `params`: The parameters for the requested trade
+
 ### Function `closePosition(struct OptionMarket.TradeInputParameters params) → struct OptionMarket.Result result external`
+
+Attempts to reduce or fully close position within cost bounds.
+
+#### Parameters:
+
+- `params`: The parameters for the requested trade
 
 ### Function `forceClosePosition(struct OptionMarket.TradeInputParameters params) → struct OptionMarket.Result result external`
 
+Attempts to reduce or fully close position within cost bounds while ignoring delta trading cutoffs.
+
+#### Parameters:
+
+- `params`: The parameters for the requested trade
+
 ### Function `addCollateral(uint256 positionId, uint256 amountCollateral) external`
+
+Add collateral of size amountCollateral onto a short position (long or call) specified by positionId;
+
+        this transfers tokens (which may be denominated in the quote or the base asset). This allows you to
+
+        further collateralise a short position in order to, say, prevent imminent liquidation.
+
+#### Parameters:
+
+- `positionId`: addCollateral to this positionId
+
+- `amountCollateral`: the amount of collateral to be added
 
 ### Function `_checkCostInBounds(uint256 totalCost, uint256 minCost, uint256 maxCost) internal`
 
@@ -235,6 +289,14 @@ Determine the cost of the trade and update the system's iv/skew/exposure paramet
 - `trade`: The trade parameters.
 
 ### Function `liquidatePosition(uint256 positionId, address rewardBeneficiary) external`
+
+Allows you to liquidate an underwater position
+
+#### Parameters:
+
+- `positionId`: the position to be liquidated
+
+- `rewardBeneficiary`: the address to receive quote/base
 
 ### Function `_routeLPFundsOnOpen(struct OptionMarket.TradeParameters trade, uint256 totalCost, uint256 feePortion) internal`
 
@@ -269,6 +331,8 @@ It will reserve collateral for users to settle their ITM long options.
 - `board`: The relevant OptionBoard.
 
 ### Function `getSettlementParameters(uint256 strikeId) → uint256 strikePrice, uint256 priceAtExpiry, uint256 strikeToBaseReturned external`
+
+Returns the strike price, price at expiry, strike to base returned for a given strikeId
 
 ### Function `_transferFromQuote(address from, address to, uint256 amount) internal`
 

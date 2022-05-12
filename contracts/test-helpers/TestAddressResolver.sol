@@ -1,13 +1,13 @@
 //SPDX-License-Identifier:ISC
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 import "../interfaces/IAddressResolver.sol";
 
-contract TestAddressResolver is IAddressResolver, Ownable {
+contract TestAddressResolver is IAddressResolver, Owned {
   mapping(bytes32 => address) public override getAddress;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   function setAddresses(bytes32[] memory names, address[] memory locations) external {
     require(names.length == locations.length, "length mismatch");

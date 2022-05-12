@@ -1,16 +1,16 @@
 //SPDX-License-Identifier:ISC
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 /**
  * @title BasicFeeCounter
  */
-contract BasicLiquidityCounter is Ownable {
+contract BasicLiquidityCounter is Owned {
   address public liquidityToken;
   mapping(address => uint) public userLiquidity;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   /**
    * @dev

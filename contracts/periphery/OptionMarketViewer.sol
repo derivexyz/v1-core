@@ -9,7 +9,9 @@ import "../LiquidityPool.sol";
 import "../OptionGreekCache.sol";
 import "../OptionMarketPricer.sol";
 import "../SynthetixAdapter.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+
+// Inherited
+import "../synthetix/Owned.sol";
 
 /**
  * @title OptionMarketViewer
@@ -17,7 +19,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev Provides helpful functions to allow the dapp to operate more smoothly; logic in getPremiumForTrade is vital to
  * ensuring accurate prices are provided to the user.
  */
-contract OptionMarketViewer is Ownable {
+contract OptionMarketViewer is Owned {
   struct MarketsView {
     IAddressResolver addressResolver;
     bool isPaused;
@@ -117,7 +119,7 @@ contract OptionMarketViewer is Ownable {
   OptionMarket[] public optionMarkets;
   mapping(OptionMarket => OptionMarketAddresses) public marketAddresses;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   /**
    * @dev Initializes the contract

@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 // Libraries
 import "./synthetix/SignedDecimalMath.sol";
 import "./synthetix/DecimalMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
@@ -549,7 +550,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
     uint vegaCoefficient = varianceFeeParams.minimumStaticVega +
       pricing.vega.multiplyDecimal(varianceFeeParams.vegaCoefficient);
     uint skewCoefficient = varianceFeeParams.minimumStaticSkewAdjustment +
-      _abs(int(skew) - int(varianceFeeParams.referenceSkew)).multiplyDecimal(
+      _abs(SafeCast.toInt256(skew) - SafeCast.toInt256(varianceFeeParams.referenceSkew)).multiplyDecimal(
         varianceFeeParams.skewAdjustmentCoefficient
       );
     uint ivVarianceCoefficient = varianceFeeParams.minimumStaticIvVariance +
@@ -577,14 +578,17 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   // External View functions //
   /////////////////////////////
 
+  /// @notice returns current pricing paramters
   function getPricingParams() external view returns (PricingParameters memory) {
     return pricingParams;
   }
 
+  /// @notice returns current trade limit parameters
   function getTradeLimitParams() external view returns (TradeLimitParameters memory) {
     return tradeLimitParams;
   }
 
+  /// @notice returns current variance fee parameters
   function getVarianceFeeParams() external view returns (VarianceFeeParameters memory) {
     return varianceFeeParams;
   }
@@ -593,12 +597,12 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   // Utils //
   ///////////
 
-  function _min(uint a, uint b) internal pure returns (uint minVal) {
-    return a < b ? a : b;
+  function _min(uint x, uint y) internal pure returns (uint) {
+    return (x < y) ? x : y;
   }
 
-  function _max(uint a, uint b) internal pure returns (uint maxVal) {
-    return a > b ? a : b;
+  function _max(uint x, uint y) internal pure returns (uint) {
+    return (x > y) ? x : y;
   }
 
   /**
@@ -606,9 +610,8 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
    *
    * @param val The number to absolute value.
    */
-
-  function _abs(int val) internal pure returns (uint absVal) {
-    return val > 0 ? uint(val) : uint(-val);
+  function _abs(int val) internal pure returns (uint) {
+    return uint(val < 0 ? -val : val);
   }
 
   ///////////////

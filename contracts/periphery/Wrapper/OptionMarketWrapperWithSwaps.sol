@@ -6,18 +6,20 @@ import "../../synthetix/DecimalMath.sol";
 
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "../../OptionMarket.sol";
 import "../../OptionToken.sol";
 import "../../interfaces/ICurve.sol";
 import "../../interfaces/IFeeCounter.sol";
+
+// Inherited
+import "../../synthetix/Owned.sol";
 
 /**
  * @title OptionMarketWrapper
  * @author Lyra
  * @dev Allows users to open/close positions in any market with multiple stablecoins
  */
-contract OptionMarketWrapperWithSwaps is Ownable {
+contract OptionMarketWrapperWithSwaps is Owned {
   using DecimalMath for uint;
 
   ///////////////////
@@ -94,7 +96,7 @@ contract OptionMarketWrapperWithSwaps is Ownable {
   mapping(ERC20 => uint8) internal cachedDecimals;
   mapping(ERC20 => string) internal cachedSymbol;
 
-  constructor() {}
+  constructor() Owned() {}
 
   /**
    * @dev Initialises the contract
@@ -209,7 +211,7 @@ contract OptionMarketWrapperWithSwaps is Ownable {
     return _closePosition(params, true);
   }
 
-  function setCollateralWrapper(
+  function setPositionCollateral(
     uint8 market,
     uint32 positionId,
     uint setCollateralTo
@@ -266,7 +268,7 @@ contract OptionMarketWrapperWithSwaps is Ownable {
    */
   function _openPosition(OptionPositionParams memory params) internal returns (ReturnDetails memory returnDetails) {
     OptionMarketContracts memory c = marketContracts[params.optionMarket];
-    bool useOtherStable = address(params.inputAsset) != address(c.quoteAsset);
+    bool useOtherStable = params.inputAsset != c.quoteAsset;
     int swapFee = 0;
 
     if (params.positionId != 0) {
@@ -290,13 +292,7 @@ contract OptionMarketWrapperWithSwaps is Ownable {
           expected = params.maxCost;
         }
         if (expected > 0) {
-          (, swapFee) = _swapWithCurve(
-            address(params.inputAsset),
-            address(c.quoteAsset),
-            params.inputAmount,
-            expected,
-            address(this)
-          );
+          (, swapFee) = _swapWithCurve(params.inputAsset, c.quoteAsset, params.inputAmount, expected, address(this));
         }
       }
     }
@@ -353,13 +349,7 @@ contract OptionMarketWrapperWithSwaps is Ownable {
           }
         }
         if (expected > 0) {
-          (, swapFee) = _swapWithCurve(
-            address(params.inputAsset),
-            address(c.quoteAsset),
-            params.inputAmount,
-            expected,
-            address(this)
-          );
+          (, swapFee) = _swapWithCurve(params.inputAsset, c.quoteAsset, params.inputAmount, expected, address(this));
         }
       }
     }
@@ -456,16 +446,16 @@ contract OptionMarketWrapperWithSwaps is Ownable {
     quoteBalance = quoteAsset.balanceOf(address(this));
     if (quoteBalance > 0) {
       if (inputAsset != quoteAsset) {
-        uint min = (minReturnPercent * 10**inputAsset.decimals()) / 10**quoteAsset.decimals();
+        uint min = (minReturnPercent * 10**cachedDecimals[inputAsset]) / 10**cachedDecimals[quoteAsset];
         (quoteBalance, swapFee) = _swapWithCurve(
-          address(quoteAsset),
-          address(inputAsset),
+          quoteAsset,
+          inputAsset,
           quoteBalance,
           quoteBalance.multiplyDecimal(min),
           address(this)
         );
       }
-      _transferAsset(inputAsset, msg.sender, address(this), quoteBalance);
+      _transferAsset(inputAsset, address(this), msg.sender, quoteBalance);
     }
   }
 
@@ -483,7 +473,7 @@ contract OptionMarketWrapperWithSwaps is Ownable {
   ) internal {
     uint baseBalance = baseAsset.balanceOf(address(this));
     if (baseBalance > 0) {
-      _transferAsset(baseAsset, msg.sender, address(this), baseBalance);
+      _transferAsset(baseAsset, address(this), msg.sender, baseBalance);
     }
 
     if (token.getPositionState(positionId) == OptionToken.PositionState.ACTIVE) {
@@ -502,33 +492,34 @@ contract OptionMarketWrapperWithSwaps is Ownable {
   /**
    * @dev Attempts to swap the input token with the desired stablecoin.
    *
-   * @param _from Index value of coin being sent
-   * @param _to Index of coin being received
-   * @param _amount Quantity of _from being exchanged
-   * @param _expected Minimum quantity of _to received in order for the transaction to succeed
-   * @param _receiver The receiving address of the tokens
+   * @param from The token being swapped
+   * @param to The token being received
+   * @param amount Quantity of from being exchanged
+   * @param expected Minimum quantity of to received in order for the transaction to succeed
+   * @param receiver The receiving address of the tokens
    */
   function _swapWithCurve(
-    address _from,
-    address _to,
-    uint _amount,
-    uint _expected,
-    address _receiver
+    ERC20 from,
+    ERC20 to,
+    uint amount,
+    uint expected,
+    // TODO: actually return directly to the user in some cases?
+    address receiver
   ) internal returns (uint amountOut, int swapFee) {
-    int8 toDec = int8(ERC20(_to).decimals());
-    int8 fromDec = int8(ERC20(_from).decimals());
-    uint balStart = ERC20(_from).balanceOf(address(this));
+    uint8 toDec = cachedDecimals[to];
+    uint8 fromDec = cachedDecimals[from];
+    uint balStart = from.balanceOf(address(this));
 
-    amountOut = curveSwap.exchange_with_best_rate(_from, _to, _amount, _expected, _receiver);
+    amountOut = curveSwap.exchange_with_best_rate(address(from), address(to), amount, expected, receiver);
 
     uint convertedAmtOut = amountOut;
     if (fromDec < toDec) {
-      balStart = balStart * 10**(_abs(toDec - fromDec));
+      balStart = balStart * 10**(toDec - fromDec);
     } else if (fromDec > toDec) {
-      convertedAmtOut = amountOut * 10**(_abs(toDec - fromDec));
+      convertedAmtOut = amountOut * 10**(fromDec - toDec);
     }
 
-    swapFee = int(balStart) - int(convertedAmtOut);
+    swapFee = SafeCast.toInt256(balStart) - SafeCast.toInt256(convertedAmtOut);
   }
 
   function _transferBaseCollateral(
@@ -548,7 +539,13 @@ contract OptionMarketWrapperWithSwaps is Ownable {
     address to,
     uint amount
   ) internal {
-    if (!asset.transferFrom(from, to, amount)) {
+    bool success = false;
+    if (from == address(this)) {
+      success = asset.transfer(to, amount);
+    } else {
+      success = asset.transferFrom(from, to, amount);
+    }
+    if (!success) {
       revert AssetTransferFailed(address(this), asset, from, to, amount);
     }
   }
@@ -563,8 +560,13 @@ contract OptionMarketWrapperWithSwaps is Ownable {
     }
   }
 
+  /**
+   * @dev Compute the absolute value of `val`.
+   *
+   * @param val The number to absolute value.
+   */
   function _abs(int val) internal pure returns (uint) {
-    return val >= 0 ? uint(val) : uint(-val);
+    return uint(val < 0 ? -val : val);
   }
 
   function _composeTradeParams(OptionPositionParams memory params)

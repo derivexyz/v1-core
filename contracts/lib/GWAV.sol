@@ -17,9 +17,6 @@ library GWAV {
   using DecimalMath for uint;
   using SignedDecimalMath for int;
 
-  /// @dev Internally this library uses 18 decimals of precision
-  uint private constant UNIT = 1e18;
-
   /// @dev Stores all past Observations and the current index
   struct Params {
     Observation[] observations;
@@ -33,7 +30,6 @@ library GWAV {
     int q; // accumulator value used to compute GWAV
     uint nextVal; // value at the time the observation was made, used to calculate the next q value
     uint blockTimestamp;
-    bool initialized;
   }
 
   /////////////
@@ -204,36 +200,39 @@ library GWAV {
     }
 
     // Case 3: target is within the recorded Observations.
-    return _binarySearch(self, target);
+    return self.observations[_binarySearch(self, target)];
   }
 
   /**
-   * @notice Finds closest Observation using binary search
+   * @notice Finds closest Observation before target using binary search and returns its index
    * @dev Used when the target is located within the stored observation boundaries
    * e.g. Older than the most recent observation and younger, or the same age as, the oldest observation
-   * @dev Returns the Observation which is older than target (instead of newer)
+   * @return foundIndex Returns the Observation which is older than target (instead of newer)
    * @param self Stores past Observations and the index of the latest Observation
    * @param target BlockTimestamp of target Observation
    */
-  function _binarySearch(Params storage self, uint target) private view returns (Observation memory beforeOrAt) {
-    Observation memory atOrAfter;
-
+  function _binarySearch(Params storage self, uint target) internal view returns (uint) {
     uint oldest = 0; // oldest observation
     uint newest = self.index; // newest observation
     uint i;
     while (true) {
       i = (oldest + newest) / 2;
-      beforeOrAt = self.observations[i];
+      uint beforeOrAtTimestamp = self.observations[i].blockTimestamp;
 
-      atOrAfter = self.observations[i + 1];
-      bool targetAtOrAfter = beforeOrAt.blockTimestamp <= target;
+      uint atOrAfterTimestamp = self.observations[i + 1].blockTimestamp;
+      bool targetAtOrAfter = beforeOrAtTimestamp <= target;
 
       // check if we've found the answer!
-      if (targetAtOrAfter && target <= atOrAfter.blockTimestamp) break;
+      if (targetAtOrAfter && target <= atOrAfterTimestamp) break;
 
-      if (!targetAtOrAfter) newest = i - 1;
-      else oldest = i + 1;
+      if (!targetAtOrAfter) {
+        newest = i - 1;
+      } else {
+        oldest = i + 1;
+      }
     }
+
+    return i;
   }
 
   /////////////
@@ -252,7 +251,7 @@ library GWAV {
     uint nextVal,
     uint blockTimestamp
   ) internal {
-    self.observations.push(Observation({q: qVal, nextVal: nextVal, blockTimestamp: blockTimestamp, initialized: true}));
+    self.observations.push(Observation({q: qVal, nextVal: nextVal, blockTimestamp: blockTimestamp}));
   }
 
   /**
@@ -263,7 +262,7 @@ library GWAV {
     uint nextVal,
     uint blockTimestamp
   ) private pure returns (Observation memory) {
-    return Observation({q: newQ, nextVal: nextVal, blockTimestamp: blockTimestamp, initialized: true});
+    return Observation({q: newQ, nextVal: nextVal, blockTimestamp: blockTimestamp});
   }
 
   ////////////

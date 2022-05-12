@@ -32,4 +32,10 @@ describe('Short Account', async () => {
     const newId = await hre.f.c.poolHedger.shortId();
     expect(oldId.add(1)).to.eq(newId);
   });
+
+  it('reverts on invalid approval', async () => {
+    await forceCloseShortAccount();
+    await hre.f.c.snx.quoteAsset.setForceFail(true);
+    await expect(hre.f.c.poolHedger.openShortAccount()).revertedWith('QuoteApprovalFailure');
+  });
 });

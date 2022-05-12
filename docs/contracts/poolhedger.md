@@ -92,6 +92,8 @@ Update pool hedger parameters.
 
 Opens/reopens short account if the old one was closed or liquidated.
 
+opens short account with min colalteral and 0 amount
+
 ### Function `_openShortAccount(struct SynthetixAdapter.ExchangeParams exchangeParams) internal`
 
 Opens new short account with min collateral and 0 amount.
@@ -116,9 +118,15 @@ Returns the current hedged netDelta position.
 
 ### Function `getHedgingLiquidity(contract ICollateralShort short, uint256 spotPrice) → uint256 pendingDeltaLiquidity, uint256 usedDeltaLiquidity external`
 
+Returns pending delta hedge liquidity and used delta hedge liquidity
+
+include funds potentially transferred to the contract
+
 ### Function `hedgeDelta() external`
 
-Retrieves the netDelta from the OptionGreekCache and updates the hedge position.
+Retrieves the netDelta from the OptionGreekCache and updates the hedge position based off base
+
+     asset balance of the liquidityPool minus netDelta (from OptionGreekCache)
 
 ### Function `updateCollateral() external`
 
@@ -202,7 +210,15 @@ Sends all quote asset deposited in this contract to the `LiquidityPool`.
 
 ### Function `getPoolHedgerParams() → struct PoolHedger.PoolHedgerParameters external`
 
+Returns PoolHedgerParameters struct
+
 ### Function `_abs(int256 val) → uint256 internal`
+
+Compute the absolute value of `val`.
+
+#### Parameters:
+
+- `val`: The number to absolute value.
 
 ### Event `PoolHedgerParametersSet(struct PoolHedger.PoolHedgerParameters poolHedgerParams)`
 

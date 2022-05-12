@@ -452,8 +452,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       strikeCache,
       boardCache,
       trade,
-      int(strike.longCall) - int(strike.shortCallBase + strike.shortCallQuote),
-      int(strike.longPut) - int(strike.shortPut)
+      SafeCast.toInt256(strike.longCall) - SafeCast.toInt256(strike.shortCallBase + strike.shortCallQuote),
+      SafeCast.toInt256(strike.longPut) - SafeCast.toInt256(strike.shortPut)
     );
 
     pricing.ivVariance = boardCache.ivVariance;
@@ -461,7 +461,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     // If this is a force close or liquidation, override the option price, delta and volTraded based on pricing for
     // force closes.
     if (trade.isForceClose) {
-      (pricing.optionPrice, pricing.callDelta, pricing.volTraded) = getPriceForForceClose(
+      (pricing.optionPrice, pricing.volTraded) = getPriceForForceClose(
         trade,
         strike,
         boardCache.expiry,
@@ -492,14 +492,14 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       .pricesDeltaStdVega();
 
     int strikeOptionValue = (newCallExposure - strikeCache.callExposure).multiplyDecimal(
-      int(strikeCache.greeks.callPrice)
-    ) + (newPutExposure - strikeCache.putExposure).multiplyDecimal(int(strikeCache.greeks.putPrice));
+      SafeCast.toInt256(strikeCache.greeks.callPrice)
+    ) + (newPutExposure - strikeCache.putExposure).multiplyDecimal(SafeCast.toInt256(strikeCache.greeks.putPrice));
 
     int netDeltaDiff = (newCallExposure - strikeCache.callExposure).multiplyDecimal(strikeCache.greeks.callDelta) +
       (newPutExposure - strikeCache.putExposure).multiplyDecimal(strikeCache.greeks.putDelta);
 
     int netStdVegaDiff = (newCallExposure + newPutExposure - strikeCache.callExposure - strikeCache.putExposure)
-      .multiplyDecimal(int(strikeCache.greeks.stdVega));
+      .multiplyDecimal(SafeCast.toInt256(strikeCache.greeks.stdVega));
 
     strikeCache.callExposure = newCallExposure;
     strikeCache.putExposure = newPutExposure;
@@ -542,15 +542,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     uint expiry,
     uint newVol,
     bool isPostCutoff
-  )
-    public
-    view
-    returns (
-      uint optionPrice,
-      int callDelta,
-      uint forceCloseVol
-    )
-  {
+  ) public view returns (uint optionPrice, uint forceCloseVol) {
     forceCloseVol = _getGWAVVolWithOverride(
       strike.boardId,
       strike.id,
@@ -580,7 +572,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
         : forceCloseVol.multiplyDecimal(forceCloseParams.liquidateVolShock);
     }
 
-    BlackScholes.PricesDeltaStdVega memory pricesDeltaStdVega = BlackScholes
+    (uint callPrice, uint putPrice) = BlackScholes
       .BlackScholesInputs({
         timeToExpirySec: _timeToMaturitySeconds(expiry),
         volatilityDecimal: forceCloseVol,
@@ -588,12 +580,12 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
         strikePriceDecimal: strike.strikePrice,
         rateDecimal: greekCacheParams.rateAndCarry
       })
-      .pricesDeltaStdVega();
+      .optionPrices();
 
     uint price = (trade.optionType == OptionMarket.OptionType.LONG_PUT ||
       trade.optionType == OptionMarket.OptionType.SHORT_PUT_QUOTE)
-      ? pricesDeltaStdVega.putPrice
-      : pricesDeltaStdVega.callPrice;
+      ? putPrice
+      : callPrice;
 
     if (trade.isBuy) {
       // In the case a short is being closed, ensure the AMM doesn't overpay by charging parity + some excess
@@ -607,7 +599,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       price = price > minPrice ? price : minPrice;
     }
 
-    return (price, pricesDeltaStdVega.callDelta, forceCloseVol);
+    return (price, forceCloseVol);
   }
 
   function _getGWAVVolWithOverride(
@@ -621,6 +613,15 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     return gwavIV.multiplyDecimal(strikeGWAVSkew);
   }
 
+  /**
+   * @notice Gets minimum collateral requirement for the specified option
+   *
+   * @param optionType The option type
+   * @param strikePrice The strike price of the option
+   * @param expiry The expiry of the option
+   * @param spotPrice The price of the underlying asset
+   * @param amount The size of the option
+   */
   function getMinCollateral(
     OptionMarket.OptionType optionType,
     uint strikePrice,
@@ -669,6 +670,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     return _min(_max(volCollat, staticCollat), fullCollat);
   }
 
+  /// @notice Gets shock vol (Vol used to compute the minimum collateral requirements for short positions)
   function getShockVol(uint timeToMaturity) public view returns (uint) {
     if (timeToMaturity <= minCollatParams.shockVolPointA) {
       return minCollatParams.shockVolA;
@@ -777,14 +779,15 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     strikeCache.greeks.putDelta = pricesDeltaStdVega.putDelta;
     strikeCache.greeks.stdVega = pricesDeltaStdVega.stdVega;
 
-    int strikeOptionValue = (strikeCache.callExposure).multiplyDecimal(int(strikeCache.greeks.callPrice)) +
-      (strikeCache.putExposure).multiplyDecimal(int(strikeCache.greeks.putPrice));
+    int strikeOptionValue = (strikeCache.callExposure).multiplyDecimal(
+      SafeCast.toInt256(strikeCache.greeks.callPrice)
+    ) + (strikeCache.putExposure).multiplyDecimal(SafeCast.toInt256(strikeCache.greeks.putPrice));
 
     int strikeNetDelta = strikeCache.callExposure.multiplyDecimal(strikeCache.greeks.callDelta) +
       strikeCache.putExposure.multiplyDecimal(strikeCache.greeks.putDelta);
 
     int strikeNetStdVega = (strikeCache.callExposure + strikeCache.putExposure).multiplyDecimal(
-      int(strikeCache.greeks.stdVega)
+      SafeCast.toInt256(strikeCache.greeks.stdVega)
     );
 
     boardCache.netGreeks.netOptionValue += strikeOptionValue;
@@ -928,6 +931,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   // Stale cache checking //
   //////////////////////////
 
+  /// @notice returns bool if the global cache is stale based off input spotPrice
   function isGlobalCacheStale(uint spotPrice) external view returns (bool) {
     if (liveBoards.length == 0) {
       return false;
@@ -938,6 +942,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
+  /// @notice returns bool is the board cache is stale
   function isBoardCacheStale(uint boardId) external view returns (bool) {
     uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
     OptionBoardCache memory boardCache = boardCaches[boardId];
@@ -949,7 +954,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Check if the price move of an asset is acceptable given the time to expiry.
+   * @notice Check if the price move of an asset is acceptable given the time to expiry.
    *
    * @param pastPrice The previous price.
    * @param currentPrice The current price.
@@ -964,7 +969,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Checks if `updatedAt` is stale.
+   * @notice Checks if `updatedAt` is stale.
    *
    * @param updatedAt The time of the last update.
    */
@@ -977,17 +982,17 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   // External View functions //
   /////////////////////////////
 
-  /**
-   * @dev Get the current cached global netDelta value.
-   */
+  /// @notice Get the current cached global netDelta value.
   function getGlobalNetDelta() external view returns (int) {
     return globalCache.netGreeks.netDelta;
   }
 
+  /// @notice Get the current global net option value
   function getGlobalOptionValue() external view returns (int) {
     return globalCache.netGreeks.netOptionValue;
   }
 
+  /// @notice Returns the BoardGreeksView struct given a specific boardId
   function getBoardGreeksView(uint boardId) external view returns (BoardGreeksView memory) {
     StrikeGreeks[] memory strikeGreeks = new StrikeGreeks[](boardCaches[boardId].strikes.length);
     uint[] memory skewGWAVs = new uint[](boardCaches[boardId].strikes.length);
@@ -1008,34 +1013,42 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       });
   }
 
+  /// @notice Get StrikeCache given a specific strikeId
   function getStrikeCache(uint strikeId) external view returns (StrikeCache memory) {
     return (strikeCaches[strikeId]);
   }
 
+  /// @notice Get OptionBoardCache given a specific boardId
   function getOptionBoardCache(uint boardId) external view returns (OptionBoardCache memory) {
     return (boardCaches[boardId]);
   }
 
+  /// @notice Get the global cache
   function getGlobalCache() external view returns (GlobalCache memory) {
     return globalCache;
   }
 
+  /// @notice Returns ivGWAV given for a boardId and time period (seconds ago)
   function getIvGWAV(uint boardId, uint secondsAgo) external view returns (uint ivGWAV) {
     return boardIVGWAV[boardId].getGWAVForPeriod(secondsAgo, 0);
   }
 
+  /// @notice Returns skewGWAV given for a strikeId and time period (seconds ago)
   function getSkewGWAV(uint strikeId, uint secondsAgo) external view returns (uint skewGWAV) {
     return strikeSkewGWAV[strikeId].getGWAVForPeriod(secondsAgo, 0);
   }
 
+  /// @notice Get the GreekCacheParameters
   function getGreekCacheParams() external view returns (GreekCacheParameters memory) {
     return greekCacheParams;
   }
 
+  /// @notice Get the ForceCloseParamters
   function getForceCloseParams() external view returns (ForceCloseParameters memory) {
     return forceCloseParams;
   }
 
+  /// @notice Get the MinCollateralParamters
   function getMinCollatParams() external view returns (MinCollateralParameters memory) {
     return minCollatParams;
   }
@@ -1049,22 +1062,18 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     OptionMarket.OptionType optionType
   ) internal pure returns (uint parity) {
     int diff = (optionType == OptionMarket.OptionType.LONG_PUT || optionType == OptionMarket.OptionType.SHORT_PUT_QUOTE)
-      ? int(strikePrice) - int(spot)
-      : int(spot) - int(strikePrice);
+      ? SafeCast.toInt256(strikePrice) - SafeCast.toInt256(spot)
+      : SafeCast.toInt256(spot) - SafeCast.toInt256(strikePrice);
 
-    parity = diff > 0 ? uint(diff) : 0;
+    parity = diff > 0 ? SafeCast.toUint256(diff) : 0;
   }
 
-  /**
-   * @dev Returns time to maturity for a given expiry.
-   */
+  /// @dev Returns time to maturity for a given expiry.
   function _timeToMaturitySeconds(uint expiry) internal view returns (uint) {
     return _getSecondsTo(block.timestamp, expiry);
   }
 
-  /**
-   * @dev Returns the difference in seconds between two dates.
-   */
+  /// @dev Returns the difference in seconds between two dates.
   function _getSecondsTo(uint fromTime, uint toTime) internal pure returns (uint) {
     if (toTime > fromTime) {
       return toTime - fromTime;

@@ -210,7 +210,7 @@ depending on the trade executed.
 
 Updates the exposure of the strike and computes the market black scholes price
 
-### Function `getPriceForForceClose(struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, uint256 expiry, uint256 newVol, bool isPostCutoff) → uint256 optionPrice, int256 callDelta, uint256 forceCloseVol public`
+### Function `getPriceForForceClose(struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, uint256 expiry, uint256 newVol, bool isPostCutoff) → uint256 optionPrice, uint256 forceCloseVol public`
 
 Figure out the price paid by the user for the options, given a trade that is a forceClose
 
@@ -218,7 +218,23 @@ Figure out the price paid by the user for the options, given a trade that is a f
 
 ### Function `getMinCollateral(enum OptionMarket.OptionType optionType, uint256 strikePrice, uint256 expiry, uint256 spotPrice, uint256 amount) → uint256 external`
 
+Gets minimum collateral requirement for the specified option
+
+#### Parameters:
+
+- `optionType`: The option type
+
+- `strikePrice`: The strike price of the option
+
+- `expiry`: The expiry of the option
+
+- `spotPrice`: The price of the underlying asset
+
+- `amount`: The size of the option
+
 ### Function `getShockVol(uint256 timeToMaturity) → uint256 public`
+
+Gets shock vol (Vol used to compute the minimum collateral requirements for short positions)
 
 ### Function `updateBoardCachedGreeks(uint256 boardId) external`
 
@@ -276,7 +292,11 @@ updates maxSkewVariance for the board and across all strikes
 
 ### Function `isGlobalCacheStale(uint256 spotPrice) → bool external`
 
+returns bool if the global cache is stale based off input spotPrice
+
 ### Function `isBoardCacheStale(uint256 boardId) → bool external`
+
+returns bool is the board cache is stale
 
 ### Function `_isPriceMoveAcceptable(uint256 pastPrice, uint256 currentPrice) → bool internal`
 
@@ -302,23 +322,43 @@ Get the current cached global netDelta value.
 
 ### Function `getGlobalOptionValue() → int256 external`
 
+Get the current global net option value
+
 ### Function `getBoardGreeksView(uint256 boardId) → struct OptionGreekCache.BoardGreeksView external`
+
+Returns the BoardGreeksView struct given a specific boardId
 
 ### Function `getStrikeCache(uint256 strikeId) → struct OptionGreekCache.StrikeCache external`
 
+Get StrikeCache given a specific strikeId
+
 ### Function `getOptionBoardCache(uint256 boardId) → struct OptionGreekCache.OptionBoardCache external`
+
+Get OptionBoardCache given a specific boardId
 
 ### Function `getGlobalCache() → struct OptionGreekCache.GlobalCache external`
 
+Get the global cache
+
 ### Function `getIvGWAV(uint256 boardId, uint256 secondsAgo) → uint256 ivGWAV external`
+
+Returns ivGWAV given for a boardId and time period (seconds ago)
 
 ### Function `getSkewGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 skewGWAV external`
 
+Returns skewGWAV given for a strikeId and time period (seconds ago)
+
 ### Function `getGreekCacheParams() → struct OptionGreekCache.GreekCacheParameters external`
+
+Get the GreekCacheParameters
 
 ### Function `getForceCloseParams() → struct OptionGreekCache.ForceCloseParameters external`
 
+Get the ForceCloseParamters
+
 ### Function `getMinCollatParams() → struct OptionGreekCache.MinCollateralParameters external`
+
+Get the MinCollateralParamters
 
 ### Function `_getParity(uint256 strikePrice, uint256 spot, enum OptionMarket.OptionType optionType) → uint256 parity internal`
 
