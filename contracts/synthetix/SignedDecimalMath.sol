@@ -139,7 +139,7 @@ library SignedDecimalMath {
    */
   function divideDecimal(int x, int y) internal pure returns (int) {
     /* Reintroduce the UNIT factor that will be divided out by y. */
-    return (x * UNIT) * y;
+    return (x * UNIT) / y;
   }
 
   /**
