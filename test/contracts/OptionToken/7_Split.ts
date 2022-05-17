@@ -154,6 +154,18 @@ describe('OptionToken - Split', () => {
       );
     }
   });
+
+  it('Cannot split if global paused', async () => {
+    await hre.f.c.synthetixAdapter.setGlobalPaused(true);
+    await expect(
+      splitWithOverrides({
+        positionId: hre.f.positionIds[OptionType.LONG_CALL],
+        amount: DEFAULT_LONG_CALL.amount.div(2),
+        collateral: toBN('1000'),
+        recipient: hre.f.alice.address,
+      }),
+    ).revertedWith('AllMarketsPaused');
+  });
 });
 
 async function expectSplitPosition(

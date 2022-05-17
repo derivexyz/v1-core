@@ -143,7 +143,7 @@ export async function allCurrenciesFixture() {
     await hre.f.USDC.permitMint(hre.f.c.testCurve.address, true);
     await hre.f.DAI.permitMint(hre.f.c.testCurve.address, true);
 
-    await hre.f.c.testCurve.setRate(hre.f.USDC.address, '1010000');
+    await hre.f.c.testCurve.setRate(hre.f.USDC.address, 1010000);
     await hre.f.c.testCurve.setRate(hre.f.DAI.address, toBN('1.01'));
     await hre.f.c.testCurve.setRate(hre.f.c.snx.quoteAsset.address, toBN('0.999'));
 

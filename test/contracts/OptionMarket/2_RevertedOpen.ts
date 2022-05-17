@@ -22,9 +22,7 @@ describe('Reverted Open', async () => {
     setCollateralTo?: BigNumber;
   };
 
-  beforeEach(async () => {
-    await seedFixture();
-  });
+  beforeEach(seedFixture);
 
   ALL_TYPES.forEach(async optionType => {
     describe('revert: ' + OptionType[optionType], async () => {
@@ -68,21 +66,28 @@ describe('Reverted Open', async () => {
           }),
         ).revertedWith('TradingCutoffReached');
       });
-      it('zero iterations', async () => {
+      it('invalid inputs', async () => {
+        // Zero iterations
         await expect(
           openPositionWithOverrides(hre.f.c, {
             ...DEFAULT_PARAM,
             iterations: 0,
           }),
         ).revertedWith('ExpectedNonZeroValue');
-      });
-      it('zero amount', async () => {
+        // Zero amount
         await expect(
           openPositionWithOverrides(hre.f.c, {
             ...DEFAULT_PARAM,
             amount: 0,
           }),
         ).revertedWith('CannotOpenZeroAmount');
+        // Strke zero
+        await expect(
+          openPositionWithOverrides(hre.f.c, {
+            ...DEFAULT_PARAM,
+            strikeId: 0,
+          }),
+        ).revertedWith('ExpectedNonZeroValue');
       });
       it('adding to non existent position', async () => {
         await expect(

@@ -264,9 +264,9 @@ library BlackScholes {
     uint timeToExpirySec
   ) internal pure returns (uint) {
     timeToExpirySec = timeToExpirySec < VEGA_STANDARDISATION_MIN_DAYS ? VEGA_STANDARDISATION_MIN_DAYS : timeToExpirySec;
-    uint daysToExpiry = (timeToExpirySec * PRECISE_UNIT) / 1 days;
+    uint daysToExpiry = timeToExpirySec / 1 days;
     uint thirty = 30 * PRECISE_UNIT;
-    return _sqrtPrecise(thirty.divideDecimalRoundPrecise(daysToExpiry)) / 100;
+    return _sqrtPrecise(thirty / daysToExpiry) / 100;
   }
 
   /////////////////////

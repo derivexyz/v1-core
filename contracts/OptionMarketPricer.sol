@@ -618,7 +618,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   // Modifiers //
   ///////////////
 
-  modifier onlyOptionMarket() virtual {
+  modifier onlyOptionMarket() {
     if (msg.sender != optionMarket) {
       revert OnlyOptionMarket(address(this), msg.sender, optionMarket);
     }

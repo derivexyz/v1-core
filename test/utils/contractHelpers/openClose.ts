@@ -16,7 +16,7 @@ import { TestSystemContractsType } from '../deployTestSystem';
 import { expect, hre } from '../testSetup';
 import { getSpotPrice } from './synthetix';
 
-async function getMarketTradeArgs(
+function getMarketTradeArgs(
   c: TestSystemContractsType,
   parameters: {
     strikeId: BigNumberish;
@@ -28,7 +28,7 @@ async function getMarketTradeArgs(
     minTotalCost?: BigNumberish;
     maxTotalCost?: BigNumberish;
   },
-): Promise<TradeInputParametersStruct> {
+): TradeInputParametersStruct {
   return {
     strikeId: parameters.strikeId,
     positionId: parameters.positionId || 0,
@@ -56,7 +56,7 @@ export async function openPositionWithOverrides(
   sender?: SignerWithAddress,
 ): Promise<[ContractTransaction, BigNumber]> {
   const tx = await (sender ? c.optionMarket.connect(sender) : c.optionMarket).openPosition(
-    await getMarketTradeArgs(c, parameters),
+    getMarketTradeArgs(c, parameters),
   );
   const event = getEventArgs(await tx.wait(), 'Trade');
   return [tx, event.positionId];
@@ -78,7 +78,7 @@ export async function closePositionWithOverrides(
   sender?: SignerWithAddress,
 ): Promise<ContractTransaction> {
   return await (sender ? c.optionMarket.connect(sender) : c.optionMarket).closePosition(
-    await getMarketTradeArgs(c, parameters),
+    getMarketTradeArgs(c, parameters),
   );
 }
 
@@ -135,7 +135,7 @@ export async function forceClosePositionWithOverrides(
   sender?: SignerWithAddress,
 ): Promise<ContractTransaction> {
   return await (sender ? c.optionMarket.connect(sender) : c.optionMarket).forceClosePosition(
-    await getMarketTradeArgs(c, parameters),
+    getMarketTradeArgs(c, parameters),
   );
 }
 
@@ -217,7 +217,7 @@ export async function openPosition(
   return await openPositionWithOverrides(
     hre.f.c,
     {
-      strikeId: hre.f.strike.strikeId,
+      strikeId: parameters.strikeId || hre.f.strike.strikeId,
       ...parameters,
     },
     sender,

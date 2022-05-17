@@ -136,6 +136,13 @@ describe('OptionToken - Merge', () => {
       'MustMergeTwoOrMorePositions',
     );
 
+    // Cannot merge if global pause
+    await hre.f.c.synthetixAdapter.setGlobalPaused(true);
+    await expect(hre.f.c.optionToken.merge([hre.f.positionIds[OptionType.LONG_CALL], secondPos])).to.be.revertedWith(
+      'AllMarketsPaused',
+    );
+    await hre.f.c.synthetixAdapter.setGlobalPaused(false);
+
     // Cannot merge different types
     await expect(
       hre.f.c.optionToken.merge([hre.f.positionIds[OptionType.LONG_CALL], hre.f.positionIds[OptionType.LONG_PUT]]),

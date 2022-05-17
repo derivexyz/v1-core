@@ -306,12 +306,19 @@ export async function getLocalRealSynthetixContract(
   contractName: string,
 ): Promise<BaseContract> {
   const data = require(resolve(path.join('.lyra', network, 'real-synthetix.json')));
-  return new BaseContract(
-    data.targets[contractName].address,
-    data.sources[data.targets[contractName].source].abi,
-    deployer,
-  );
-  // need to figure out where this is dissappearing
+  if (network == 'local' && contractName == 'ProxyERC20sUSD') {
+    contractName = 'ProxysUSD';
+  }
+
+  const address = data.targets[contractName].address;
+  let abi = data.sources[data.targets[contractName].source].abi;
+
+  if (network == 'local' && contractName == 'ProxySynthetix') {
+    abi = data.sources[data.targets['Synthetix'].source].abi;
+  }
+
+  return new BaseContract(address, abi, deployer);
+  // need to figure out where this is disappearing
 }
 
 export const EMPTY_LYRA_ARTIFACT = {

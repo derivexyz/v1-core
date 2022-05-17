@@ -6,6 +6,8 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 - `onlyOptionMarket()`
 
+- `notGlobalPaused()`
+
 ## Functions:
 
 - `init(contract OptionMarket _optionMarket, contract LiquidityPool _liquidityPool, contract OptionToken _optionToken, contract SynthetixAdapter _synthetixAdapter, contract ERC20 _quoteAsset, contract ERC20 _baseAsset) (external)`
@@ -44,7 +46,7 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 - `BoardSettlementCollateralSent(uint256 amountBaseSent, uint256 amountQuoteSent, uint256 lpBaseInsolvency, uint256 lpQuoteInsolvency, uint256 LPBaseExcess, uint256 LPQuoteExcess)`
 
-- `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount, uint256 insolventAmount)`
+- `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount, uint256 settlementAmount, uint256 insolventAmount)`
 
 - `QuoteSent(address receiver, uint256 amount)`
 
@@ -53,6 +55,8 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 - `BaseExchangedAndQuoteSent(address recipient, uint256 amountBase, uint256 quoteReceived)`
 
 ### Modifier `onlyOptionMarket()`
+
+### Modifier `notGlobalPaused()`
 
 ### Function `init(contract OptionMarket _optionMarket, contract LiquidityPool _liquidityPool, contract OptionToken _optionToken, contract SynthetixAdapter _synthetixAdapter, contract ERC20 _quoteAsset, contract ERC20 _baseAsset) external`
 
@@ -96,7 +100,7 @@ Transfers quoteAsset and baseAsset to the LiquidityPool.
 
 - `amountQuote`: The amount of quoteAsset to transfer.
 
-### Function `settleOptions(uint256[] positionIds) → uint256[] settlementAmounts external`
+### Function `settleOptions(uint256[] positionIds) external`
 
 Settles options for expired and liquidated strikes. Also functions as the way to reclaim capital for options
 
@@ -130,7 +134,7 @@ sold to the market.
 
 Emitted when a board is settled
 
-### Event `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount, uint256 insolventAmount)`
+### Event `PositionSettled(uint256 positionId, address settler, address optionOwner, uint256 strikePrice, uint256 priceAtExpiry, enum OptionMarket.OptionType optionType, uint256 amount, uint256 settlementAmount, uint256 insolventAmount)`
 
 Emitted when an Option is settled.
 

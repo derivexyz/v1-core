@@ -554,13 +554,13 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       // If the tradeDirection is a close, we know the user force closed.
       if (trade.isBuy) {
         // closing a short - maximise vol
-        forceCloseVol = forceCloseVol > newVol ? forceCloseVol : newVol;
+        forceCloseVol = _max(forceCloseVol, newVol);
         forceCloseVol = isPostCutoff
           ? forceCloseVol.multiplyDecimal(forceCloseParams.shortPostCutoffVolShock)
           : forceCloseVol.multiplyDecimal(forceCloseParams.shortVolShock);
       } else {
         // closing a long - minimise vol
-        forceCloseVol = forceCloseVol < newVol ? forceCloseVol : newVol;
+        forceCloseVol = _min(forceCloseVol, newVol);
         forceCloseVol = isPostCutoff
           ? forceCloseVol.multiplyDecimal(forceCloseParams.longPostCutoffVolShock)
           : forceCloseVol.multiplyDecimal(forceCloseParams.longVolShock);
@@ -596,7 +596,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
             ? forceCloseParams.shortSpotMin
             : forceCloseParams.liquidateSpotMin
         );
-      price = price > minPrice ? price : minPrice;
+      price = _max(price, minPrice);
     }
 
     return (price, forceCloseVol);
@@ -1092,14 +1092,14 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   ///////////////
   // Modifiers //
   ///////////////
-  modifier onlyOptionMarket() virtual {
+  modifier onlyOptionMarket() {
     if (msg.sender != address(optionMarket)) {
       revert OnlyOptionMarket(address(this), msg.sender, address(optionMarket));
     }
     _;
   }
 
-  modifier onlyOptionMarketPricer() virtual {
+  modifier onlyOptionMarketPricer() {
     if (msg.sender != address(optionMarketPricer)) {
       revert OnlyOptionMarketPricer(address(this), msg.sender, address(optionMarketPricer));
     }

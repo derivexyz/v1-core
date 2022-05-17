@@ -99,7 +99,7 @@ export function getAllMatchingEvents(receipt: ContractReceipt, eventName: string
   }
   const values = receipt.events.filter(e => e.event === eventName);
   if (values == []) {
-    throw new Error('Could not find event ${eventName}');
+    throw new Error(`Could not find event ${eventName}`);
   }
 
   for (const event of values) {

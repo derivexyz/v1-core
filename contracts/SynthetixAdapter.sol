@@ -13,7 +13,6 @@ import "./interfaces/ICollateralShort.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IExchanger.sol";
 import "./interfaces/IExchangeRates.sol";
-
 import "./LiquidityPool.sol";
 import "./interfaces/IDelegateApprovals.sol";
 
@@ -189,6 +188,13 @@ contract SynthetixAdapter is OwnedUpgradeable {
     exchangeParams.spotPrice = getSpotPrice(exchangeParams.baseKey);
     exchangeParams.quoteBaseFeeRate = exchanger.feeRateForExchange(exchangeParams.quoteKey, exchangeParams.baseKey);
     exchangeParams.baseQuoteFeeRate = exchanger.feeRateForExchange(exchangeParams.baseKey, exchangeParams.quoteKey);
+  }
+
+  /// @dev Revert if the global state is paused
+  function requireNotGlobalPaused(address optionMarket) external view {
+    if (isGlobalPaused) {
+      revert AllMarketsPaused(address(this), optionMarket);
+    }
   }
 
   /////////////////////////////////////////

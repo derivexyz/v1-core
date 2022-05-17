@@ -29,16 +29,18 @@
     "clean": "hardhat clean && rimraf ./cache && rimraf ./artifacts && rimraf ./cache-ovm && rimraf ./artifacts-ovm",
     "compile": "hardhat compile",
     "build": "yarn clean && yarn compile",
-    "test": "hardhat test",
-    "test:heavy": "hardhat test:heavy",
-    "coverage": "hardhat coverage --temp artifacts --network hardhat  --testfiles \"test/contracts/**/*.ts\"",
+    "test": "hardhat test ./test/contracts/**/*.ts",
+    "test:heavy": "hardhat test:heavy ./test/contracts/**/*.ts",
+    "coverage": "hardhat coverage --temp artifacts --network hardhat  --testfiles \"./test/contracts/**/*.ts\"",
     "deployAndSeed": "yarn deployTest --network local && yarn seedTest --network local",
     "deploy:wait": "wait-port 8545 && yarn deployAndSeed",
     "deployTest": "hardhat run scripts/deployTest.ts",
+    "deployReal": "hardhat run scripts/deployReal.ts",
     "deployTestWithRealPricing": "hardhat run scripts/deployTestWithRealPricing.ts",
     "seedTest": "hardhat run scripts/seedTest.ts",
     "seedTestWithRealPricing": "hardhat run scripts/seedTestWithRealPricing.ts",
-    "integration": "hardhat run scripts/runIntegrationTest.ts --network local",
+    "integration": "hardhat test --network local ./test/integration/integrationTests.ts",
+    "integration:wait": "wait-port 8545 && hardhat test --network local ./test/integration/integrationTests.ts",
     "doc:uml": "sol2uml ./contracts -i mocks,test -f png -o ./docs/uml/lyra.png",
     "docify": "node docify.js",
     "docgen": "yarn doc:uml && yarn docify",
@@ -64,6 +66,7 @@
   },
   "devDependencies": {
     "@ethereum-waffle/mock-contract": "^3.3.0",
+    "@ethersproject/abstract-provider": "^5.6.0",
     "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-etherscan": "^2.1.5",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
@@ -101,6 +104,7 @@
     "solidity-coverage": "^0.7.18",
     "solidity-docgen": "^0.5.13",
     "surya": "git+https://github.com/DominicRomanowski/surya.git#patch-1",
+    "synthetix": "git+https://github.com/joshpwrk/synthetix#dependancy-changes-for-integrations",
     "ts-generator": "^0.1.1",
     "ts-node": "^9.1.1",
     "typechain": "^6.0.5",
@@ -114,9 +118,8 @@
     "@openzeppelin/contracts-upgradeable": "^4.5.1",
     "@openzeppelin/hardhat-upgrades": "^1.14.0",
     "@typechain/hardhat": "^3.0.0",
-    "@types/lodash": "^4.14.180",
+    "hardhat-dependency-compiler": "^1.1.2",
     "hardhat-tracer": "1.0.0-alpha.6",
-    "lodash": "^4.17.21",
     "stochastic": "^0.0.14"
   },
   "peerDependencies": {
@@ -125,7 +128,7 @@
     "@typechain/hardhat": "^3.0.0",
     "ethers": "^5.1.0",
     "hardhat": "^2.8.0",
-    "typechain": "^6.0.5",
-    "hardhat-dependency-compiler": "^1.1.2"
+    "hardhat-dependency-compiler": "^1.1.2",
+    "typechain": "^6.0.5"
   }
 }

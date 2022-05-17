@@ -115,7 +115,7 @@ export async function deployProxyContract(
   let contract: Contract;
   let implementation: ContractFactory;
   let implementationAddress: string;
-  let count = 3;
+  let count = 2;
 
   while (true) {
     try {
@@ -311,7 +311,7 @@ export async function openPosition(
     iterations?: number;
   },
 ) {
-  const marketTradeArgs = await getMarketTradeArgs(openParams);
+  const marketTradeArgs = getMarketTradeArgs(openParams);
 
   const tx = (await executeLyraFunction(
     deploymentParams,
@@ -327,7 +327,39 @@ export async function openPosition(
   console.log('-'.repeat(10));
   return getEventArgs(receipt, 'Trade').positionId;
 }
-export async function getMarketTradeArgs(parameters: {
+
+export async function closePosition(
+  deploymentParams: DeploymentParams,
+  market: string,
+  closeParams: {
+    strikeId: BigNumberish;
+    positionId: BigNumberish;
+    optionType: OptionType;
+    amount: BigNumberish;
+    setCollateralTo?: BigNumberish;
+    iterations?: number;
+    minTotalCost?: BigNumberish;
+    maxTotalCost?: BigNumberish;
+  },
+) {
+  const marketTradeArgs = getMarketTradeArgs(closeParams);
+
+  const tx = (await executeLyraFunction(
+    deploymentParams,
+    'OptionMarket',
+    'closePosition',
+    [marketTradeArgs],
+    market,
+  )) as any;
+
+  const receipt = await tx.wait();
+
+  console.log(`TotalCost for trade: ${fromBN(getEventArgs(receipt, 'Trade').trade.totalCost)}`);
+  console.log('-'.repeat(10));
+  return getEventArgs(receipt, 'Trade').positionId;
+}
+
+export function getMarketTradeArgs(parameters: {
   strikeId: BigNumberish;
   positionId?: BigNumberish;
   optionType: OptionType;
@@ -336,7 +368,7 @@ export async function getMarketTradeArgs(parameters: {
   iterations?: BigNumberish;
   minTotalCost?: BigNumberish;
   maxTotalCost?: BigNumberish;
-}): Promise<TradeInputParametersStruct> {
+}): TradeInputParametersStruct {
   return {
     strikeId: parameters.strikeId,
     positionId: parameters.positionId || 0,

@@ -105,7 +105,7 @@ library FixedPointMathLib {
 
     // When the result is > (2**255 - 1) / 1e18 we can not represent it
     // as an int256. This happens when x >= floor(log((2**255 -1) / 1e18) * 1e18) ~ 135.
-    if (x >= 135305999368893231589) revert Overflow();
+    if (x >= 135305999368893231589) revert ExpOverflow();
 
     // x is now in the range (-42, 136) * 1e18. Convert to (-42, 136) * 2**96
     // for more intermediate precision and a binary basis. This base conversion
@@ -152,5 +152,6 @@ library FixedPointMathLib {
   }}
 
   error Overflow();
+  error ExpOverflow();
   error LnNegativeUndefined();
 }

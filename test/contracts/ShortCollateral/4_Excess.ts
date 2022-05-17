@@ -58,6 +58,11 @@ describe('LP excess', () => {
     expect(await hre.f.c.liquidityPool.insolventSettlementAmount()).to.eq(excessEstimateinQuote);
     expect(await hre.f.c.shortCollateral.LPBaseExcess()).to.not.eq(0);
 
+    // Cover edge case for coverage
+    await hre.f.c.snx.baseAsset.setForceFail(true);
+    await expect(hre.f.c.shortCollateral.settleOptions([insolventPos])).revertedWith('BaseTransferFailed');
+    await hre.f.c.snx.baseAsset.setForceFail(false);
+
     // settle large insolvent position and calls reclaim()
     await hre.f.c.shortCollateral.settleOptions([insolventPos]);
     expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.shortCollateral.address)).to.eq(remainingCollatOfSafeShort);
@@ -72,6 +77,7 @@ describe('LP excess', () => {
     await hre.f.c.shortCollateral.settleOptions([solventPos]); // shouldn't revert
     expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.shortCollateral.address)).to.eq(toBN('0'));
   });
+
   it('short call quote', async () => {
     const [, insolventPos] = await openPositionWithOverrides(hre.f.c, {
       strikeId: hre.f.strike.strikeId,

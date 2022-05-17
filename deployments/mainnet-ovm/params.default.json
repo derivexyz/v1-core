@@ -1,16 +1,109 @@
 {
   "QuoteTicker": "sUSD",
-  "DefaultParameters": {
-    "tradingCutoff": 86400,
-    "optionPriceFeeCoefficient": "0.01",
-    "spotPriceFeeCoefficient": "0.003",
-    "vegaFeeCoefficient": "100",
-    "vegaNormFactor": "0.2",
-    "standardSize": "5",
-    "skewAdjustmentFactor": "0.0125",
-    "rateAndCarry": "0.11",
-    "minDelta": "0.15",
-    "volatilityCutoff": "0.55"
+  "Parameters": {
+    "OptionMarketParams": {
+      "maxBoardExpiry": 7344000,
+      "securityModule": "0x0000000000000000000000000000000000000000",
+      "feePortionReserved": "0.02"
+    },
+    "LiquidityPoolParams": {
+      "minDepositWithdraw": "1",
+      "depositDelay": 900,
+      "withdrawalDelay": 900,
+      "withdrawalFee": "0.01",
+      "liquidityCBThreshold": "0.01",
+      "liquidityCBTimeout": 300,
+      "ivVarianceCBThreshold": "0.1",
+      "skewVarianceCBThreshold": "0.35",
+      "ivVarianceCBTimeout": 300,
+      "skewVarianceCBTimeout": 300,
+      "guardianMultisig": "0x0000000000000000000000000000000000000000",
+      "guardianDelay": 0,
+      "boardSettlementCBTimeout": 300,
+      "maxFeePaid": "0.002"
+    },
+    "GreekCacheParams": {
+      "maxStrikesPerBoard": 30,
+      "acceptableSpotPricePercentMove":  "0.05",
+      "staleUpdateDuration":  1800,
+      "varianceIvGWAVPeriod":  21600,
+      "varianceSkewGWAVPeriod":  21600,
+      "optionValueIvGWAVPeriod":  259200,
+      "optionValueSkewGWAVPeriod": 259200,
+      "gwavSkewFloor":"0.5",
+      "gwavSkewCap":  "5",
+      "rateAndCarry": "0.05"
+    },
+    "MinCollateralParams": {
+      "minStaticBaseCollateral": "0.2",
+      "minStaticQuoteCollateral": "200",
+      "shockVolA": "2.5",
+      "shockVolPointA": 100800,
+      "shockVolB": "2.5",
+      "shockVolPointB": 201600,
+      "callSpotPriceShock": "1.2",
+      "putSpotPriceShock": "0.8"
+    },
+    "ForceCloseParams": {
+      "ivGWAVPeriod": 43200,
+      "skewGWAVPeriod": 86400,
+      "shortVolShock": "1.2",
+      "shortPostCutoffVolShock": "1.4",
+      "longVolShock": "0.8",
+      "longPostCutoffVolShock": "0.5",
+      "liquidateVolShock": "1.3",
+      "liquidatePostCutoffVolShock": "1.6",
+      "shortSpotMin": "0.01",
+      "liquidateSpotMin": "0.02"
+    },
+    "PricingParams": {
+      "optionPriceFeeCoefficient": "0.01",
+      "optionPriceFee1xPoint": 3628800,
+      "optionPriceFee2xPoint": 7257600,
+      "spotPriceFeeCoefficient": "0.001",
+      "spotPriceFee1xPoint": 3628800,
+      "spotPriceFee2xPoint": 7257600,
+      "vegaFeeCoefficient": "100",
+      "standardSize": "150",
+      "skewAdjustmentFactor": "1"
+    },
+    "TradeLimitParams": {
+      "maxBaseIV": "3",
+      "maxSkew": "1.6",
+      "minBaseIV": "0.4",
+      "minSkew": "0.8",
+      "minDelta": "0.085",
+      "minForceCloseDelta": "0.1",
+      "minVol": "0.4",
+      "maxVol": "3.5",
+      "tradingCutoff": 43200,
+      "absMaxSkew": "4",
+      "absMinSkew": "0.4",
+      "capSkewsToAbs": true
+    },
+    "VarianceFeeParams": {
+      "defaultVarianceFeeCoefficient": "0.65",
+      "forceCloseVarianceFeeCoefficient": "0",
+      "skewAdjustmentCoefficient": "1",
+      "referenceSkew": "0",
+      "minimumStaticSkewAdjustment": "0",
+      "vegaCoefficient": "1",
+      "minimumStaticVega": "0",
+      "ivVarianceCoefficient": "1",
+      "minimumStaticIvVariance": "0"
+    },
+    "PartialCollatParams": {
+      "penaltyRatio": "0.1",
+      "liquidatorFeeRatio": "0.2",
+      "smFeeRatio": "0.15",
+      "minLiquidationFee": "15",
+      "securityModule": "0x5ec0000000000000000000000000000000000000"
+    },
+    "PoolHedgerParams": {
+      "shortBuffer": "2",
+      "interactionDelay": 900,
+      "hedgeCap": "0.5"
+    }
   },
   "SwapRouter": "0x0000000000000000000000000000000000000000",
   "Markets": {
@@ -23,20 +116,6 @@
         "optionPriceFeeCoefficient": "0.005",
         "vegaFeeCoefficient": "200"
       }
-    }
-  },
-  "SwapTestERC20s": {
-    "USDC": {
-      "Ticker": "USDC",
-      "Name": "USD Coin",
-      "Decimals": 6,
-      "Rate": "1"
-    },
-    "WETH": {
-      "Ticker": "WETH",
-      "Name": "Wrapped eth",
-      "Decimals": 18,
-      "Rate": "2500"
     }
   },
   "Seed": {
@@ -57,9 +136,6 @@
         }
       }
     },
-    "addExercisableOptions": {
-      "run": false
-    },
     "addBoards": {
       "run": true,
       "markets": {
@@ -70,23 +146,28 @@
     },
     "updateCaches": {
       "markets": {
-        "sETH": true
+        "sETH": false
       }
     },
     "hedgeDelta": {
       "markets": {
-        "sETH": true
+        "sETH": false
       }
     },
-    "seedTrades": {
-      "markets": {
+    "markets": {
+      "seedTrades": {
+        "populationParameters" : {
+          "repetitionProbabilityPerBoard": 0.75,
+          "maxPerBoard": 10
+        },
         "sETH": true
       }
     },
     "changeOwner": {
       "run": false,
+      "globalOwner": "0x676fcee7af0dd0060b238d00d43a5542f3aa3b3e",
       "markets": {
-        "sETH": "0x000"
+        "sETH": "0x676fcee7af0dd0060b238d00d43a5542f3aa3b3e"
       }
     }
   }

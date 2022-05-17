@@ -94,7 +94,7 @@ contract LiquidityTokens is ERC20, Owned, SimpleInitializeable {
   // Modifiers //
   ///////////////
 
-  modifier onlyLiquidityPool() virtual {
+  modifier onlyLiquidityPool() {
     if (msg.sender != liquidityPool) {
       revert OnlyLiquidityPool(address(this), msg.sender, liquidityPool);
     }

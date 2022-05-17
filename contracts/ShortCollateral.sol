@@ -155,25 +155,23 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   // Position Settlement //
   /////////////////////////
 
-  error BoardMustBeSettled(address thrower, OptionToken.PositionWithOwner position);
-
   /**
    * @dev Settles options for expired and liquidated strikes. Also functions as the way to reclaim capital for options
    * sold to the market.
    *
    * @param positionIds The ids of the relevant OptionTokens.
    */
-  function settleOptions(uint[] memory positionIds) external nonReentrant returns (uint[] memory settlementAmounts) {
+  function settleOptions(uint[] memory positionIds) external nonReentrant notGlobalPaused {
     // This is how much is missing from the ShortCollateral contract that was claimed by LPs at board expiry
     // We want to take it back when we know how much was missing.
     uint baseInsolventAmount = 0;
     uint quoteInsolventAmount = 0;
 
     OptionToken.PositionWithOwner[] memory optionPositions = optionToken.getPositionsWithOwner(positionIds);
-    settlementAmounts = new uint[](positionIds.length);
 
     for (uint i = 0; i < optionPositions.length; i++) {
       OptionToken.PositionWithOwner memory position = optionPositions[i];
+      uint settlementAmount;
       uint insolventAmount;
       (uint strikePrice, uint priceAtExpiry, uint ammShortCallBaseProfitRatio) = optionMarket.getSettlementParameters(
         position.strikeId
@@ -184,11 +182,11 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
       }
 
       if (position.optionType == OptionMarket.OptionType.LONG_CALL) {
-        settlementAmounts[i] = _sendLongCallProceeds(position.owner, position.amount, strikePrice, priceAtExpiry);
+        settlementAmount = _sendLongCallProceeds(position.owner, position.amount, strikePrice, priceAtExpiry);
       } else if (position.optionType == OptionMarket.OptionType.LONG_PUT) {
-        settlementAmounts[i] = _sendLongPutProceeds(position.owner, position.amount, strikePrice, priceAtExpiry);
+        settlementAmount = _sendLongPutProceeds(position.owner, position.amount, strikePrice, priceAtExpiry);
       } else if (position.optionType == OptionMarket.OptionType.SHORT_CALL_BASE) {
-        (settlementAmounts[i], insolventAmount) = _sendShortCallBaseProceeds(
+        (settlementAmount, insolventAmount) = _sendShortCallBaseProceeds(
           position.owner,
           position.collateral,
           position.amount,
@@ -196,7 +194,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         );
         baseInsolventAmount += insolventAmount;
       } else if (position.optionType == OptionMarket.OptionType.SHORT_CALL_QUOTE) {
-        (settlementAmounts[i], insolventAmount) = _sendShortCallQuoteProceeds(
+        (settlementAmount, insolventAmount) = _sendShortCallQuoteProceeds(
           position.owner,
           position.collateral,
           position.amount,
@@ -206,7 +204,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         quoteInsolventAmount += insolventAmount;
       } else {
         // OptionMarket.OptionType.SHORT_PUT_QUOTE
-        (settlementAmounts[i], insolventAmount) = _sendShortPutQuoteProceeds(
+        (settlementAmount, insolventAmount) = _sendShortPutQuoteProceeds(
           position.owner,
           position.collateral,
           position.amount,
@@ -224,6 +222,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         priceAtExpiry,
         position.optionType,
         position.amount,
+        settlementAmount,
         insolventAmount
       );
     }
@@ -380,10 +379,15 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   // Modifiers //
   ///////////////
 
-  modifier onlyOptionMarket() virtual {
+  modifier onlyOptionMarket() {
     if (msg.sender != address(optionMarket)) {
       revert OnlyOptionMarket(address(this), msg.sender, address(optionMarket));
     }
+    _;
+  }
+
+  modifier notGlobalPaused() {
+    synthetixAdapter.requireNotGlobalPaused(address(optionMarket));
     _;
   }
 
@@ -412,6 +416,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     uint priceAtExpiry,
     OptionMarket.OptionType optionType,
     uint amount,
+    uint settlementAmount,
     uint insolventAmount
   );
 
@@ -440,5 +445,6 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   error QuoteTransferFailed(address thrower, address from, address to, uint amount);
 
   // Access
+  error BoardMustBeSettled(address thrower, OptionToken.PositionWithOwner position);
   error OnlyOptionMarket(address thrower, address caller, address optionMarket);
 }

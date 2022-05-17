@@ -48,7 +48,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     BASE_IV,
     SKEW,
     STRIKE_PRICE,
-    ITERATIONS
+    ITERATIONS,
+    STRIKE_ID
   }
 
   ///////////////////
@@ -360,7 +361,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     emit OptionMarketParamsSet(optionMarketParams);
   }
 
-  function smClaim() external {
+  function smClaim() external notGlobalPaused {
     if (msg.sender != optionMarketParams.securityModule) {
       revert OnlySecurityModule(address(this), msg.sender, optionMarketParams.securityModule);
     }
@@ -504,7 +505,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param positionId addCollateral to this positionId
    * @param amountCollateral the amount of collateral to be added
    */
-  function addCollateral(uint positionId, uint amountCollateral) external nonReentrant {
+  function addCollateral(uint positionId, uint amountCollateral) external nonReentrant notGlobalPaused {
     int pendingCollateral = SafeCast.toInt256(amountCollateral);
     OptionType optionType = optionToken.addCollateral(positionId, amountCollateral);
     _routeUserCollateral(optionType, pendingCollateral);
@@ -652,7 +653,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    * @dev Compile all trade related details
    */
   function _composeTrade(
-    uint _strikeId,
+    uint strikeId,
     OptionType optionType,
     uint amount,
     TradeDirection _tradeDirection,
@@ -667,13 +668,16 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       OptionBoard storage board
     )
   {
+    if (strikeId == 0) {
+      revert ExpectedNonZeroValue(address(this), NonZeroValues.STRIKE_ID);
+    }
     if (iterations == 0) {
       revert ExpectedNonZeroValue(address(this), NonZeroValues.ITERATIONS);
     }
 
-    strike = strikes[_strikeId];
-    if (strike.id != _strikeId) {
-      revert InvalidStrikeId(address(this), _strikeId);
+    strike = strikes[strikeId];
+    if (strike.id != strikeId) {
+      revert InvalidStrikeId(address(this), strikeId);
     }
     board = optionBoards[strike.boardId];
 
@@ -762,14 +766,6 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     return (totalAmount, totalCost, totalFee, tradeResults);
   }
-
-  error TradeIterationsHasRemainder(
-    address thrower,
-    uint iterations,
-    uint expectedAmount,
-    uint tradeAmount,
-    uint totalAmount
-  );
 
   /////////////////
   // Liquidation //
@@ -1096,6 +1092,15 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
+  ///////////////
+  // Modifiers //
+  ///////////////
+
+  modifier notGlobalPaused() {
+    synthetixAdapter.requireNotGlobalPaused(address(this));
+    _;
+  }
+
   ////////////
   // Events //
   ////////////
@@ -1186,6 +1191,13 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   error TotalCostOutsideOfSpecifiedBounds(address thrower, uint totalCost, uint minCost, uint maxCost);
   error BoardIsFrozen(address thrower, uint boardId);
   error BoardExpired(address thrower, uint boardId, uint boardExpiry, uint currentTime);
+  error TradeIterationsHasRemainder(
+    address thrower,
+    uint iterations,
+    uint expectedAmount,
+    uint tradeAmount,
+    uint totalAmount
+  );
 
   // Access
   error OnlySecurityModule(address thrower, address caller, address securityModule);

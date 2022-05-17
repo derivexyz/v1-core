@@ -4,6 +4,10 @@ An AMM which allows users to trade options. Supports both buying and selling opt
 
 short positions.
 
+## Modifiers:
+
+- `notGlobalPaused()`
+
 ## Functions:
 
 - `init(contract SynthetixAdapter _synthetixAdapter, contract LiquidityPool _liquidityPool, contract OptionMarketPricer _optionPricer, contract OptionGreekCache _greekCache, contract ShortCollateral _shortCollateral, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
@@ -56,7 +60,7 @@ short positions.
 
 - `_closePosition(struct OptionMarket.TradeInputParameters params, bool forceClose) (internal)`
 
-- `_composeTrade(uint256 _strikeId, enum OptionMarket.OptionType optionType, uint256 amount, enum OptionMarket.TradeDirection _tradeDirection, uint256 iterations, bool isForceClose) (internal)`
+- `_composeTrade(uint256 strikeId, enum OptionMarket.OptionType optionType, uint256 amount, enum OptionMarket.TradeDirection _tradeDirection, uint256 iterations, bool isForceClose) (internal)`
 
 - `_isLong(enum OptionMarket.OptionType optionType) (internal)`
 
@@ -101,6 +105,8 @@ short positions.
 - `Trade(address trader, uint256 strikeId, uint256 positionId, struct OptionMarket.TradeEventData trade, struct OptionMarketPricer.TradeResult[] tradeResults, struct OptionMarket.LiquidationEventData liquidation, uint256 timestamp)`
 
 - `BoardSettled(uint256 boardId, uint256 spotPriceAtExpiry, uint256 totalUserLongProfitQuote, uint256 totalBoardLongCallCollateral, uint256 totalBoardLongPutCollateral, uint256 totalAMMShortCallProfitBase, uint256 totalAMMShortCallProfitQuote, uint256 totalAMMShortPutProfitQuote)`
+
+### Modifier `notGlobalPaused()`
 
 ### Function `init(contract SynthetixAdapter _synthetixAdapter, contract LiquidityPool _liquidityPool, contract OptionMarketPricer _optionPricer, contract OptionGreekCache _greekCache, contract ShortCollateral _shortCollateral, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
 
@@ -270,7 +276,7 @@ Opens a position, which may be long call, long put, short call or short put.
 
 Closes some amount of an open position. The user does not have to close the whole position.
 
-### Function `_composeTrade(uint256 _strikeId, enum OptionMarket.OptionType optionType, uint256 amount, enum OptionMarket.TradeDirection _tradeDirection, uint256 iterations, bool isForceClose) → struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, struct OptionMarket.OptionBoard board internal`
+### Function `_composeTrade(uint256 strikeId, enum OptionMarket.OptionType optionType, uint256 amount, enum OptionMarket.TradeDirection _tradeDirection, uint256 iterations, bool isForceClose) → struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, struct OptionMarket.OptionBoard board internal`
 
 Compile all trade related details
 

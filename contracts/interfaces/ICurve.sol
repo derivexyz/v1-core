@@ -16,4 +16,10 @@ interface ICurve {
     uint _amount,
     uint _expected
   ) external payable returns (uint amountOut);
+
+  function get_best_rate(
+    address _from,
+    address _to,
+    uint _amount
+  ) external view returns (address pool, uint amountOut);
 }

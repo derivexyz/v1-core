@@ -228,9 +228,11 @@ describe('BlackScholes - values', () => {
             volatilityDecimal: toBN(volatility.toString()),
           });
         } catch (e) {
+          console.log('expectedStdVega', stdVega(timeToExpiry, volatility, spot, strikePrice, rate));
+
           console.log((e as Error).message);
           console.log(val);
-          results.unacceptable += 5;
+          results.unacceptable += 6;
           console.log(results);
           continue;
         }

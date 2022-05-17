@@ -1,20 +1,13 @@
 import { BigNumber, Signer } from 'ethers';
 import path from 'path';
+import * as snxIntegration from 'synthetix/test/integration/utils/deploy';
 import { copySynthetixDeploy } from '../../../scripts/util/parseFiles';
 import { currentTime, toBN, toBytes32, UNIT } from '../../../scripts/util/web3utils';
 import { TestSystemContractsType } from '../deployTestSystem';
 
 export async function compileAndDeployRealSynthetix(compileSNX: boolean) {
   const synthsToAdd = [{ asset: 'USD' }];
-  // const SNX_BASE_DIRECTORY = '/Users/josh/Documents/synthetix';
-  const SNX_BASE_DIRECTORY = __dirname + '/../../../../synthetix';
 
-  const {
-    compileInstance,
-    prepareDeploy,
-    deployInstance,
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-  } = require(SNX_BASE_DIRECTORY + '/test/integration/utils/deploy');
   const network = 'local';
   const useOvm = false;
 
@@ -22,16 +15,16 @@ export async function compileAndDeployRealSynthetix(compileSNX: boolean) {
   const deploymentPath = '.snx';
 
   if (compileSNX) {
-    await compileInstance({
+    await snxIntegration.compileInstance({
       useOvm,
       buildPath,
     });
   }
 
-  await prepareDeploy({ network, synthsToAdd, useOvm, useReleases: false, useSips: false });
+  await snxIntegration.prepareDeploy({ network, synthsToAdd, useOvm, useReleases: false, useSips: false });
 
   console.log('\ndeployInstance\n');
-  await deployInstance({
+  await snxIntegration.deployInstance({
     addNewSynths: true,
     buildPath,
     deploymentPath,
@@ -55,7 +48,7 @@ export async function swapForBase(c: TestSystemContractsType, amountToSwap: BigN
 }
 
 export async function mintsUSD(c: TestSystemContractsType, deployer: Signer, minRequired?: BigNumber) {
-  await c.snx.synthetix.issueMaxSynths();
+  await c.snx.synthetix['issueMaxSynths']();
   const bal: BigNumber = await c.snx.quoteAsset.balanceOf(deployer.getAddress());
 
   if (bal.lt(minRequired || 0)) {

@@ -22,7 +22,7 @@ export class ParamHandler {
 
   getRecursive(val?: any, ...keys: string[]): any {
     if (keys.length == 0) {
-      if (!val) {
+      if (val === undefined) {
         return null;
       }
       return val;
@@ -30,7 +30,7 @@ export class ParamHandler {
 
     const nextKey = keys[0];
 
-    if (!val[nextKey]) {
+    if (val[nextKey] === undefined) {
       return null;
     }
 
@@ -40,7 +40,7 @@ export class ParamHandler {
   get(...keys: string[]): any {
     const defaultVal = this.getRecursive(this.default, ...keys);
     const override = this.getRecursive(this.overrides, ...keys);
-    return override ? override : defaultVal;
+    return override != undefined ? override : defaultVal;
   }
 
   getObj(...keys: string[]): any {
@@ -111,15 +111,16 @@ export function getContractDetails(c: Contract, name: string, source?: string) {
     contractName: name,
     source: source || name,
     address: c.address,
-    txn: c.deployTransaction.hash,
-    blockNumber: c.deployTransaction.blockNumber,
+    // TODO: hacky skip
+    txn: c.deployTransaction?.hash,
+    blockNumber: c.deployTransaction?.blockNumber || 0,
   };
 }
 
 export async function getContractsWithBlockNumber(c: Contract, name: string, source?: string) {
   const details = getContractDetails(c, name, source || name);
-  const receipt = await c.deployTransaction.wait();
-  details.blockNumber = receipt.blockNumber || details.blockNumber;
+  const receipt = await c.deployTransaction?.wait();
+  details.blockNumber = receipt?.blockNumber || details.blockNumber || 0;
 
   return details;
 }

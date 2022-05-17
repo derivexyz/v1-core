@@ -2,7 +2,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
-import * as _ from 'lodash';
+// import * as _ from 'lodash';
 import { currentTime, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { LiquidityPool } from '../../../typechain-types';
 import { openDefaultLongPut } from '../../utils/contractHelpers';
@@ -15,6 +15,7 @@ import {
   TestSystemContractsType,
 } from '../../utils/deployTestSystem';
 import { seedFixture } from '../../utils/fixture';
+import { mergeDeep } from '../../utils/package/merge';
 import { expect, hre } from '../../utils/testSetup';
 
 describe('Misc', async () => {
@@ -28,7 +29,7 @@ describe('Misc', async () => {
 
     const globalSystem = await deployGlobalTestContracts(deployer, false, {});
     const marketSystem = await deployMarketTestContracts(globalSystem, deployer, 'sETH', false, {});
-    c = _.merge(globalSystem, marketSystem);
+    c = mergeDeep(globalSystem, marketSystem);
 
     await initGlobalTestSystem(c, deployer, {});
     await initMarketTestSystem('sETH', c, marketSystem, deployer, {

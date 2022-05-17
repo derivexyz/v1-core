@@ -986,21 +986,21 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Modifiers //
   ///////////////
 
-  modifier onlyPoolHedger() virtual {
+  modifier onlyPoolHedger() {
     if (msg.sender != address(poolHedger)) {
       revert OnlyPoolHedger(address(this), msg.sender, address(poolHedger));
     }
     _;
   }
 
-  modifier onlyOptionMarket() virtual {
+  modifier onlyOptionMarket() {
     if (msg.sender != address(optionMarket)) {
       revert OnlyOptionMarket(address(this), msg.sender, address(optionMarket));
     }
     _;
   }
 
-  modifier onlyShortCollateral() virtual {
+  modifier onlyShortCollateral() {
     if (msg.sender != address(shortCollateral)) {
       revert OnlyShortCollateral(address(this), msg.sender, address(shortCollateral));
     }

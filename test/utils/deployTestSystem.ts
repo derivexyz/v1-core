@@ -1,6 +1,5 @@
 import { BigNumber, Contract, ContractFactory, Signer } from 'ethers';
 import { ethers, upgrades } from 'hardhat';
-import _ from 'lodash';
 import { toBN, toBytes32, YEAR_SEC } from '../../scripts/util/web3utils';
 import {
   BasicFeeCounter,
@@ -44,6 +43,8 @@ import { PartialCollateralParametersStruct } from '../../typechain-types/OptionT
 import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
 import * as defaultParams from './defaultParams';
 import { DEFAULT_SECURITY_MODULE } from './defaultParams';
+// import _ from 'lodash';
+import { mergeDeep } from './package/merge';
 import { exportGlobalDeployment, exportMarketDeployment, getLocalRealSynthetixContract } from './package/parseFiles';
 import { changeRate, compileAndDeployRealSynthetix, mintsUSD, setDebtLimit } from './package/realSynthetixUtils';
 import { hre } from './testSetup';
@@ -157,7 +158,7 @@ export async function deployTestSystem(
 
   const globalSystem = await deployGlobalTestContracts(deployer, exportAddresses, overrides);
   const marketSystem = await deployMarketTestContracts(globalSystem, deployer, 'sETH', exportAddresses, overrides);
-  const testSystem: TestSystemContractsType = _.merge(globalSystem, marketSystem);
+  const testSystem: TestSystemContractsType = mergeDeep(globalSystem, marketSystem);
 
   await initGlobalTestSystem(testSystem, deployer, overrides);
   await initMarketTestSystem('sETH', testSystem, marketSystem, deployer, overrides);

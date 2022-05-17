@@ -11,7 +11,7 @@ import {
   packReduceShortParams,
 } from '../../../scripts/util/wrapperPacking';
 import { DEFAULT_MARKET_ID } from '../defaultParams';
-import { hre } from '../testSetup';
+import { expect, hre } from '../testSetup';
 
 const LOG_EVENTS = false;
 
@@ -290,4 +290,19 @@ export async function wrapperCloseShort(overrides: {
       }),
     ),
   );
+}
+
+export async function checkContractFunds(contract: string) {
+  const wrapperQuote = await hre.f.c.snx.quoteAsset.balanceOf(contract);
+  const wrapperDAI = await hre.f.DAI.balanceOf(contract);
+  const wrapperUSDC = await hre.f.USDC.balanceOf(contract);
+  const wrapperBase = await hre.f.c.snx.baseAsset.balanceOf(contract);
+  // console.log(` sUSD ${wrapperQuote}`)
+  // console.log(`  DAI ${wrapperDAI}`)
+  // console.log(` USDC ${wrapperUSDC}`)
+  // console.log(` base ${wrapperBase}`)
+  expect(wrapperQuote).to.eq(0);
+  expect(wrapperDAI).to.eq(0);
+  expect(wrapperUSDC).to.eq(0);
+  expect(wrapperBase).to.eq(0);
 }

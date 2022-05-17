@@ -1,5 +1,6 @@
 import { OptionType, PositionState, toBN } from '../../../../scripts/util/web3utils';
 import {
+  checkContractFunds,
   STABLE_IDS,
   wrapperAddLong,
   wrapperCloseLong,
@@ -19,6 +20,9 @@ describe('OptionMarketWrapper LONG CALL/PUT trading tests', () => {
   beforeEach(allCurrenciesFixture);
 
   describe('DAI long opens', async () => {
+    afterEach(async () => {
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
+    });
     it('DAI using openLongParams - LONG CALL', async () => {
       // Open long call
       let positionId = await wrapperOpenLong({
@@ -140,6 +144,9 @@ describe('OptionMarketWrapper LONG CALL/PUT trading tests', () => {
   });
 
   describe('USDC long opens', async () => {
+    afterEach(async () => {
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
+    });
     it('USDC using openLongParams - LONG CALL', async () => {
       // Open long call
       let positionId = await wrapperOpenLong({
@@ -261,6 +268,9 @@ describe('OptionMarketWrapper LONG CALL/PUT trading tests', () => {
   });
 
   describe('sUSD long opens', async () => {
+    afterEach(async () => {
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
+    });
     it('sUSD using openLongParams - LONG CALL', async () => {
       // Open long call
       let positionId = await wrapperOpenLong({

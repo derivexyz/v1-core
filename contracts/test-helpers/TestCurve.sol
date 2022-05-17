@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.9;
+
+import "../synthetix/DecimalMath.sol";
 import "../interfaces/ICurve.sol";
 import "./TestERC20.sol";
 import "../synthetix/Owned.sol";
+import "hardhat/console.sol";
 
 /// @title Router token swapping functionality
 /// @notice Functions for swapping tokens via Curve
 contract TestCurve is ICurve, Owned {
-  bool initialized = false;
+  using DecimalMath for uint;
 
   mapping(address => uint) public rates;
   mapping(int128 => address) public curveStables;
@@ -32,7 +35,7 @@ contract TestCurve is ICurve, Owned {
     uint _toRate = rates[address(_to)];
 
     amountOut = (_amount * _toRate) / _fromRate;
-    pool = address(0); // should be same address that is used in exchange_with_best_rate
+    pool = address(this);
   }
 
   function exchange_with_best_rate(
@@ -111,5 +114,15 @@ contract TestCurve is ICurve, Owned {
     // mint the amountOut
     toToken.mint(msg.sender, amountOut);
     return amountOut;
+  }
+
+  function _getDecimals(ERC20 token) internal view returns (uint8) {
+    uint8 decimals;
+    try token.decimals() returns (uint8 dec) {
+      decimals = dec;
+    } catch {
+      decimals = 18;
+    }
+    return decimals;
   }
 }

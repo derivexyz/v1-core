@@ -162,13 +162,14 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     OptionMarket.TradeParameters memory trade,
     uint strikeId,
     address trader,
-    uint _positionId,
+    uint positionId,
     uint optionCost,
     uint setCollateralTo,
     bool isOpen
   ) external onlyOptionMarket returns (uint, int pendingCollateral) {
     OptionPosition storage position;
-    if (_positionId == 0) {
+    bool newPosition = false;
+    if (positionId == 0) {
       if (!isOpen) {
         revert CannotClosePositionZero(address(this));
       }
@@ -176,16 +177,18 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
         revert CannotOpenZeroAmount(address(this));
       }
 
-      _positionId = nextId++;
-      _mint(trader, _positionId);
-      position = positions[_positionId];
+      positionId = nextId++;
+      _mint(trader, positionId);
+      position = positions[positionId];
 
-      position.positionId = _positionId;
+      position.positionId = positionId;
       position.strikeId = strikeId;
       position.optionType = trade.optionType;
       position.state = PositionState.ACTIVE;
+
+      newPosition = true;
     } else {
-      position = positions[_positionId];
+      position = positions[positionId];
     }
 
     if (
@@ -196,7 +199,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     ) {
       revert CannotAdjustInvalidPosition(
         address(this),
-        _positionId,
+        positionId,
         position.positionId == 0,
         position.state != PositionState.ACTIVE,
         position.strikeId != strikeId,
@@ -204,7 +207,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
       );
     }
     if (trader != ownerOf(position.positionId)) {
-      revert OnlyOwnerCanAdjustPosition(address(this), _positionId, trader, ownerOf(position.positionId));
+      revert OnlyOwnerCanAdjustPosition(address(this), positionId, trader, ownerOf(position.positionId));
     }
 
     if (isOpen) {
@@ -254,7 +257,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     emit PositionUpdated(
       position.positionId,
       trader,
-      _positionId == 0 ? PositionUpdatedType.OPENED : PositionUpdatedType.ADJUSTED,
+      newPosition ? PositionUpdatedType.OPENED : PositionUpdatedType.ADJUSTED,
       position,
       block.timestamp
     );
@@ -426,7 +429,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     uint newAmount,
     uint newCollateral,
     address recipient
-  ) external nonReentrant returns (uint newPositionId) {
+  ) external nonReentrant notGlobalPaused returns (uint newPositionId) {
     OptionPosition storage originalPosition = positions[positionId];
 
     // Will both check whether position is valid and whether approved to split
@@ -490,7 +493,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
    *
    * @param positionIds the positionIds to be merged together
    */
-  function merge(uint[] memory positionIds) external nonReentrant {
+  function merge(uint[] memory positionIds) external nonReentrant notGlobalPaused {
     if (positionIds.length < 2) {
       revert MustMergeTwoOrMorePositions(address(this));
     }
@@ -649,6 +652,11 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     if (msg.sender != address(shortCollateral)) {
       revert OnlyShortCollateral(address(this), msg.sender, address(shortCollateral));
     }
+    _;
+  }
+
+  modifier notGlobalPaused() {
+    synthetixAdapter.requireNotGlobalPaused(address(optionMarket));
     _;
   }
 

@@ -106,4 +106,18 @@ describe('Settle', () => {
       'ERC721: owner query for nonexistent token',
     );
   });
+
+  it('cannot settle if global pause is on', async () => {
+    const [, firstPos] = await openPositionWithOverrides(hre.f.c, {
+      strikeId: hre.f.strike.strikeId,
+      optionType: OptionType.SHORT_CALL_BASE,
+      amount: toBN('1'),
+      setCollateralTo: toBN('0.5'),
+    });
+
+    await fastForward(MONTH_SEC);
+    await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
+    await hre.f.c.synthetixAdapter.setGlobalPaused(true);
+    await expect(hre.f.c.shortCollateral.settleOptions([firstPos])).to.revertedWith('AllMarketsPaused');
+  });
 });

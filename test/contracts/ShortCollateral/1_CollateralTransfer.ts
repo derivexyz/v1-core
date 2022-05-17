@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
-import * as _ from 'lodash';
+// import * as _ from 'lodash';
 import { getEventArgs, OptionType, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { ShortCollateral } from '../../../typechain-types';
 import { DEFAULT_SECURITY_MODULE } from '../../utils/defaultParams';
@@ -12,6 +12,7 @@ import {
   TestSystemContractsType,
 } from '../../utils/deployTestSystem';
 import { restoreSnapshot, takeSnapshot } from '../../utils/evm';
+import { mergeDeep } from '../../utils/package/merge';
 import { expect } from '../../utils/testSetup';
 
 describe('Collateral transfer', async () => {
@@ -28,7 +29,7 @@ describe('Collateral transfer', async () => {
 
     const globalSystem = await deployGlobalTestContracts(deployer, false, {});
     const marketSystem = await deployMarketTestContracts(globalSystem, deployer, 'sETH', false, {});
-    c = _.merge(globalSystem, marketSystem);
+    c = mergeDeep(globalSystem, marketSystem);
 
     await initGlobalTestSystem(c, deployer, {});
     await initMarketTestSystem('sETH', c, marketSystem, deployer, { shortCollateral: shortCollateralOverride.address });

@@ -12,6 +12,8 @@ Functions for swapping tokens via Curve
 
 - `exchange_underlying(int128 _from, int128 _to, uint256 _amount, uint256 _expected) (external)`
 
+- `_getDecimals(contract ERC20 token) (internal)`
+
 ### Function `setRate(address token, uint256 rate) external`
 
 ### Function `get_best_rate(address _from, address _to, uint256 _amount) → address pool, uint256 amountOut external`
@@ -19,3 +21,5 @@ Functions for swapping tokens via Curve
 ### Function `exchange_with_best_rate(address _from, address _to, uint256 _amount, uint256 _expected, address _receiver) → uint256 amountOut external`
 
 ### Function `exchange_underlying(int128 _from, int128 _to, uint256 _amount, uint256 _expected) → uint256 amountOut external`
+
+### Function `_getDecimals(contract ERC20 token) → uint8 internal`

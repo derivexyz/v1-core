@@ -28,6 +28,8 @@ The OptionMarket contract address is used as the key to access the relevant exch
 
 - `getExchangeParams(address _contractAddress) (public)`
 
+- `requireNotGlobalPaused(address optionMarket) (external)`
+
 - `exchangeFromExactQuote(address optionMarket, uint256 amountQuote) (external)`
 
 - `exchangeToExactBase(struct SynthetixAdapter.ExchangeParams exchangeParams, address optionMarket, uint256 amountBase) (external)`
@@ -135,6 +137,10 @@ Returns the ExchangeParams.
 #### Parameters:
 
 - `_contractAddress`: The address of the OptionMarket.
+
+### Function `requireNotGlobalPaused(address optionMarket) external`
+
+Revert if the global state is paused
 
 ### Function `exchangeFromExactQuote(address optionMarket, uint256 amountQuote) → uint256 baseReceived external`
 

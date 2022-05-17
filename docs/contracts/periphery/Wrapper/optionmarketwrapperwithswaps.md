@@ -20,8 +20,6 @@ Allows users to open/close positions in any market with multiple stablecoins
 
 - `forceClosePosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) (external)`
 
-- `setPositionCollateral(uint8 market, uint32 positionId, uint256 setCollateralTo) (external)`
-
 - `_openPosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) (internal)`
 
 - `_closePosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params, bool forceClose) (internal)`
@@ -39,6 +37,10 @@ Allows users to open/close positions in any market with multiple stablecoins
 - `_isBaseCollateral(enum OptionMarket.OptionType optionType) (internal)`
 
 - `_swapWithCurve(contract ERC20 from, contract ERC20 to, uint256 amount, uint256 expected, address receiver) (internal)`
+
+- `_checkValidStable(address token) (internal)`
+
+- `quoteCurveSwap(address fromToken, address toToken, uint256 amountIn) (external)`
 
 - `_transferBaseCollateral(enum OptionMarket.OptionType optionType, uint256 currentCollateral, uint256 setCollateralTo, contract ERC20 baseAsset) (internal)`
 
@@ -93,8 +95,6 @@ Adds stablecoin with desired index reflected in the curve contract
 ### Function `closePosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) → struct OptionMarketWrapperWithSwaps.ReturnDetails returnDetails external`
 
 ### Function `forceClosePosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) → struct OptionMarketWrapperWithSwaps.ReturnDetails returnDetails external`
-
-### Function `setPositionCollateral(uint8 market, uint32 positionId, uint256 setCollateralTo) → uint256 newCollateral external`
 
 ### Function `_openPosition(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) → struct OptionMarketWrapperWithSwaps.ReturnDetails returnDetails internal`
 
@@ -163,6 +163,24 @@ Attempts to swap the input token with the desired stablecoin.
 - `expected`: Minimum quantity of to received in order for the transaction to succeed
 
 - `receiver`: The receiving address of the tokens
+
+### Function `_checkValidStable(address token) → bool internal`
+
+checks if the token is in the stablecoin mapping
+
+### Function `quoteCurveSwap(address fromToken, address toToken, uint256 amountIn) → address pool, uint256 amountOut external`
+
+returns amount of toToken after a swap
+
+#### Parameters:
+
+- `amountIn`: the amount of input tokens for the swap
+
+#### Return Values:
+
+- pool the address of the swap pool
+
+- amountOut the amount of output tokens for the swap
 
 ### Function `_transferBaseCollateral(enum OptionMarket.OptionType optionType, uint256 currentCollateral, uint256 setCollateralTo, contract ERC20 baseAsset) internal`
 

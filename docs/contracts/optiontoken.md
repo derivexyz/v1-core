@@ -8,6 +8,8 @@ Provides a tokenized representation of each trade position including amount of o
 
 - `onlyShortCollateral()`
 
+- `notGlobalPaused()`
+
 ## Functions:
 
 - `constructor(string name, string symbol) (public)`
@@ -20,7 +22,7 @@ Provides a tokenized representation of each trade position including amount of o
 
 - `_baseURI() (internal)`
 
-- `adjustPosition(struct OptionMarket.TradeParameters trade, uint256 strikeId, address trader, uint256 _positionId, uint256 optionCost, uint256 setCollateralTo, bool isOpen) (external)`
+- `adjustPosition(struct OptionMarket.TradeParameters trade, uint256 strikeId, address trader, uint256 positionId, uint256 optionCost, uint256 setCollateralTo, bool isOpen) (external)`
 
 - `addCollateral(uint256 positionId, uint256 amountCollateral) (external)`
 
@@ -64,6 +66,8 @@ Provides a tokenized representation of each trade position including amount of o
 
 ### Modifier `onlyShortCollateral()`
 
+### Modifier `notGlobalPaused()`
+
 ### Function `constructor(string name, string symbol) public`
 
 ### Function `init(contract OptionMarket _optionMarket, contract OptionGreekCache _greekCache, address _shortCollateral, contract SynthetixAdapter _synthetixAdapter) external`
@@ -84,7 +88,7 @@ Initialise the contract.
 
 ### Function `_baseURI() → string internal`
 
-### Function `adjustPosition(struct OptionMarket.TradeParameters trade, uint256 strikeId, address trader, uint256 _positionId, uint256 optionCost, uint256 setCollateralTo, bool isOpen) → uint256, int256 pendingCollateral external`
+### Function `adjustPosition(struct OptionMarket.TradeParameters trade, uint256 strikeId, address trader, uint256 positionId, uint256 optionCost, uint256 setCollateralTo, bool isOpen) → uint256, int256 pendingCollateral external`
 
 ### Function `addCollateral(uint256 positionId, uint256 amountCollateral) → enum OptionMarket.OptionType optionType external`
 

@@ -1,5 +1,5 @@
 import { BigNumber } from 'ethers';
-import * as _ from 'lodash';
+// import * as _ from 'lodash';
 import { currentTime, MONTH_SEC, OptionType, toBN, TradeDirection } from '../../../scripts/util/web3utils';
 import { StrikeStruct } from '../../../typechain-types/OptionMarket';
 import { TradeParametersStruct } from '../../../typechain-types/OptionToken';
@@ -11,6 +11,7 @@ import {
   initMarketTestSystem,
   TestSystemContractsType,
 } from '../../utils/deployTestSystem';
+import { mergeDeep } from '../../utils/package/merge';
 import { createDefaultBoardWithOverrides } from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
 
@@ -123,7 +124,7 @@ describe('OptionGreekCache - Update Strike Exposure', () => {
 export async function deploySystemWithPricerOverride() {
   const globalSystem = await deployGlobalTestContracts(hre.f.deployer, false, {});
   const marketSystem = await deployMarketTestContracts(globalSystem, hre.f.deployer, 'sETH', false, {});
-  const c = _.merge(globalSystem, marketSystem) as TestSystemContractsType;
+  const c = mergeDeep(globalSystem, marketSystem) as TestSystemContractsType;
 
   await initGlobalTestSystem(c, hre.f.deployer, {});
   await initMarketTestSystem('sETH', c, marketSystem, hre.f.deployer, { optionMarketPricer: hre.f.deployer.address });

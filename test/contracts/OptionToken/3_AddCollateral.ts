@@ -111,6 +111,13 @@ describe('OptionToken - AddCollateral', async () => {
         ).to.revertedWith('ERC20: transfer amount exceeds balance');
       });
 
+      it('global pause', async () => {
+        await hre.f.c.synthetixAdapter.setGlobalPaused(true);
+        await expect(
+          hre.f.c.optionMarket.connect(hre.f.alice).addCollateral(positionId, beyondBalanceCollat[i]),
+        ).to.revertedWith('AllMarketsPaused');
+      });
+
       it('closed position', async () => {
         // fully close
         await hre.f.c.optionMarketPricer.setTradeLimitParams({

@@ -211,52 +211,6 @@ contract OptionMarketWrapperWithSwaps is Owned {
     return _closePosition(params, true);
   }
 
-  function setPositionCollateral(
-    uint8 market,
-    uint32 positionId,
-    uint setCollateralTo
-  ) external returns (uint newCollateral) {
-    OptionMarket optionMarket = idToMarket[market];
-    OptionMarketContracts memory c = marketContracts[optionMarket];
-    OptionToken.PositionWithOwner memory currentPosition = c.optionToken.getPositionWithOwner(positionId);
-
-    if (setCollateralTo > currentPosition.collateral) {
-      if (currentPosition.optionType == OptionMarket.OptionType.SHORT_CALL_BASE) {
-        _transferAsset(c.baseAsset, msg.sender, address(this), setCollateralTo);
-      } else if (
-        currentPosition.optionType == OptionMarket.OptionType.SHORT_CALL_QUOTE ||
-        currentPosition.optionType == OptionMarket.OptionType.SHORT_PUT_QUOTE
-      ) {
-        _transferAsset(c.quoteAsset, msg.sender, address(this), setCollateralTo);
-      }
-    }
-
-    if (positionId != 0) {
-      c.optionToken.transferFrom(msg.sender, address(this), positionId);
-    }
-
-    OptionToken.PositionWithOwner memory positionDetails = c.optionToken.getPositionWithOwner(positionId);
-
-    OptionMarket.TradeInputParameters memory tradeParams = OptionMarket.TradeInputParameters({
-      strikeId: positionDetails.strikeId,
-      positionId: positionId,
-      iterations: 1,
-      optionType: positionDetails.optionType,
-      amount: 0,
-      setCollateralTo: setCollateralTo,
-      minTotalCost: 0,
-      maxTotalCost: 0
-    });
-
-    optionMarket.openPosition(tradeParams);
-
-    // transfer the option token back to user
-    c.optionToken.transferFrom(address(this), msg.sender, positionId);
-
-    newCollateral = c.optionToken.getPositionWithOwner(positionId).collateral;
-    emit SetCollateralTo(newCollateral);
-  }
-
   //////////////
   // Internal //
   //////////////
@@ -304,12 +258,11 @@ contract OptionMarketWrapperWithSwaps is Owned {
     // Increments trading rewards contract
     _incrementTradingRewards(msg.sender, tradeParameters.amount, result.totalCost, result.totalFee);
 
-    // transfer the option token to user
-    c.optionToken.transferFrom(address(this), msg.sender, result.positionId);
-
     int addSwapFee = 0;
     (, addSwapFee) = _returnQuote(c.quoteAsset, params.inputAsset);
     swapFee += addSwapFee;
+
+    _returnBase(c.baseAsset, c.optionToken, result.positionId);
 
     returnDetails = _getReturnDetails(params, result, swapFee);
     _emitEvent(returnDetails, true, _isLong(params.optionType));
@@ -444,6 +397,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
    */
   function _returnQuote(ERC20 quoteAsset, ERC20 inputAsset) internal returns (uint quoteBalance, int swapFee) {
     quoteBalance = quoteAsset.balanceOf(address(this));
+
     if (quoteBalance > 0) {
       if (inputAsset != quoteAsset) {
         uint min = (minReturnPercent * 10**cachedDecimals[inputAsset]) / 10**cachedDecimals[quoteAsset];
@@ -454,6 +408,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
           quoteBalance.multiplyDecimal(min),
           address(this)
         );
+        quoteBalance = inputAsset.balanceOf(address(this));
       }
       _transferAsset(inputAsset, address(this), msg.sender, quoteBalance);
     }
@@ -506,6 +461,9 @@ contract OptionMarketWrapperWithSwaps is Owned {
     // TODO: actually return directly to the user in some cases?
     address receiver
   ) internal returns (uint amountOut, int swapFee) {
+    _checkValidStable(address(from));
+    _checkValidStable(address(to));
+
     uint8 toDec = cachedDecimals[to];
     uint8 fromDec = cachedDecimals[from];
     uint balStart = from.balanceOf(address(this));
@@ -520,6 +478,31 @@ contract OptionMarketWrapperWithSwaps is Owned {
     }
 
     swapFee = SafeCast.toInt256(balStart) - SafeCast.toInt256(convertedAmtOut);
+  }
+
+  /// @dev checks if the token is in the stablecoin mapping
+  function _checkValidStable(address token) internal view returns (bool) {
+    for (uint i = 0; i < ercIds.length; i++) {
+      if (address(idToERC[ercIds[i]]) == token) {
+        return true;
+      }
+    }
+    revert UnsupportedToken(token);
+  }
+
+  /// @dev returns amount of toToken after a swap
+  /// @param amountIn the amount of input tokens for the swap
+  /// @return pool the address of the swap pool
+  /// @return amountOut the amount of output tokens for the swap
+  function quoteCurveSwap(
+    address fromToken,
+    address toToken,
+    uint amountIn
+  ) external view returns (address pool, uint amountOut) {
+    _checkValidStable(fromToken);
+    _checkValidStable(toToken);
+
+    (pool, amountOut) = curveSwap.get_best_rate(fromToken, toToken, amountIn);
   }
 
   function _transferBaseCollateral(
@@ -540,11 +523,13 @@ contract OptionMarketWrapperWithSwaps is Owned {
     uint amount
   ) internal {
     bool success = false;
+
     if (from == address(this)) {
       success = asset.transfer(to, amount);
     } else {
       success = asset.transferFrom(from, to, amount);
     }
+
     if (!success) {
       revert AssetTransferFailed(address(this), asset, from, to, amount);
     }
@@ -672,4 +657,5 @@ contract OptionMarketWrapperWithSwaps is Owned {
   error ApprovalFailure(address thrower, ERC20 asset, address approving, uint approvalAmount);
   error DuplicateEntry(address thrower, uint8 id, address addr);
   error RemovingInvalidId(address thrower, uint8 id);
+  error UnsupportedToken(address asset);
 }

@@ -1,101 +1,145 @@
 {
-  "DefaultParameters": {
-    "tradingCutoff": 86400,
-    "optionPriceFeeCoefficient": "",
-    "spotPriceFeeCoefficient": "0.001",
-    "vegaFeeCoefficient": "",
-    "standardSize": "",
-    "skewAdjustmentFactor": "1",
-    "rateAndCarry": "0.06",
-    "minDelta": "0.1",
-    "volatilityCutoff": "0.45"
+  "QuoteTicker": "sUSD",
+  "Parameters": {
+    "OptionMarketParams": {
+      "maxBoardExpiry": 7344000,
+      "securityModule": "0x0000000000000000000000000000000000000000",
+      "feePortionReserved": "0.02"
+    },
+    "LiquidityPoolParams": {
+      "minDepositWithdraw": "1",
+      "depositDelay": 604800,
+      "withdrawalDelay": 604800,
+      "withdrawalFee": "0.008",
+      "liquidityCBThreshold": "0.01",
+      "liquidityCBTimeout": 259200,
+      "ivVarianceCBThreshold": "0.1",
+      "skewVarianceCBThreshold": "0.15",
+      "ivVarianceCBTimeout": 86400,
+      "skewVarianceCBTimeout": 86400,
+      "guardianMultisig": "0x0000000000000000000000000000000000000000",
+      "guardianDelay": 604800,
+      "boardSettlementCBTimeout": 21600,
+      "maxFeePaid": "0.005"
+    },
+    "GreekCacheParams": {
+      "maxStrikesPerBoard": 30,
+      "acceptableSpotPricePercentMove":  "0.025",
+      "staleUpdateDuration": 10800,
+      "varianceIvGWAVPeriod": 43200,
+      "varianceSkewGWAVPeriod": 43200,
+      "optionValueIvGWAVPeriod": 129600,
+      "optionValueSkewGWAVPeriod": 129600,
+      "gwavSkewFloor": "0.6",
+      "gwavSkewCap":  "4",
+      "rateAndCarry": "0.05"
+    },
+    "MinCollateralParams": {
+      "minStaticBaseCollateral": "0.2",
+      "minStaticQuoteCollateral": "200",
+      "shockVolA": "2.5",
+      "shockVolPointA": 100800,
+      "shockVolB": "2.5",
+      "shockVolPointB": 201600,
+      "callSpotPriceShock": "1.2",
+      "putSpotPriceShock": "0.8"
+    },
+    "ForceCloseParams": {
+      "ivGWAVPeriod": 43200,
+      "skewGWAVPeriod": 86400,
+      "shortVolShock": "1.2",
+      "shortPostCutoffVolShock": "1.4",
+      "longVolShock": "0.8",
+      "longPostCutoffVolShock": "0.5",
+      "liquidateVolShock": "1.3",
+      "liquidatePostCutoffVolShock": "1.6",
+      "shortSpotMin": "0.01",
+      "liquidateSpotMin": "0.02"
+    },
+    "PricingParams": {
+      "optionPriceFeeCoefficient": "0.01",
+      "optionPriceFee1xPoint": 3628800,
+      "optionPriceFee2xPoint": 9676800,
+      "spotPriceFeeCoefficient": "0.01",
+      "spotPriceFee1xPoint": 3628800,
+      "spotPriceFee2xPoint": 7257600,
+      "vegaFeeCoefficient": "100",
+      "standardSize": "5",
+      "skewAdjustmentFactor": "1"
+    },
+    "TradeLimitParams": {
+      "maxBaseIV": "3",
+      "maxSkew": "1.6",
+      "minBaseIV": "0.35",
+      "minSkew": "0.7",
+      "minDelta": "0.085",
+      "minForceCloseDelta": "0.1",
+      "minVol": "0.4",
+      "maxVol": "3.5",
+      "tradingCutoff": 43200,
+      "absMaxSkew": "3",
+      "absMinSkew": "0.55",
+      "capSkewsToAbs": false
+    },
+    "VarianceFeeParams": {
+      "defaultVarianceFeeCoefficient": "0.65",
+      "forceCloseVarianceFeeCoefficient": "0.3",
+      "skewAdjustmentCoefficient": "1",
+      "referenceSkew": "0",
+      "minimumStaticSkewAdjustment": "0",
+      "vegaCoefficient": "1",
+      "minimumStaticVega": "0",
+      "ivVarianceCoefficient": "1",
+      "minimumStaticIvVariance": "0"
+    },
+    "PartialCollatParams": {
+      "penaltyRatio": "0.05",
+      "liquidatorFeeRatio": "0.2",
+      "smFeeRatio": "0.15",
+      "minLiquidationFee": "15"
+    },
+    "PoolHedgerParams": {
+      "shortBuffer": "1.7",
+      "interactionDelay": 86400,
+      "hedgeCap": "100"
+    }
   },
+  "SwapRouter": "0x0000000000000000000000000000000000000000",
   "Markets": {
     "sETH": {
       "BaseTicker": "sETH",
+      "MockPrice": "2020",
       "ParameterOverrides": {
-        "standardSize": "11",
-        "optionPriceFeeCoefficient": "0.015",
-        "vegaFeeCoefficient": "40000"
-      }
-    },
-    "sLINK": {
-      "BaseTicker": "sLINK",
-      "ParameterOverrides": {
-        "standardSize": "40",
-        "optionPriceFeeCoefficient": "0.03",
-        "vegaFeeCoefficient": "400"
-      }
-    },
-    "sBTC": {
-      "BaseTicker": "sBTC",
-      "ParameterOverrides": {
-        "standardSize": "5",
-        "optionPriceFeeCoefficient": "0.015",
-        "vegaFeeCoefficient": "600000"
-      }
-    },
-    "sSOL":  {
-      "BaseTicker": "sSOL",
-      "ParameterOverrides": {
-        "standardSize": "100",
-        "optionPriceFeeCoefficient": "0.015",
-        "vegaFeeCoefficient": "2000"
+        "standardSize": "20",
+        "spotPriceFeeCoefficient": "0.0025",
+        "optionPriceFeeCoefficient": "0.005",
+        "vegaFeeCoefficient": "200"
       }
     }
   },
   "Seed": {
     "mintFunds": {
-      "run": false,
+      "run": true,
       "markets": {
         "sETH": {
-          "quoteAmount": "10000000",
-          "baseAmount": "10000"
+          "quoteAmount": "1000000",
+          "baseAmount": "1000"
         }
       }
     },
     "deposit": {
-      "run": false,
+      "run": true,
       "markets": {
         "sETH": {
-          "quoteAmount": "2345.678901234567890123"
+          "quoteAmount": "500000"
         }
       }
     },
-    "addExercisableOptions": {
-      "run": false
-    },
     "addBoards": {
-      "run": false,
+      "run": true,
       "markets": {
         "sETH": {
-          "generated": false,
-          "staticBoards": [
-            {
-              "Expiry": 1629662400,
-              "BaseIv": "0.90",
-              "Strikes": [
-                "2950",
-                "3000",
-                "3100",
-                "3150",
-                "3200",
-                "3250",
-                "3350",
-                "3400"
-              ],
-              "Skews": [
-                "1",
-                "1",
-                "1",
-                "1",
-                "1",
-                "1",
-                "1.02",
-                "1.04"
-              ]
-            }
-          ]
+          "generated": true
         }
       }
     },
@@ -109,17 +153,22 @@
         "sETH": false
       }
     },
-    "seedTrades": {
-      "markets": {
-        "sETH": false
+    "markets": {
+      "seedTrades": {
+        "populationParameters" : {
+          "repetitionProbabilityPerBoard": 0.75,
+          "maxPerBoard": 10
+        },
+        "sETH": true
       }
     },
     "changeOwner": {
-      "run": true,
-      "globalOwner": "0xF6f583141590577eae48A99B7F09aD3a7274cE40",
+      "run": false,
+      "globalOwner": "0x676fcee7af0dd0060b238d00d43a5542f3aa3b3e",
       "markets": {
-        "sBTC": "0xF6f583141590577eae48A99B7F09aD3a7274cE40"
+        "sETH": "0x676fcee7af0dd0060b238d00d43a5542f3aa3b3e"
       }
     }
   }
 }
+

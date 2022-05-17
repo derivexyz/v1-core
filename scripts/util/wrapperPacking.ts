@@ -106,7 +106,6 @@ function paramAddValue(val: BigNumberish | boolean, paramMeta: { offset: number;
   if (paramMeta.type == datatypes.uint8 && bnVal.gte(TWO.pow(8))) throw Error('value too large for datatype uint8');
   if (paramMeta.type == datatypes.uint32 && bnVal.gte(TWO.pow(32))) throw Error('value too large for datatype uint8');
   if (paramMeta.type == datatypes.uint64 && bnVal.gte(TWO.pow(64))) throw Error('value too large for datatype uint8');
-
   return bnVal.mul(TWO.pow(paramMeta.offset));
 }
 

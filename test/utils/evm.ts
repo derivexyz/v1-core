@@ -25,9 +25,13 @@ export async function fastForward(seconds: number) {
 /**
  *  Increases the time in the EVM to as close to a specific timestamp as possible
  */
-export async function fastForwardTo(time: number) {
+export async function fastForwardTo(time: number, silentError: boolean = false) {
   const timestamp = await currentTime();
   if (time < timestamp) {
+    if (silentError) {
+      console.log(`Time parameter (${time}) is less than now ${timestamp}. Continuing.`);
+      return;
+    }
     throw new Error(
       `Time parameter (${time}) is less than now ${timestamp}. You can only fast forward to times in the future.`,
     );

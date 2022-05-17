@@ -1,5 +1,6 @@
 import { fromBN, OptionType, PositionState, toBN } from '../../../../scripts/util/web3utils';
 import {
+  checkContractFunds,
   STABLE_IDS,
   wrapperAddShort,
   wrapperCloseShort,
@@ -22,6 +23,10 @@ import { expect, hre } from '../../../utils/testSetup';
 describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
   beforeEach(allCurrenciesFixture);
 
+  // afterEach(async () => {
+  //   await checkContractFunds(hre.f.c.optionMarketWrapper.address)
+  // });
+
   describe('DAI short opens', async () => {
     const spotPrice = 1750;
     it('DAI using openShortParams - SHORT CALL QUOTE', async () => {
@@ -41,6 +46,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // // Adds to the position increasing collateral
       positionId = await wrapperAddShort({
@@ -58,6 +64,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       let balbefore = +fromBN(await hre.f.DAI.balanceOf(hre.f.deployer.address));
       console.log(`balance before ${balbefore}`);
@@ -80,6 +87,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       balbefore = +fromBN(await hre.f.DAI.balanceOf(hre.f.deployer.address));
       console.log(`balance before ${balbefore}`);
@@ -102,6 +110,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position increasing collateral
       positionId = await wrapperReduceShort({
@@ -119,6 +128,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position decreasing collateral
       positionId = await wrapperReduceShort({
@@ -136,6 +146,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position decreasing collateral but covered by option price
       positionId = await wrapperReduceShort({
@@ -153,6 +164,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Close position fully
       positionId = await wrapperCloseShort({
@@ -164,6 +176,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       await expect(hre.f.c.optionToken.getPositionWithOwner(positionId)).revertedWith(
         'ERC721: owner query for nonexistent token',
       );
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
     });
   });
 
@@ -186,6 +199,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Adds to the position increasing collateral
       positionId = await wrapperAddShort({
@@ -203,6 +217,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Adds to the position descresing collateral
       positionId = await wrapperAddShort({
@@ -220,6 +235,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Adds to the position increasing collateral but covered by option price (user sends nothing)
       positionId = await wrapperAddShort({
@@ -237,6 +253,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position increasing collateral
       positionId = await wrapperReduceShort({
@@ -254,6 +271,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position decreasing collateral
       positionId = await wrapperReduceShort({
@@ -271,6 +289,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position decreasing collateral but covered by option price
       positionId = await wrapperReduceShort({
@@ -288,6 +307,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Close position fully
       positionId = await wrapperCloseShort({
@@ -299,6 +319,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       await expect(hre.f.c.optionToken.getPositionWithOwner(positionId)).revertedWith(
         'ERC721: owner query for nonexistent token',
       );
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
     });
   });
 
@@ -321,6 +342,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Adds to the position increasing collateral
       positionId = await wrapperAddShort({
@@ -338,6 +360,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Adds to the position descresing collateral
       positionId = await wrapperAddShort({
@@ -355,6 +378,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Adds to the position increasing collateral but covered by option price (user sends nothing)
       positionId = await wrapperAddShort({
@@ -372,6 +396,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position increasing collateral
       positionId = await wrapperReduceShort({
@@ -389,6 +414,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position decreasing collateral
       positionId = await wrapperReduceShort({
@@ -406,6 +432,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Removes from the position decreasing collateral but covered by option price
       positionId = await wrapperReduceShort({
@@ -423,6 +450,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_QUOTE);
       console.log(`Position collateral ${result1.collateral}`);
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
       // Close position fully
       positionId = await wrapperCloseShort({
@@ -434,6 +462,7 @@ describe('OptionMarketWrapper SHORT CALL QUOTE trading tests', async () => {
       await expect(hre.f.c.optionToken.getPositionWithOwner(positionId)).revertedWith(
         'ERC721: owner query for nonexistent token',
       );
+      await checkContractFunds(hre.f.c.optionMarketWrapper.address);
     });
   });
 });

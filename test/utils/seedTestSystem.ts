@@ -2,6 +2,7 @@ import { BigNumber, Contract, Signer } from 'ethers';
 import { currentTime, getEventArgs, toBN, toBytes32 } from '../../scripts/util/web3utils';
 import * as defaultParams from './defaultParams';
 import { MarketTestSystemContracts, TestSystemContractsType } from './deployTestSystem';
+import { getLocalRealSynthetixContract } from './package/parseFiles';
 import { changeRate, mintBase, mintQuote } from './package/realSynthetixUtils';
 
 export type SeedOverrides = {
@@ -22,6 +23,47 @@ export async function seedTestSystem(deployer: Signer, testSystem: TestSystemCon
     );
   } else {
     await changeRate(testSystem, overrides.initialBasePrice || defaultParams.DEFAULT_BASE_PRICE, 'sETH');
+
+    // Some issues with snx deploy script where these values are not being set properly
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralShort`)) as Contract).addSynths(
+      [toBytes32('SynthsETH')],
+      [toBytes32('sETH')],
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralShort`)) as Contract).addSynths(
+      [toBytes32('SynthsUSD')],
+      [toBytes32('sUSD')],
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setMaxDebt(
+      '75000000000000000000000000',
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setMaxSkewRate(
+      '200000000000000000',
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setBaseBorrowRate(
+      '158443823',
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setBaseShortRate(
+      '158443823',
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).addSynths(
+      [toBytes32('SynthsUSD')],
+      [toBytes32('sUSD')],
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).addSynths(
+      [toBytes32('SynthsBTC')],
+      [toBytes32('sBTC')],
+    );
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).addSynths(
+      [toBytes32('SynthsETH')],
+      [toBytes32('sETH')],
+    );
+    await (
+      (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract
+    ).addShortableSynths([toBytes32('SynthsBTC')], [toBytes32('sBTC')]);
+    await (
+      (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract
+    ).addShortableSynths([toBytes32('SynthsETH')], [toBytes32('sETH')]);
+    await ((await getLocalRealSynthetixContract(deployer, 'local', `Issuer`)) as Contract).rebuildCache();
   }
 
   await seedLiquidityPool(deployer, testSystem, overrides.initialPoolDeposit);
@@ -46,7 +88,6 @@ export async function seedNewMarketSystem(
   overrides?: SeedOverrides,
 ) {
   overrides = overrides || ({} as SeedOverrides);
-  // const combinedTestSystem: TestSystemContractsType = newTestSystemForMarket(existingTestSystem, marketTestSystem);
   await seedLiquidityPool(deployer, testSystem, overrides.initialPoolDeposit);
   await seedBalanceAndApprovalFor(deployer, testSystem, overrides.initialQuoteBalace, overrides.initialBaseBalance);
 
