@@ -26,7 +26,7 @@ async function splitWithOverrides(overrides?: {
       overrides?.recipient || hre.f.alice.address,
     );
 
-  const updateEvents = getAllMatchingEvents(await tx.wait(), 'PositionUpdated');
+  const updateEvents = getAllMatchingEvents(await tx.wait(), ['PositionUpdated']);
   let newPositionId;
   for (const event of updateEvents) {
     if (event.args.updatedType == 4) {

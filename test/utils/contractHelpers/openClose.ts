@@ -1,14 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber, BigNumberish, ContractTransaction } from 'ethers';
-import {
-  getEventArgs,
-  MAX_UINT128,
-  OptionType,
-  toBN,
-  toBytes32,
-  UNIT,
-  ZERO_ADDRESS,
-} from '../../../scripts/util/web3utils';
+import { getEventArgs, MAX_UINT128, OptionType, toBN, toBytes32, UNIT } from '../../../scripts/util/web3utils';
 import { TradeEvent, TradeInputParametersStruct } from '../../../typechain-types/OptionMarket';
 import { PositionWithOwnerStructOutput, TradeParametersStruct } from '../../../typechain-types/OptionToken';
 import { assertCloseToPercentage } from '../assert';
@@ -685,7 +677,6 @@ export const emptyTradeObject: TradeParametersStruct = {
     spotPrice: 0,
     quoteKey: toBytes32(''),
     baseKey: toBytes32(''),
-    short: ZERO_ADDRESS,
     quoteBaseFeeRate: 0,
     baseQuoteFeeRate: 0,
   },

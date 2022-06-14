@@ -31,10 +31,10 @@ describe('ExchangeBase', async () => {
     await fillLiquidityWithLongCall();
     const liquidity = await getLiquidity();
 
-    assertCloseToPercentage(liquidity.freeLiquidity, toBN('66799.8045'));
-    assertCloseToPercentage(liquidity.burnableLiquidity, toBN('66799.8045'));
-    assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('348402'));
-    assertCloseToPercentage(liquidity.pendingDeltaLiquidity, toBN('127026'));
+    assertCloseToPercentage(liquidity.freeLiquidity, toBN('0'));
+    assertCloseToPercentage(liquidity.burnableLiquidity, toBN('0'));
+    assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('348402.67'));
+    assertCloseToPercentage(liquidity.pendingDeltaLiquidity, toBN('193826.62'));
 
     expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).eq(0);
 

@@ -62,9 +62,7 @@ describe('Integration tests', () => {
 
   describe('setAddressResolver', async () => {
     it('can setAddressResolver', async () => {
-      const addressResolver = await (
-        (await getLocalRealSynthetixContract(deployer, 'local', `AddressResolver`)) as Contract
-      ).address;
+      const addressResolver = await (await getLocalRealSynthetixContract(deployer, 'local', `AddressResolver`)).address;
       await testSystem.synthetixAdapter.setAddressResolver(addressResolver);
       const currentAddress = await testSystem.synthetixAdapter.addressResolver();
       expect(addressResolver).eq(currentAddress);
@@ -471,10 +469,15 @@ describe('Integration tests', () => {
 
   describe('Rate and fee tests', async () => {
     it('unable to open and close positions with valid rate', async () => {
+      const positionId = await openPosition(testSystem, market, {
+        amount: toBN('10'),
+        optionType: OptionType.SHORT_PUT_QUOTE,
+        strikeId: marketView.liveBoards[0].strikes[0].strikeId,
+        setCollateralTo: toBN('18000'),
+      });
+
       // Set rate to be stale (invalid)
-      await ((await getLocalRealSynthetixContract(deployer, 'local', `SystemSettings`)) as Contract).setRateStalePeriod(
-        ethers.BigNumber.from(0),
-      );
+      await (await getLocalRealSynthetixContract(deployer, 'local', `SystemSettings`)).setRateStalePeriod(0);
 
       // Invalid rate to hedge
       await expect(forceUpdateHedgePosition(testSystem)).to.revertedWith("reverted with custom error 'RateIsInvalid");
@@ -491,7 +494,7 @@ describe('Integration tests', () => {
       // Invalid rate to close position
       await expect(
         closePosition(testSystem, market, {
-          positionId: 1,
+          positionId,
           amount: toBN('10'),
           optionType: OptionType.LONG_CALL,
           strikeId: marketView.liveBoards[0].strikes[0].strikeId,
@@ -568,9 +571,7 @@ describe('Integration tests', () => {
     it('able to close short if debt limit reached', async () => {
       const newDebt = toBN('0.000000000000000001');
       await setDebtLimit(testSystem, newDebt);
-      const maxDebt = await (
-        (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract
-      ).maxDebt();
+      const maxDebt = await (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)).maxDebt();
       assertCloseToPercentage(maxDebt, newDebt);
 
       // Open SHORT PUT --> hedger should long
@@ -598,8 +599,7 @@ describe('Integration tests', () => {
     const hedgeCap = toBN('10');
     beforeEach(async () => {
       await testSystem.poolHedger.setPoolHedgerParams({
-        shortBuffer: (await testSystem.poolHedger.poolHedgerParams()).shortBuffer,
-        interactionDelay: (await testSystem.poolHedger.poolHedgerParams()).interactionDelay,
+        interactionDelay: (await testSystem.poolHedger.getPoolHedgerParams()).interactionDelay,
         hedgeCap,
       });
     });

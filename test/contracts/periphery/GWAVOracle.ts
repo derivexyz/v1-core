@@ -1,6 +1,15 @@
 import { ethers } from 'hardhat';
 import { beforeEach } from 'mocha';
-import { currentTime, DAY_SEC, HOUR_SEC, OptionType, toBN, UNIT, WEEK_SEC } from '../../../scripts/util/web3utils';
+import {
+  currentTime,
+  DAY_SEC,
+  fromBN,
+  HOUR_SEC,
+  OptionType,
+  toBN,
+  UNIT,
+  WEEK_SEC,
+} from '../../../scripts/util/web3utils';
 import { TestBlackScholes } from '../../../typechain-types';
 import { BlackScholesInputsStruct } from '../../../typechain-types/BlackScholes';
 import { assertCloseToPercentage } from '../../utils/assert';
@@ -63,6 +72,18 @@ describe('GWAV Oracle', async () => {
 
     await fastForward(HOUR_SEC);
     await compareDeltaVegaWithGreekCache(WEEK_SEC, testBlackScholes);
+  });
+
+  it('can get call/put gwav prices', async () => {
+    let [call, put] = await hre.f.c.GWAVOracle.pricesGWAV(1, DAY_SEC);
+    expect(+(+fromBN(call)).toFixed(1)).to.eq(313.6);
+    expect(+(+fromBN(put)).toFixed(1)).to.eq(65.9);
+
+    await fastForward(WEEK_SEC);
+
+    [call, put] = await hre.f.c.GWAVOracle.pricesGWAV(1, WEEK_SEC);
+    expect(+(+fromBN(call)).toFixed(1)).to.eq(299.4);
+    expect(+(+fromBN(put)).toFixed(1)).to.eq(53.1);
   });
 });
 

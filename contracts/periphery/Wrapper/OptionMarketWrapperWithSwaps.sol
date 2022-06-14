@@ -8,6 +8,8 @@ import "../../synthetix/DecimalMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../../OptionMarket.sol";
 import "../../OptionToken.sol";
+import "../../LiquidityPool.sol";
+import "../../LiquidityTokens.sol";
 import "../../interfaces/ICurve.sol";
 import "../../interfaces/IFeeCounter.sol";
 
@@ -30,6 +32,8 @@ contract OptionMarketWrapperWithSwaps is Owned {
     ERC20 quoteAsset;
     ERC20 baseAsset;
     OptionToken optionToken;
+    LiquidityPool liquidityPool;
+    LiquidityTokens liquidityTokens;
   }
 
   struct OptionPositionParams {
@@ -76,6 +80,12 @@ contract OptionMarketWrapperWithSwaps is Owned {
     uint balance;
     uint allowance;
     bool isApprovedForAll;
+  }
+
+  struct LiquidityBalanceAndAllowance {
+    address token;
+    uint balance;
+    uint allowance;
   }
 
   ///////////////
@@ -136,7 +146,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
     ercIds.push(id);
     idToERC[id] = token;
 
-    cachedDecimals[token] = _getDecimals(token);
+    cachedDecimals[token] = token.decimals();
     cachedSymbol[token] = token.symbol();
   }
 
@@ -174,7 +184,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
       }
     }
 
-    cachedDecimals[_marketContracts.baseAsset] = _getDecimals(_marketContracts.baseAsset);
+    cachedDecimals[_marketContracts.baseAsset] = _marketContracts.baseAsset.decimals();
     cachedSymbol[_marketContracts.baseAsset] = _marketContracts.baseAsset.symbol();
 
     marketIds.push(id);
@@ -183,10 +193,18 @@ contract OptionMarketWrapperWithSwaps is Owned {
 
   function removeMarket(uint8 id) external onlyOwner {
     uint index = 0;
+    bool found = false;
     for (uint i = 0; i < marketIds.length; i++) {
-      if (marketIds[i] == id) index = i;
+      if (marketIds[i] == id) {
+        index = i;
+        found = true;
+        break;
+      }
     }
-    marketIds[index] = marketIds[ercIds.length - 1];
+    if (!found) {
+      revert RemovingInvalidId(address(this), id);
+    }
+    marketIds[index] = marketIds[marketIds.length - 1];
     marketIds.pop();
     delete marketContracts[idToMarket[id]];
     delete idToMarket[id];
@@ -256,7 +274,13 @@ contract OptionMarketWrapperWithSwaps is Owned {
     OptionMarket.Result memory result = params.optionMarket.openPosition(tradeParameters);
 
     // Increments trading rewards contract
-    _incrementTradingRewards(msg.sender, tradeParameters.amount, result.totalCost, result.totalFee);
+    _incrementTradingRewards(
+      address(params.optionMarket),
+      msg.sender,
+      tradeParameters.amount,
+      result.totalCost,
+      result.totalFee
+    );
 
     int addSwapFee = 0;
     (, addSwapFee) = _returnQuote(c.quoteAsset, params.inputAsset);
@@ -316,7 +340,13 @@ contract OptionMarketWrapperWithSwaps is Owned {
     }
 
     // increments the fee counter for the user.
-    _incrementTradingRewards(msg.sender, tradeParameters.amount, result.totalCost, result.totalFee);
+    _incrementTradingRewards(
+      address(params.optionMarket),
+      msg.sender,
+      tradeParameters.amount,
+      result.totalCost,
+      result.totalFee
+    );
 
     int addSwapFee;
     (, addSwapFee) = _returnQuote(c.quoteAsset, params.inputAsset);
@@ -350,6 +380,10 @@ contract OptionMarketWrapperWithSwaps is Owned {
   // Misc //
   //////////
 
+  function getMarketAndErcIds() public view returns (uint8[] memory, uint8[] memory) {
+    return (marketIds, ercIds);
+  }
+
   /**
    * @dev Returns addresses, balances and allowances of all supported tokens for a list of markets
    *
@@ -358,7 +392,11 @@ contract OptionMarketWrapperWithSwaps is Owned {
   function getBalancesAndAllowances(address owner)
     external
     view
-    returns (StableAssetView[] memory, MarketAssetView[] memory)
+    returns (
+      StableAssetView[] memory,
+      MarketAssetView[] memory,
+      LiquidityBalanceAndAllowance[] memory
+    )
   {
     StableAssetView[] memory stableBalances = new StableAssetView[](ercIds.length);
     for (uint i = 0; i < ercIds.length; i++) {
@@ -373,6 +411,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
       });
     }
     MarketAssetView[] memory marketBalances = new MarketAssetView[](marketIds.length);
+    LiquidityBalanceAndAllowance[] memory liquidityTokenBalances = new LiquidityBalanceAndAllowance[](marketIds.length);
     for (uint i = 0; i < marketIds.length; i++) {
       OptionMarket market = idToMarket[marketIds[i]];
       OptionMarketContracts memory c = marketContracts[market];
@@ -386,8 +425,11 @@ contract OptionMarketWrapperWithSwaps is Owned {
         allowance: c.baseAsset.allowance(owner, address(this)),
         isApprovedForAll: c.optionToken.isApprovedForAll(owner, address(this))
       });
+      liquidityTokenBalances[i].balance = c.liquidityTokens.balanceOf(owner);
+      liquidityTokenBalances[i].allowance = c.quoteAsset.allowance(owner, address(c.liquidityPool));
+      liquidityTokenBalances[i].token = address(c.liquidityPool);
     }
-    return (stableBalances, marketBalances);
+    return (stableBalances, marketBalances, liquidityTokenBalances);
   }
 
   /**
@@ -401,7 +443,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
     if (quoteBalance > 0) {
       if (inputAsset != quoteAsset) {
         uint min = (minReturnPercent * 10**cachedDecimals[inputAsset]) / 10**cachedDecimals[quoteAsset];
-        (quoteBalance, swapFee) = _swapWithCurve(
+        (, swapFee) = _swapWithCurve(
           quoteAsset,
           inputAsset,
           quoteBalance,
@@ -438,10 +480,6 @@ contract OptionMarketWrapperWithSwaps is Owned {
 
   function _isLong(OptionMarket.OptionType optionType) internal pure returns (bool) {
     return (optionType < OptionMarket.OptionType.SHORT_CALL_BASE);
-  }
-
-  function _isBaseCollateral(OptionMarket.OptionType optionType) internal pure returns (bool) {
-    return (optionType == OptionMarket.OptionType.SHORT_CALL_BASE);
   }
 
   /**
@@ -545,15 +583,6 @@ contract OptionMarketWrapperWithSwaps is Owned {
     }
   }
 
-  /**
-   * @dev Compute the absolute value of `val`.
-   *
-   * @param val The number to absolute value.
-   */
-  function _abs(int val) internal pure returns (uint) {
-    return uint(val < 0 ? -val : val);
-  }
-
   function _composeTradeParams(OptionPositionParams memory params)
     internal
     pure
@@ -594,24 +623,15 @@ contract OptionMarketWrapperWithSwaps is Owned {
   // @dev function increments the trading rewards contract.
   // makes a call to the trading rewards contract
   function _incrementTradingRewards(
+    address market,
     address trader,
     uint amount,
     uint totalCost,
     uint totalFee
   ) internal {
     if (address(tradingRewards) != address(0)) {
-      tradingRewards.trackFee(trader, amount, totalCost, totalFee, address(this));
+      tradingRewards.trackFee(market, trader, amount, totalCost, totalFee);
     }
-  }
-
-  function _getDecimals(ERC20 token) internal view returns (uint8) {
-    uint8 decimals;
-    try token.decimals() returns (uint8 dec) {
-      decimals = dec;
-    } catch {
-      decimals = 18;
-    }
-    return decimals;
   }
 
   ////////////

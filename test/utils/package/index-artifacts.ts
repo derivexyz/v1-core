@@ -15,7 +15,7 @@ export const artifacts = {
   OptionMarketViewer: getContractArtifact('local', 'OptionMarketViewer', '../../artifacts/contracts'),
   OptionMarketWrapper: getContractArtifact('local', 'OptionMarketWrapper', '../../artifacts/contracts'),
   OptionToken: getContractArtifact('local', 'OptionToken', '../../artifacts/contracts'),
-  PoolHedger: getContractArtifact('local', 'PoolHedger', '../../artifacts/contracts'),
+  PoolHedger: getContractArtifact('local', 'ShortPoolHedger', '../../artifacts/contracts'),
   ShortCollateral: getContractArtifact('local', 'ShortCollateral', '../../artifacts/contracts'),
   SynthetixAdapter: getContractArtifact('local', 'SynthetixAdapter', '../../artifacts/contracts'),
   TestAddressResolver: getContractArtifact('local', 'TestAddressResolver', '../../artifacts/contracts'),

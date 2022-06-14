@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import { fetchJson } from '@ethersproject/web';
 import chalk from 'chalk';
-import { BaseContract, Signer } from 'ethers';
+import { Contract, Signer } from 'ethers';
 import fs from 'fs';
 import path, { resolve } from 'path';
 import { AllowedNetworks } from '../../../scripts/util';
@@ -135,7 +135,7 @@ export async function getMarketDeploys(network: AllowedNetworks, market: string)
     LiquidityTokens: assignMarketArtifact('LiquidityTokens', lyraDeployment, artifacts, market),
     ShortCollateral: assignMarketArtifact('ShortCollateral', lyraDeployment, artifacts, market),
     BasicLiquidityCounter: assignMarketArtifact('BasicLiquidityCounter', lyraDeployment, artifacts, market),
-    PoolHedger: assignMarketArtifact('PoolHedger', lyraDeployment, artifacts, market),
+    PoolHedger: assignMarketArtifact('ShortPoolHedger', lyraDeployment, artifacts, market),
     GWAVOracle: assignMarketArtifact('GWAVOracle', lyraDeployment, artifacts, market),
     BaseAsset: assignMarketArtifact(baseName, snxDeployment, artifacts, market, 'TestERC20Fail'),
   };
@@ -271,7 +271,7 @@ export async function exportMarketDeployment(marketSystem: MarketTestSystemContr
     LiquidityPool: await getContractsWithBlockNumber(marketSystem.liquidityPool, 'LiquidityPool'),
     LiquidityTokens: await getContractsWithBlockNumber(marketSystem.liquidityTokens, 'LiquidityTokens'),
     ShortCollateral: await getContractsWithBlockNumber(marketSystem.shortCollateral, 'ShortCollateral'),
-    PoolHedger: await getContractsWithBlockNumber(marketSystem.poolHedger, 'PoolHedger'),
+    PoolHedger: await getContractsWithBlockNumber(marketSystem.poolHedger, 'ShortPoolHedger'),
     GWAVOracle: await getContractsWithBlockNumber(marketSystem.GWAVOracle, 'GWAVOracle'),
     BasicLiquidityCounter: await getContractsWithBlockNumber(
       marketSystem.basicLiquidityCounter,
@@ -304,7 +304,7 @@ export async function getLocalRealSynthetixContract(
   deployer: Signer,
   network: AllowedNetworks,
   contractName: string,
-): Promise<BaseContract> {
+): Promise<Contract> {
   const data = require(resolve(path.join('.lyra', network, 'real-synthetix.json')));
   if (network == 'local' && contractName == 'ProxyERC20sUSD') {
     contractName = 'ProxysUSD';
@@ -317,7 +317,7 @@ export async function getLocalRealSynthetixContract(
     abi = data.sources[data.targets['Synthetix'].source].abi;
   }
 
-  return new BaseContract(address, abi, deployer);
+  return new Contract(address, abi, deployer);
   // need to figure out where this is disappearing
 }
 

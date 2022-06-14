@@ -47,7 +47,9 @@ contract KeeperHelper {
   }
 
   function liquidateMany(uint[] memory positionIds) external {
-    _liquidateMany(positionIds);
+    for (uint i = 0; i < positionIds.length; i++) {
+      optionMarket.liquidatePosition(positionIds[i], msg.sender);
+    }
   }
 
   /**
@@ -277,7 +279,7 @@ contract KeeperHelper {
    * @dev Allows settlement of many positions in a single call.
    */
   function settleMany(uint[] memory positionIds) external {
-    _settleMany(positionIds);
+    shortCollateral.settleOptions(positionIds);
   }
 
   /**

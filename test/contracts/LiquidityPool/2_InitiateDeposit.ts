@@ -49,7 +49,6 @@ describe('Initiate Deposit', async () => {
   it('immediately process when all boards settled/no live boards', async () => {
     // settle board
     await fastForward(MONTH_SEC + 1);
-    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
     expect((await hre.f.c.optionMarket.getLiveBoards()).length).to.eq(0);
 
@@ -57,7 +56,8 @@ describe('Initiate Deposit', async () => {
     await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.signers[2].address, toBN('1000'));
     expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
     expect(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address)).eq(toBN('1000'));
-    await validateDepositRecord(0, ZERO_ADDRESS, toBN('0'), toBN('0'), 0); // no ticket created
+    const deposit = await hre.f.c.liquidityPool.queuedDeposits(1);
+    expect(deposit.id).eq(0);
   });
 
   it('stores multiple queued deposits in correct id', async () => {
@@ -65,23 +65,23 @@ describe('Initiate Deposit', async () => {
 
     tx = await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.alice.address, toBN('100'));
     let currentTimestamp = await getTxTimestamp(tx);
-    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(1);
+    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(2);
     expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('100'));
-    await validateDepositRecord(0, hre.f.alice.address, toBN('100'), toBN('0'), currentTimestamp);
+    await validateDepositRecord(1, hre.f.alice.address, toBN('100'), toBN('0'), currentTimestamp);
     await fastForward(HOUR_SEC);
 
     tx = await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.alice.address, toBN('200'));
     currentTimestamp = await getTxTimestamp(tx);
-    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(2);
+    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(3);
     expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('300'));
-    await validateDepositRecord(1, hre.f.alice.address, toBN('200'), toBN('0'), currentTimestamp);
+    await validateDepositRecord(2, hre.f.alice.address, toBN('200'), toBN('0'), currentTimestamp);
     await fastForward(HOUR_SEC);
 
     tx = await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.alice.address, toBN('300'));
     currentTimestamp = await getTxTimestamp(tx);
-    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(3);
+    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(4);
     expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('600'));
-    await validateDepositRecord(2, hre.f.alice.address, toBN('300'), toBN('0'), currentTimestamp);
+    await validateDepositRecord(3, hre.f.alice.address, toBN('300'), toBN('0'), currentTimestamp);
     await fastForward(HOUR_SEC);
 
     expect(initialBalance.sub(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address))).to.eq(toBN('600'));

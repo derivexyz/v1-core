@@ -82,7 +82,6 @@ describe('Successful Open', async () => {
 
           // settle amount = 1
           await fastForward(MONTH_SEC);
-          await hre.f.c.optionGreekCache.updateBoardCachedGreeks(2);
           await hre.f.c.optionMarket.settleExpiredBoard(2);
           await hre.f.c.shortCollateral.settleOptions([1]);
         });

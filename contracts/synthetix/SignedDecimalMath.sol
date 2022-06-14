@@ -28,7 +28,6 @@ pragma solidity ^0.8.9;
  * @dev Modified synthetix SafeSignedDecimalMath to include internal arithmetic underflow/overflow.
  * @dev https://docs.synthetix.io/contracts/source/libraries/safedecimalmath
  */
-
 library SignedDecimalMath {
   /* Number of decimal places in the representations. */
   uint8 public constant decimals = 18;
@@ -53,6 +52,22 @@ library SignedDecimalMath {
    */
   function preciseUnit() external pure returns (int) {
     return PRECISE_UNIT;
+  }
+
+  /**
+   * @dev Rounds an input with an extra zero of precision, returning the result without the extra zero.
+   * Half increments round away from zero; positive numbers at a half increment are rounded up,
+   * while negative such numbers are rounded down. This behaviour is designed to be consistent with the
+   * unsigned version of this library (SafeDecimalMath).
+   */
+  function _roundDividingByTen(int valueTimesTen) private pure returns (int) {
+    int increment;
+    if (valueTimesTen % 10 >= 5) {
+      increment = 10;
+    } else if (valueTimesTen % 10 <= -5) {
+      increment = -10;
+    }
+    return (valueTimesTen + increment) / 10;
   }
 
   /**
@@ -88,12 +103,7 @@ library SignedDecimalMath {
   ) private pure returns (int) {
     /* Divide by UNIT to remove the extra factor introduced by the product. */
     int quotientTimesTen = (x * y) / (precisionUnit / 10);
-
-    if (quotientTimesTen % 10 >= 5) {
-      quotientTimesTen += 10;
-    }
-
-    return quotientTimesTen / 10;
+    return _roundDividingByTen(quotientTimesTen);
   }
 
   /**
@@ -156,12 +166,7 @@ library SignedDecimalMath {
     int precisionUnit
   ) private pure returns (int) {
     int resultTimesTen = (x * (precisionUnit * 10)) / y;
-
-    if (resultTimesTen % 10 >= 5) {
-      resultTimesTen += 10;
-    }
-
-    return resultTimesTen / 10;
+    return _roundDividingByTen(resultTimesTen);
   }
 
   /**
@@ -200,11 +205,6 @@ library SignedDecimalMath {
    */
   function preciseDecimalToDecimal(int i) internal pure returns (int) {
     int quotientTimesTen = i / (UNIT_TO_HIGH_PRECISION_CONVERSION_FACTOR / 10);
-
-    if (quotientTimesTen % 10 >= 5) {
-      quotientTimesTen += 10;
-    }
-
-    return quotientTimesTen / 10;
+    return _roundDividingByTen(quotientTimesTen);
   }
 }

@@ -36,29 +36,13 @@ describe('Getters', async () => {
       await setETHFeeRate('sUSD', 'sETH', toBN('0.01'), toBN('0.05'));
 
       params = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
-      await verifyExchangeParams(
-        params,
-        toBN('2000'),
-        'sUSD',
-        'sETH',
-        await hre.f.c.synthetixAdapter.collateralShort(),
-        toBN('0.01'),
-        toBN('0.05'),
-      );
+      await verifyExchangeParams(params, toBN('2000'), 'sUSD', 'sETH', toBN('0.01'), toBN('0.05'));
     });
     it('gets correct values after globals changed', async () => {
       await defaultBTCExchange();
 
       params = await hre.f.c.synthetixAdapter.getExchangeParams(ZERO_ADDRESS);
-      await verifyExchangeParams(
-        params,
-        toBN('20000'),
-        'sUSD',
-        'sBTC',
-        await hre.f.c.synthetixAdapter.collateralShort(),
-        toBN('0.005'),
-        toBN('0.001'),
-      );
+      await verifyExchangeParams(params, toBN('20000'), 'sUSD', 'sBTC', toBN('0.005'), toBN('0.001'));
     });
     it('reverts if invalid base or quote key', async () => {
       await setETHExchangerInvalid();
@@ -72,14 +56,12 @@ export async function verifyExchangeParams(
   spot: BigNumber,
   quoteKey: string,
   baseKey: string,
-  short: string,
   quoteFee: BigNumber,
   baseFee: BigNumber,
 ) {
   expect(exchangeParams.spotPrice).to.eq(spot);
   expect(exchangeParams.quoteKey).to.eq(toBytes32(quoteKey));
   expect(exchangeParams.baseKey).to.eq(toBytes32(baseKey));
-  expect(exchangeParams.short).to.eq(short);
   expect(exchangeParams.quoteBaseFeeRate).to.eq(quoteFee);
   expect(exchangeParams.baseQuoteFeeRate).to.eq(baseFee);
 }

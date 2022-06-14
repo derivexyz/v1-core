@@ -1,4 +1,4 @@
-import { MONTH_SEC, toBN } from '../../../scripts/util/web3utils';
+import { toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { DEFAULT_POOL_DEPOSIT } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { deployFixture, seedFixture } from '../../utils/fixture';
@@ -26,11 +26,11 @@ describe('TokenPriceAndSupply', async () => {
     );
     expect(await hre.f.c.liquidityPool.getTotalTokenSupply()).to.eq(toBN('500000'));
 
-    await fastForward(MONTH_SEC);
+    await fastForward(WEEK_SEC * 2);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processWithdrawalQueue(1);
 
-    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(2);
     expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.eq(toBN('5000'));
     expect(await hre.f.c.liquidityPool.getTotalTokenSupply()).to.eq(toBN('0'));
     expect(await hre.f.c.liquidityPool.getTokenPrice()).to.eq(toBN('1'));
@@ -42,9 +42,10 @@ describe('TokenPriceAndSupply', async () => {
       hre.f.deployer.address,
       await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
     );
-    await fastForward(MONTH_SEC);
+    await fastForward(WEEK_SEC * 2);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    await fastForward(WEEK_SEC * 2 + 1);
     await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
     expect((await hre.f.c.optionMarket.getLiveBoards()).length).to.eq(0);
     expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.eq(toBN('5000'));

@@ -81,8 +81,8 @@ contract TestVaultAdapter is VaultAdapter {
     uint amount,
     uint expected,
     address receiver
-  ) external returns (uint amountOut, int swapFee) {
-    (amountOut, swapFee) = _swapStables(from, to, amount, expected, receiver);
+  ) external returns (uint amountOut) {
+    amountOut = _swapStables(from, to, amount, expected, receiver);
   }
 
   function getBoardExt(uint boardId) external view returns (Board memory board) {
@@ -105,8 +105,21 @@ contract TestVaultAdapter is VaultAdapter {
     vegas = _getVegas(strikeIds);
   }
 
+  function getPurePremiumExt(
+    uint secondsToExpiry,
+    uint vol,
+    uint spotPrice,
+    uint strikePrice
+  ) external view returns (uint call, uint put) {
+    (call, put) = _getPurePremium(secondsToExpiry, vol, spotPrice, strikePrice);
+  }
+
   function getPurePremiumForStrikeExt(uint strikeId) external view returns (uint call, uint put) {
     (call, put) = _getPurePremiumForStrike(strikeId);
+  }
+
+  function getLiquidityExt() external view returns (Liquidity memory liquidity) {
+    liquidity = _getLiquidity();
   }
 
   function getFreeLiquidityExt() external view returns (uint freeLiquidity) {

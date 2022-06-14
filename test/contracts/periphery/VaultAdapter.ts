@@ -1,9 +1,10 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { BigNumber } from 'ethers';
+import { BigNumber, ContractFactory } from 'ethers';
 import { ethers } from 'hardhat';
 import { DAY_SEC, fromBN, MAX_UINT, MONTH_SEC, OptionType, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
-import { TestVaultAdapter } from '../../../typechain-types';
+import { OptionMarket, TestERC20Fail, TestERC20SetDecimals, TestVaultAdapter } from '../../../typechain-types';
 import { assertCloseTo } from '../../utils/assert';
+import { openPositionWithOverrides } from '../../utils/contractHelpers';
 import { deployTestSystem, TestSystemContractsType } from '../../utils/deployTestSystem';
 import { restoreSnapshot, takeSnapshot } from '../../utils/evm';
 import { createDefaultBoardWithOverrides, seedTestSystem } from '../../utils/seedTestSystem';
@@ -18,6 +19,9 @@ describe('VaultAdapter tests', () => {
   let testVaultAdapter: TestVaultAdapter;
   let c: TestSystemContractsType;
   let snap: number;
+
+  let USDC: TestERC20SetDecimals;
+  let DAI: TestERC20Fail;
 
   before(async () => {
     const signers = await ethers.getSigners();
@@ -82,12 +86,67 @@ describe('VaultAdapter tests', () => {
       skews: ['0.8', '1.1', '1.4'],
     });
 
+    USDC = (await (await ethers.getContractFactory('TestERC20SetDecimals'))
+      .connect(account)
+      .deploy('USDC', 'USDC', 6)) as TestERC20SetDecimals;
+    DAI = (await (await ethers.getContractFactory('TestERC20Fail'))
+      .connect(account)
+      .deploy('DAI', 'DAI')) as unknown as TestERC20Fail;
+
+    await USDC.mint(account.address, 100000 * 1e6);
+    await DAI.mint(account.address, toBN('100000'));
+
+    await c.snx.quoteAsset.connect(account).approve(testVaultAdapter.address, MAX_UINT);
+    await c.snx.baseAsset.connect(account).approve(testVaultAdapter.address, MAX_UINT);
+    await USDC.connect(account).approve(testVaultAdapter.address, MAX_UINT);
+    await DAI.connect(account).approve(testVaultAdapter.address, MAX_UINT);
+
+    await c.snx.quoteAsset.permitMint(c.testCurve.address, true);
+    await USDC.permitMint(c.testCurve.address, true);
+    await DAI.permitMint(c.testCurve.address, true);
+
+    await c.testCurve.setRate(USDC.address, 1010000);
+    await c.testCurve.setRate(DAI.address, toBN('1.01'));
+    await c.testCurve.setRate(c.snx.quoteAsset.address, toBN('0.999'));
+
     snap = await takeSnapshot();
   });
 
   afterEach(async () => {
     await restoreSnapshot(snap);
     snap = await takeSnapshot();
+  });
+
+  describe('can set addresses', async () => {
+    it('setLyraAddresses', async () => {
+      const optionMarket2 = (await ((await ethers.getContractFactory('OptionMarket')) as ContractFactory)
+        .connect(account)
+        .deploy()) as OptionMarket;
+
+      await testVaultAdapter.setLyraAddressesExt(
+        c.testCurve.address,
+        c.optionToken.address,
+        optionMarket2.address,
+        c.liquidityPool.address,
+        c.shortCollateral.address,
+        c.synthetixAdapter.address,
+        c.optionMarketPricer.address,
+        c.optionGreekCache.address,
+        c.snx.quoteAsset.address,
+        c.snx.baseAsset.address,
+        c.basicFeeCounter.address,
+      );
+
+      // When setting new optionMarket, the old optionMarket allowance is set to 0
+      const quoteAllowance = await c.snx.quoteAsset.allowance(testVaultAdapter.address, c.optionMarket.address);
+      const baseAllowance = await c.snx.baseAsset.allowance(testVaultAdapter.address, c.optionMarket.address);
+      const quoteAllowance2 = await c.snx.quoteAsset.allowance(testVaultAdapter.address, optionMarket2.address);
+      const baseAllowance2 = await c.snx.baseAsset.allowance(testVaultAdapter.address, optionMarket2.address);
+      expect(quoteAllowance).to.eq(0);
+      expect(baseAllowance).to.eq(0);
+      expect(quoteAllowance2).to.eq(MAX_UINT);
+      expect(baseAllowance2).to.eq(MAX_UINT);
+    });
   });
 
   describe('Market Getters', async () => {
@@ -145,11 +204,27 @@ describe('VaultAdapter tests', () => {
       assertCloseTo(vegas[2], toBN('114'));
     });
 
+    it('getPurePremium', async () => {
+      const [call, put] = await testVaultAdapter.getPurePremiumExt(MONTH_SEC, toBN('0.5'), toBN('1100'), toBN('1000'));
+      assertCloseTo(call, toBN('123.956'));
+      assertCloseTo(put, toBN('20.13'));
+    });
+
     it('getPurePremiumForStrike', async () => {
       const [call, put] = await testVaultAdapter.getPurePremiumForStrikeExt(1);
 
       assertCloseTo(call, toBN('313.615'));
       assertCloseTo(put, toBN('65.8'));
+    });
+
+    it('getLiquidity', async () => {
+      const liq = await testVaultAdapter.getLiquidityExt();
+      expect(liq.freeLiquidity).to.eq(toBN('500000'));
+      expect(liq.burnableLiquidity).to.eq(toBN('500000'));
+      expect(liq.usedCollatLiquidity).to.eq(0);
+      expect(liq.pendingDeltaLiquidity).to.eq(0);
+      expect(liq.usedDeltaLiquidity).to.eq(0);
+      expect(liq.NAV).to.eq(toBN('500000'));
     });
 
     it('getFreeLiquidity', async () => {
@@ -184,6 +259,85 @@ describe('VaultAdapter tests', () => {
       expect(liveBoards[2]).to.eq(3);
       expect(liveBoards[3]).to.eq(4);
     });
+
+    it('getLiveBoards', async () => {
+      const liveBoards = await testVaultAdapter.getLiveBoardsExt();
+
+      expect(liveBoards[0]).to.eq(1);
+      expect(liveBoards[1]).to.eq(2);
+      expect(liveBoards[2]).to.eq(3);
+      expect(liveBoards[3]).to.eq(4);
+    });
+
+    it('getMinCollateral', async () => {
+      const now = await Date.now();
+      const minCollateral = await testVaultAdapter.getMinCollateralExt(
+        3,
+        toBN('1000'),
+        now + MONTH_SEC,
+        toBN('1200'),
+        toBN('1'),
+      );
+      assertCloseTo(minCollateral, toBN('1440'));
+    });
+
+    it('getMinCollateralForPosition', async () => {
+      const [, pos] = await openPositionWithOverrides(c, {
+        strikeId: listingIds[1],
+        optionType: OptionType.SHORT_CALL_BASE,
+        setCollateralTo: toBN('1'),
+        amount: toBN('1'),
+      });
+      const minCollateral = await testVaultAdapter.getMinCollateralForPositionExt(pos);
+      assertCloseTo(minCollateral, toBN('0.265'));
+    });
+
+    it('getMinCollateralForPosition for LONG', async () => {
+      const [, pos] = await openPositionWithOverrides(c, {
+        strikeId: listingIds[1],
+        optionType: OptionType.LONG_CALL,
+        setCollateralTo: toBN('1'),
+        amount: toBN('1'),
+      });
+      const minCollateral = await testVaultAdapter.getMinCollateralForPositionExt(pos);
+      expect(minCollateral).to.eq(0);
+    });
+
+    it('getMinCollateralForStrike', async () => {
+      const minCollateral = await testVaultAdapter.getMinCollateralForStrikeExt(3, 1, toBN('1'));
+      assertCloseTo(minCollateral, toBN('798.67'));
+    });
+
+    it('getMinCollateralForStrike for LONG', async () => {
+      const minCollateral = await testVaultAdapter.getMinCollateralForStrikeExt(0, 1, toBN('1'));
+      expect(minCollateral).to.eq(0);
+    });
+
+    it('getPositions', async () => {
+      const [, pos1] = await openPositionWithOverrides(c, {
+        strikeId: listingIds[1],
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('0.01'),
+      });
+      const [, pos2] = await openPositionWithOverrides(c, {
+        strikeId: listingIds[1],
+        optionType: OptionType.LONG_PUT,
+        amount: toBN('0.02'),
+      });
+      const [, pos3] = await openPositionWithOverrides(c, {
+        strikeId: listingIds[1],
+        optionType: OptionType.SHORT_CALL_BASE,
+        setCollateralTo: toBN('0.01'),
+        amount: toBN('0.01'),
+      });
+      const positions = await testVaultAdapter.getPositionsExt([pos1, pos2, pos3]);
+      expect(positions[0].positionId).to.eq(1);
+      expect(positions[0].amount).to.eq(toBN('0.01'));
+      expect(positions[1].positionId).to.eq(2);
+      expect(positions[1].amount).to.eq(toBN('0.02'));
+      expect(positions[2].positionId).to.eq(3);
+      expect(positions[2].amount).to.eq(toBN('0.01'));
+    });
   });
 
   describe('Position functions', async () => {
@@ -200,8 +354,6 @@ describe('VaultAdapter tests', () => {
         rewardRecipient: '0x0000000000000000000000000000000000000000',
       };
 
-      await testVaultAdapter.openPositionExt(params);
-      await testVaultAdapter.openPositionExt(params);
       await testVaultAdapter.openPositionExt(params);
 
       const result1 = await c.optionToken.getPositionWithOwner(1);
@@ -227,10 +379,10 @@ describe('VaultAdapter tests', () => {
         rewardRecipient: accountAddr,
       };
 
-      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, true);
+      await expect(testVaultAdapter.openPositionExt(params)).to.be.revertedWith('not trusted counter');
 
-      await testVaultAdapter.openPositionExt(params);
-      await testVaultAdapter.openPositionExt(params);
+      // Set adapter as trusted address
+      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, true);
       await testVaultAdapter.openPositionExt(params);
 
       const result1 = await c.optionToken.getPositionWithOwner(1);
@@ -253,7 +405,7 @@ describe('VaultAdapter tests', () => {
         setCollateralTo: 0,
         minTotalCost: toBN('200'),
         maxTotalCost: toBN('400'),
-        rewardRecipient: '0x0000000000000000000000000000000000000000',
+        rewardRecipient: accountAddr,
       };
 
       const closeParams = {
@@ -265,11 +417,55 @@ describe('VaultAdapter tests', () => {
         setCollateralTo: 0,
         minTotalCost: toBN('200'),
         maxTotalCost: toBN('300'),
-        rewardRecipient: '0x0000000000000000000000000000000000000000',
+        rewardRecipient: accountAddr,
       };
 
+      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, true);
       await testVaultAdapter.openPositionExt(params);
+      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, false);
+
+      await expect(testVaultAdapter.closePositionExt(closeParams)).to.be.revertedWith('not trusted counter');
+
+      // Set adapter as trusted address
+      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, true);
       await testVaultAdapter.closePositionExt(closeParams);
+      await expect(c.optionToken.getPositionWithOwner(1)).revertedWith('ERC721: owner query for nonexistent token');
+    });
+
+    it('can force close position', async () => {
+      const params = {
+        strikeId: listingIds[0],
+        positionId: 0,
+        iterations: 1,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('1'),
+        setCollateralTo: 0,
+        minTotalCost: toBN('200'),
+        maxTotalCost: toBN('400'),
+        rewardRecipient: accountAddr,
+      };
+
+      const closeParams = {
+        strikeId: listingIds[0],
+        positionId: 1,
+        iterations: 1,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('1'),
+        setCollateralTo: 0,
+        minTotalCost: toBN('200'),
+        maxTotalCost: toBN('300'),
+        rewardRecipient: accountAddr,
+      };
+
+      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, true);
+      await testVaultAdapter.openPositionExt(params);
+      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, false);
+
+      await expect(testVaultAdapter.forceClosePositionExt(closeParams)).to.be.revertedWith('not trusted counter');
+
+      // Set adapter as trusted address
+      await c.basicFeeCounter.setTrustedCounter(testVaultAdapter.address, true);
+      await testVaultAdapter.forceClosePositionExt(closeParams);
       await expect(c.optionToken.getPositionWithOwner(1)).revertedWith('ERC721: owner query for nonexistent token');
     });
 
@@ -405,6 +601,68 @@ describe('VaultAdapter tests', () => {
       await expect(testVaultAdapter.exchangeToExactBaseExt(toBN('1'), toBN('1740'))).to.revertedWith(
         'QuoteBaseExchangeExceedsLimit',
       );
+    });
+  });
+
+  describe('swapping stables', async () => {
+    it('DAI to sUSD', async () => {
+      const quoteBalBefore = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const daiBalBefore = +fromBN(await DAI.balanceOf(accountAddr));
+
+      await testVaultAdapter.swapStablesExt(
+        DAI.address,
+        c.snx.quoteAsset.address,
+        toBN('1000'),
+        toBN('989'),
+        accountAddr,
+      );
+      const quoteBalAfter = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const daiBalAfter = +fromBN(await DAI.balanceOf(accountAddr));
+
+      expect(daiBalBefore - daiBalAfter).to.eq(1000);
+      expect(quoteBalAfter - quoteBalBefore).to.eq(989.1089108909946);
+    });
+    it('sUSD to DAI', async () => {
+      const quoteBalBefore = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const daiBalBefore = +fromBN(await DAI.balanceOf(accountAddr));
+
+      await testVaultAdapter.swapStablesExt(
+        c.snx.quoteAsset.address,
+        DAI.address,
+        toBN('1000'),
+        toBN('1000'),
+        accountAddr,
+      );
+      const quoteBalAfter = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const daiBalAfter = +fromBN(await DAI.balanceOf(accountAddr));
+
+      expect(quoteBalBefore - quoteBalAfter).to.eq(1000);
+      expect(daiBalAfter - daiBalBefore).to.eq(1011.0110110110109);
+    });
+
+    it('USDC to sUSD', async () => {
+      const quoteBalBefore = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const usdcBalBefore = +(await USDC.balanceOf(accountAddr));
+
+      const usdcAmt = 1000 * 1e6;
+      await testVaultAdapter.swapStablesExt(USDC.address, c.snx.quoteAsset.address, usdcAmt, toBN('989'), accountAddr);
+      const quoteBalAfter = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const usdcBalAfter = +(await USDC.balanceOf(accountAddr));
+
+      expect(usdcBalBefore - usdcBalAfter).to.eq(usdcAmt);
+      expect(quoteBalAfter - quoteBalBefore).to.eq(989.1089108909946);
+    });
+
+    it('sUSD to USDC', async () => {
+      const quoteBalBefore = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const usdcBalBefore = +(await USDC.balanceOf(accountAddr));
+
+      await testVaultAdapter.swapStablesExt(c.snx.quoteAsset.address, USDC.address, toBN('1000'), 900, accountAddr);
+      const quoteBalAfter = +fromBN(await c.snx.quoteAsset.balanceOf(accountAddr));
+      const usdcBalAfter = +(await USDC.balanceOf(accountAddr));
+
+      expect(quoteBalBefore - quoteBalAfter).to.eq(1000);
+      expect(usdcBalAfter - usdcBalBefore).to.eq(1011011011); // 1011 e6
     });
   });
 });

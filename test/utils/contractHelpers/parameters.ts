@@ -1,3 +1,4 @@
+import { BigNumberish } from 'ethers';
 import { LiquidityPoolParametersStruct } from '../../../typechain-types/LiquidityPool';
 import {
   ForceCloseParametersStruct,
@@ -27,6 +28,10 @@ export async function resetPoolHedgerParams(overrides?: Partial<PoolHedgerParame
     ...defaultParams.DEFAULT_POOL_HEDGER_PARAMS,
     ...overrides,
   });
+}
+
+export async function resetPoolHedgerShortBuffer(overrideShortBuffer?: BigNumberish) {
+  await hre.f.c.poolHedger.setShortBuffer(overrideShortBuffer || defaultParams.DEFAULT_SHORT_BUFFER);
 }
 
 export async function resetGreekCacheParameters(overrides?: Partial<GreekCacheParametersStruct>) {

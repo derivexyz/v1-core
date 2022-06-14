@@ -31,7 +31,7 @@ describe('OptionGreekCache - Update Strike Exposure', () => {
 
     boardId = (await c.optionMarket.getLiveBoards())[0];
     strikeId = (await c.optionMarket.getBoardStrikes(boardId))[0];
-    const liquidity = await c.liquidityPool.getLiquidity(DEFAULT_BASE_PRICE, c.snx.collateralShort.address);
+    const liquidity = await c.liquidityPool.getLiquidity(DEFAULT_BASE_PRICE);
     const exchangeParams = await c.synthetixAdapter.getExchangeParams(c.optionMarket.address);
 
     strikeStruct = {

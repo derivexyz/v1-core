@@ -111,10 +111,11 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   // Setup //
   ///////////
 
-  constructor(string memory name, string memory symbol) ERC721(name, symbol) ERC721Enumerable() Owned() {}
+  constructor(string memory name_, string memory symbol_) ERC721(name_, symbol_) Owned() {}
 
   /**
-   * @dev Initialise the contract.
+   * @notice Initialise the contract.
+   *
    * @param _optionMarket The OptionMarket contract address.
    */
   function init(
@@ -132,6 +133,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   ///////////
   // Admin //
   ///////////
+
+  /// @notice set PartialCollateralParameters
   function setPartialCollateralParams(PartialCollateralParameters memory _partialCollatParams) external onlyOwner {
     if (
       _partialCollatParams.penaltyRatio > DecimalMath.UNIT ||
@@ -141,6 +144,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     }
 
     partialCollatParams = _partialCollatParams;
+    emit PartialCollateralParamsSet(partialCollatParams);
   }
 
   /**
@@ -148,6 +152,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
    */
   function setURI(string memory newURI) external onlyOwner {
     baseURI = newURI;
+    emit URISet(baseURI);
   }
 
   function _baseURI() internal view override returns (string memory) {
@@ -158,6 +163,24 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   // Adjusting positions //
   /////////////////////////
 
+  /**
+   * @notice Adjusts position amount and collateral when position is:
+   * - opened
+   * - closed
+   * - forceClosed
+   * - liquidated
+   *
+   * @param trade TradeParameters as defined in OptionMarket.
+   * @param strikeId id of strike for adjusted position.
+   * @param trader owner of position.
+   * @param positionId id of position.
+   * @param optionCost totalCost of closing or opening position.
+   * @param setCollateralTo final collateral to leave in position.
+   * @param isOpen whether order is to increase or decrease position.amount.
+   *
+   * @return uint positionId of position being adjusted (relevant for new positions)
+   * @return pendingCollateral amount of additional quote to receive from msg.sender
+   */
   function adjustPosition(
     OptionMarket.TradeParameters memory trade,
     uint strikeId,
@@ -265,6 +288,14 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return (position.positionId, pendingCollateral);
   }
 
+  /**
+   * @notice Only allows increase to position.collateral
+   *
+   * @param positionId id of position.
+   * @param amountCollateral amount of collateral to add to position.
+   *
+   * @return optionType OptionType of adjusted position
+   */
   function addCollateral(uint positionId, uint amountCollateral)
     external
     onlyOptionMarket
@@ -295,7 +326,12 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return position.optionType;
   }
 
-  // Note: invalid positions get caught when trying to query owner for event (or in burn)
+  /**
+   * @notice burns and updates position.state when board is settled
+   * @dev invalid positions get caught when trying to query owner for event (or in burn)
+   *
+   * @param positionIds array of position ids to settle
+   */
   function settlePositions(uint[] memory positionIds) external onlyShortCollateral {
     for (uint i = 0; i < positionIds.length; i++) {
       positions[positionIds[i]].state = PositionState.SETTLED;
@@ -315,6 +351,15 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   /////////////////
   // Liquidation //
   /////////////////
+
+  /**
+   * @notice checks of liquidation is valid, burns liquidation position and determines fee distribution
+   * @dev called when 'OptionMarket.liquidatePosition()' is called
+   *
+   * @param positionId position id to liquidate
+   * @param trade TradeParameters as defined in OptionMarket
+   * @param totalCost totalCost paid to LiquidityPool from position.collateral (excludes liquidation fees)
+   */
   function liquidate(
     uint positionId,
     OptionMarket.TradeParameters memory trade,
@@ -349,6 +394,15 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return getLiquidationFees(totalCost, position.collateral, convertedMinLiquidationFee, insolvencyMultiplier);
   }
 
+  /**
+   * @notice checks whether position is valid and position.collateral < minimum required collateral
+   * @dev useful for estimating liquidatability in different spot/strike/expiry scenarios
+   *
+   * @param position any OptionPosition struct (does not need to be an existing position)
+   * @param expiry expiry of option (does not need to match position.strikeId expiry)
+   * @param strikePrice strike price of position
+   * @param spotPrice spot price of base
+   */
   function canLiquidate(
     OptionPosition memory position,
     uint expiry,
@@ -363,7 +417,6 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     }
 
     // Option expiry is checked in optionMarket._doTrade()
-
     // Will revert if called post expiry
     uint minCollateral = greekCache.getMinCollateral(
       position.optionType,
@@ -376,6 +429,15 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return position.collateral < minCollateral;
   }
 
+  /**
+   * @notice gets breakdown of fee distribution during liquidation event
+   * @dev useful for estimating fees earned by all parties during liquidation
+   *
+   * @param gwavPremium totalCost paid to LiquidityPool from position.collateral to close position
+   * @param userPositionCollateral total collateral in position
+   * @param convertedMinLiquidationFee minimum static liquidation fee (defined in partialCollatParams.minLiquidationFee)
+   * @param insolvencyMultiplier used to denominate insolveny in quote in case of base collateral insolvencies
+   */
   function getLiquidationFees(
     uint gwavPremium, // quote || base
     uint userPositionCollateral, // quote || base
@@ -383,7 +445,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     uint insolvencyMultiplier // 1 for quote || spotPrice for base
   ) public view returns (LiquidationFees memory liquidationFees) {
     // User is fully solvent
-    uint minOwed = gwavPremium + convertedMinLiquidationFee; // 2 eth + 0.2 eth
+    uint minOwed = gwavPremium + convertedMinLiquidationFee;
     uint totalCollatPenalty;
 
     if (userPositionCollateral >= minOwed) {
@@ -416,13 +478,15 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   ///////////////
 
   /**
-   * @notice Allows a user to split a position into two. The amount of the original position will
+   * @notice Allows a user to split a curent position into two. The amount of the original position will
    *         be subtracted from and a new position will be minted with the desired amount and collateral.
    * @dev Only ACTIVE positions can be owned by users, so status does not need to be checked
+   * @dev Both resulting positions must not be liquidatable
    *
    * @param positionId the positionId of the original position to be split
    * @param newAmount the amount in the new position
    * @param newCollateral the amount of collateral for the new position
+   * @param recipient recipient of new position
    */
   function split(
     uint positionId,
@@ -489,7 +553,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
 
   /**
    * @notice User can merge many positions with matching strike and optionType into a single position
-   * @dev Only ACTIVE positions can be owned by users, so status does not need to be checked
+   * @dev Only ACTIVE positions can be owned by users, so status does not need to be checked.
+   * @dev Merged position must not be liquidatable.
    *
    * @param positionIds the positionIds to be merged together
    */
@@ -594,7 +659,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return result;
   }
 
-  /// @dev Returns a PositionWithOwner struct of a given positionId
+  /// @dev Returns a PositionWithOwner struct of a given positionId (same as OptionPosition but with owner)
   function getPositionWithOwner(uint positionId) external view returns (PositionWithOwner memory) {
     return _getPositionWithOwner(positionId);
   }
@@ -608,8 +673,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return result;
   }
 
-  /// @dev can run out of gas, don't use in contracts
-  /// @dev Returns an array of OptionPosition structs owned by a given address
+  /// @notice Returns an array of OptionPosition structs owned by a given address
+  /// @dev Meant to be used offchain as it can run out of gas
   function getOwnerPositions(address target) external view returns (OptionPosition[] memory) {
     uint balance = balanceOf(target);
     OptionPosition[] memory result = new OptionPosition[](balance);
@@ -675,6 +740,16 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   ////////////
   // Events //
   ///////////
+
+  /**
+   * @dev Emitted when the URI is modified
+   */
+  event URISet(string URI);
+
+  /**
+   * @dev Emitted when partial collateral parameters are modified
+   */
+  event PartialCollateralParamsSet(PartialCollateralParameters partialCollateralParams);
 
   /**
    * @dev Emitted when a position is minted, adjusted, burned, merged or split.

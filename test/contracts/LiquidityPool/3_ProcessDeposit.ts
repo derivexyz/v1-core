@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber } from 'ethers';
-import { DAY_SEC, getTxTimestamp, HOUR_SEC, MONTH_SEC, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { DAY_SEC, getTxTimestamp, HOUR_SEC, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { assertCloseTo, assertCloseToPercentage } from '../../utils/assert';
 import {
   DEFAULT_LONG_CALL,
@@ -38,7 +38,7 @@ describe('Process Deposit', async () => {
 
     // process
     await hre.f.c.liquidityPool.processDepositQueue(1);
-    await expectProcessDeposit(1, toBN('0'), toBN('600'), hre.f.alice);
+    await expectProcessDeposit(2, toBN('0'), toBN('600'), hre.f.alice);
   });
 
   it('tracks deposit receipt mintTokens for multiple deposits', async () => {
@@ -49,20 +49,20 @@ describe('Process Deposit', async () => {
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
 
     // start with mintTokens = 0
-    await validateDepositRecord(0, hre.f.alice.address, toBN('600'), toBN('0'), await getTxTimestamp(firstTx));
-    await validateDepositRecord(1, hre.f.alice.address, toBN('400'), toBN('0'), await getTxTimestamp(secondTx));
+    await validateDepositRecord(1, hre.f.alice.address, toBN('600'), toBN('0'), await getTxTimestamp(firstTx));
+    await validateDepositRecord(2, hre.f.alice.address, toBN('400'), toBN('0'), await getTxTimestamp(secondTx));
 
     // process first deposit
     await hre.f.c.liquidityPool.processDepositQueue(1);
-    await expectProcessDeposit(1, toBN('400'), toBN('600'), hre.f.alice);
-    await validateDepositRecord(0, hre.f.alice.address, toBN('0'), toBN('600'), await getTxTimestamp(firstTx));
-    await validateDepositRecord(1, hre.f.alice.address, toBN('400'), toBN('0'), await getTxTimestamp(secondTx));
+    await expectProcessDeposit(2, toBN('400'), toBN('600'), hre.f.alice);
+    await validateDepositRecord(1, hre.f.alice.address, toBN('0'), toBN('600'), await getTxTimestamp(firstTx));
+    await validateDepositRecord(2, hre.f.alice.address, toBN('400'), toBN('0'), await getTxTimestamp(secondTx));
 
     // process second deposit
     await hre.f.c.liquidityPool.processDepositQueue(1);
-    await expectProcessDeposit(2, toBN('0'), toBN('1000'), hre.f.alice);
-    await validateDepositRecord(0, hre.f.alice.address, toBN('0'), toBN('600'), await getTxTimestamp(firstTx));
-    await validateDepositRecord(1, hre.f.alice.address, toBN('0'), toBN('400'), await getTxTimestamp(secondTx));
+    await expectProcessDeposit(3, toBN('0'), toBN('1000'), hre.f.alice);
+    await validateDepositRecord(1, hre.f.alice.address, toBN('0'), toBN('600'), await getTxTimestamp(firstTx));
+    await validateDepositRecord(2, hre.f.alice.address, toBN('0'), toBN('400'), await getTxTimestamp(secondTx));
   });
 
   it('tracks deposit head and totalQueuedDeposits after multiple processes (process only queued amount)', async () => {
@@ -74,7 +74,7 @@ describe('Process Deposit', async () => {
 
     // process
     await hre.f.c.liquidityPool.processDepositQueue(5);
-    await expectProcessDeposit(3, toBN('0'), toBN('600'), hre.f.alice);
+    await expectProcessDeposit(4, toBN('0'), toBN('600'), hre.f.alice);
   });
 
   it('takes quote from operator but mints to beneficiary', async () => {
@@ -82,7 +82,7 @@ describe('Process Deposit', async () => {
     await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.signers[2].address, toBN('1000'));
 
     // deposit initiated
-    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(1);
+    expect(await hre.f.c.liquidityPool.nextQueuedDepositId()).eq(2);
     expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('1000'));
 
     // tokens transferred and minted
@@ -93,8 +93,8 @@ describe('Process Deposit', async () => {
     await fastForward(WEEK_SEC + 1);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processDepositQueue(1);
-    await expectProcessDeposit(1, toBN('0'), toBN('0'), hre.f.alice);
-    await expectProcessDeposit(1, toBN('0'), toBN('1000'), hre.f.signers[2]);
+    await expectProcessDeposit(2, toBN('0'), toBN('0'), hre.f.alice);
+    await expectProcessDeposit(2, toBN('0'), toBN('1000'), hre.f.signers[2]);
   });
 
   // canProcess
@@ -109,7 +109,7 @@ describe('Process Deposit', async () => {
 
       // process up to second deposit
       await hre.f.c.liquidityPool.processDepositQueue(5);
-      await expectProcessDeposit(2, toBN('300'), toBN('300'), hre.f.alice);
+      await expectProcessDeposit(3, toBN('300'), toBN('300'), hre.f.alice);
     });
 
     it('blocks if board is stale', async () => {
@@ -118,7 +118,7 @@ describe('Process Deposit', async () => {
 
       // return due to stale board
       await hre.f.c.liquidityPool.processDepositQueue(1);
-      await expectProcessDeposit(0, toBN('100'), toBN('0'), hre.f.alice);
+      await expectProcessDeposit(1, toBN('100'), toBN('0'), hre.f.alice);
     });
 
     it('reverts if CB fired', async () => {
@@ -136,7 +136,7 @@ describe('Process Deposit', async () => {
 
       // return due to triggeredCB
       await hre.f.c.liquidityPool.processDepositQueue(1);
-      await expectProcessDeposit(0, toBN('100'), toBN('0'), hre.f.alice);
+      await expectProcessDeposit(1, toBN('100'), toBN('0'), hre.f.alice);
 
       // pass once CB expired & skew is less sensitive
       await fastForward(HOUR_SEC + 1);
@@ -146,7 +146,7 @@ describe('Process Deposit', async () => {
         skewVarianceCBTimeout: HOUR_SEC,
       });
       await hre.f.c.liquidityPool.processDepositQueue(1);
-      await expectProcessDeposit(1, toBN('0'), toBN('100'), hre.f.alice);
+      await expectProcessDeposit(2, toBN('0'), toBN('100'), hre.f.alice);
     });
 
     it('process once CB stops firing and expires', async () => {
@@ -157,7 +157,7 @@ describe('Process Deposit', async () => {
     });
     it('blocks process if no queued deposits', async () => {
       await hre.f.c.liquidityPool.processDepositQueue(10);
-      await expectProcessDeposit(0, toBN('0'), toBN('0'), hre.f.alice);
+      await expectProcessDeposit(1, toBN('0'), toBN('0'), hre.f.alice);
     });
   });
 
@@ -195,25 +195,25 @@ describe('Process Deposit', async () => {
     it('mints correct token amount when spotPrice up', async () => {
       // 100% increase & short put undercollateralized
       await setETHPrice(toBN('4000'));
-      await fastForward(MONTH_SEC + 1);
+      await fastForward(WEEK_SEC * 2 + 1);
 
       // NAV unaware of undercollateralized short put
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       let poolValue = await hre.f.c.liquidityPool.getTotalPoolValueQuote();
-      assertCloseToPercentage(poolValue, toBN('388052.405'), toBN('0.0001'));
+      assertCloseToPercentage(poolValue, toBN('387656.92'), toBN('0.0001'));
 
       // process first deposit before settlement
       await hre.f.c.liquidityPool.processDepositQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(1);
+      expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(2);
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('100'));
       assertCloseToPercentage(
         await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address),
-        toBN('128.736'),
+        toBN('128.98'),
         toBN('0.001'),
       );
 
       // settle board
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      await fastForward(WEEK_SEC * 2 + 1);
       await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
       await hre.f.c.liquidityPool.exchangeBase();
       await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.boardSettlementCBTimeout) + 1);
@@ -224,7 +224,7 @@ describe('Process Deposit', async () => {
 
       // process second deposit post settlement
       await hre.f.c.liquidityPool.processDepositQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(2);
+      expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(3);
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
       assertCloseToPercentage(
         await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address),
@@ -243,19 +243,19 @@ describe('Process Deposit', async () => {
     it('mints correct token amount when spotPrice down', async () => {
       // 50% decrease
       await setETHPrice(toBN('1000'));
-      await fastForward(MONTH_SEC + 1);
+      await fastForward(WEEK_SEC + 1);
 
       // NAV calculation
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       const poolValue = await hre.f.c.liquidityPool.getTotalPoolValueQuote();
-      assertCloseTo(poolValue, toBN('528673.306'), toBN('0.5'));
+      assertCloseTo(poolValue, toBN('528337.33'), toBN('0.5'));
 
       // process both deposits
       await hre.f.c.liquidityPool.processDepositQueue(2);
-      expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(2);
+      expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(3);
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
-      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address), toBN('94.51589'), toBN('0.1'));
-      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address), toBN('94.51589'), toBN('0.1'));
+      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address), toBN('94.63'), toBN('0.1'));
+      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address), toBN('94.63'), toBN('0.1'));
     });
   });
 });

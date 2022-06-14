@@ -18,8 +18,8 @@ import {
   OptionMarketViewer,
   OptionMarketWrapper,
   OptionToken,
-  PoolHedger,
   ShortCollateral,
+  ShortPoolHedger,
   SynthetixAdapter,
   TestAddressResolver,
   TestCollateralShort,
@@ -87,7 +87,7 @@ export type MarketTestSystemContracts = {
   liquidityTokens: LiquidityTokens;
   basicLiquidityCounter: BasicLiquidityCounter;
   shortCollateral: ShortCollateral;
-  poolHedger: PoolHedger;
+  poolHedger: ShortPoolHedger;
   keeperHelper: KeeperHelper;
   snx: {
     baseAsset: Contract;
@@ -99,6 +99,7 @@ export type DeployOverrides = {
   optionMarketParams?: OptionMarketParametersStruct;
   liquidityPoolParams?: LiquidityPoolParametersStruct;
   poolHedgerParams?: PoolHedgerParametersStruct;
+  hedgerShortBuffer?: BigNumber;
   greekCacheParams?: GreekCacheParametersStruct;
   minCollateralParams?: MinCollateralParametersStruct;
   forceCloseParams?: ForceCloseParametersStruct;
@@ -384,9 +385,9 @@ export async function deployMarketTestContracts(
     .connect(deployer)
     .deploy()) as ShortCollateral;
 
-  const poolHedger = (await ((await ethers.getContractFactory('PoolHedger')) as ContractFactory)
+  const poolHedger = (await ((await ethers.getContractFactory('ShortPoolHedger')) as ContractFactory)
     .connect(deployer)
-    .deploy()) as PoolHedger;
+    .deploy()) as ShortPoolHedger;
 
   const GWAVOracle = (await (
     await ethers.getContractFactory('GWAVOracle', {
@@ -511,12 +512,14 @@ export async function initGlobalTestSystem(
     .connect(deployer)
     .init(overrides.synthetixAdapter || testSystem.synthetixAdapter.address);
 
-  await testSystem.optionMarketWrapper.connect(deployer).updateContractParams(
-    overrides.baseToken || testSystem.testCurve.address,
-    overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
-    ethers.constants.AddressZero, // TODO: Need to add trading rewards.
-    toBN('0.1'),
-  );
+  await testSystem.optionMarketWrapper
+    .connect(deployer)
+    .updateContractParams(
+      overrides.baseToken || testSystem.testCurve.address,
+      overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
+      testSystem.basicFeeCounter.address,
+      toBN('0.1'),
+    );
 }
 
 export async function initMarketTestSystem(
@@ -529,7 +532,6 @@ export async function initMarketTestSystem(
   ///////////
   // sBase //
   ///////////
-
   if (overrides.mockSNX || overrides.mockSNX == undefined) {
     await existingTestSystem.snx.synthetix
       .connect(deployer)
@@ -680,6 +682,8 @@ export async function initMarketTestSystem(
         quoteAsset: overrides.quoteToken || existingTestSystem.snx.quoteAsset.address,
         baseAsset: overrides.baseToken || marketTestSystem.snx.baseAsset.address,
         optionToken: overrides.optionToken || marketTestSystem.optionToken.address,
+        liquidityPool: overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+        liquidityTokens: overrides.liquidityTokens || marketTestSystem.liquidityTokens.address,
       },
     );
 
@@ -697,6 +701,10 @@ export async function initMarketTestSystem(
   await marketTestSystem.poolHedger
     .connect(deployer)
     .setPoolHedgerParams(overrides.poolHedgerParams || defaultParams.DEFAULT_POOL_HEDGER_PARAMS);
+
+  await marketTestSystem.poolHedger
+    .connect(deployer)
+    .setShortBuffer(overrides.hedgerShortBuffer || defaultParams.DEFAULT_SHORT_BUFFER);
 
   await marketTestSystem.optionGreekCache
     .connect(deployer)

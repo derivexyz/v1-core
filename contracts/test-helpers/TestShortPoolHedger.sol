@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: ISC
 pragma solidity 0.8.9;
 
-import "../PoolHedger.sol";
+import "../ShortPoolHedger.sol";
 
-contract TestPoolHedger is PoolHedger {
+contract TestShortPoolHedger is ShortPoolHedger {
   function hedgeDeltaExt(int expectedHedge) external {
     _hedgeDelta(expectedHedge);
   }
@@ -18,17 +18,17 @@ contract TestPoolHedger is PoolHedger {
     _decreaseLong(amount, 0);
   }
 
-  function callTransferQuoteToHedge(SynthetixAdapter.ExchangeParams memory exchangeParams, uint amount) external {
-    liquidityPool.transferQuoteToHedge(exchangeParams, amount);
+  function callTransferQuoteToHedge(uint spotPrice, uint amount) external {
+    liquidityPool.transferQuoteToHedge(spotPrice, amount);
   }
 
   function setShortToExt(
-    SynthetixAdapter.ExchangeParams memory exchangeParams,
+    uint spotPrice,
     uint desiredShort,
     uint currentShort,
     uint currentCollateral
   ) external {
-    _setShortTo(exchangeParams, desiredShort, currentShort, currentCollateral);
+    _setShortTo(spotPrice, desiredShort, currentShort, currentCollateral);
   }
 
   function _sendAllQuoteToLPExt() external {

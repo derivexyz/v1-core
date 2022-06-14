@@ -1,4 +1,5 @@
-import { toBN } from '../../../../scripts/util/web3utils';
+import { getEventArgs, toBN, ZERO_ADDRESS } from '../../../../scripts/util/web3utils';
+import { OptionMarketContractsStruct } from '../../../../typechain-types/OptionMarketWrapper';
 import { assertCloseToPercentage } from '../../../utils/assert';
 import { allCurrenciesFixture } from '../../../utils/fixture';
 import { expect, hre } from '../../../utils/testSetup';
@@ -46,6 +47,246 @@ describe('OptionMarketWrapper viewer / misc function tests', () => {
       await expect(
         hre.f.c.optionMarketWrapper.quoteCurveSwap(hre.f.deployer.address, hre.f.c.snx.quoteAsset.address, 1000),
       ).revertedWith('UnsupportedToken');
+    });
+  });
+
+  describe('Removing stable/market test', async () => {
+    it('invalid stable Id ', async () => {
+      await expect(hre.f.c.optionMarketWrapper.removeCurveStable(4)).revertedWith('RemovingInvalidId');
+    });
+
+    it('valid stable Id ', async () => {
+      // First check the stable ID is valid
+      let id = await hre.f.c.optionMarketWrapper.idToERC(0);
+      expect(id).to.eq(hre.f.c.snx.quoteAsset.address);
+
+      // Remove the ID
+      await hre.f.c.optionMarketWrapper.removeCurveStable(0);
+      id = await hre.f.c.optionMarketWrapper.idToERC(0);
+      expect(id).to.eq(ZERO_ADDRESS);
+    });
+  });
+
+  it('add duplicate stable', async () => {
+    await expect(hre.f.c.optionMarketWrapper.addCurveStable(hre.f.c.snx.quoteAsset.address, 0)).to.be.revertedWith(
+      'DuplicateEntry',
+    );
+  });
+
+  it('add duplicate market', async () => {
+    const omContracts: OptionMarketContractsStruct = {
+      quoteAsset: hre.f.c.snx.quoteAsset.address,
+      baseAsset: hre.f.c.snx.quoteAsset.address,
+      optionToken: hre.f.c.optionToken.address,
+      liquidityPool: hre.f.c.liquidityPool.address,
+      liquidityTokens: hre.f.c.liquidityTokens.address,
+    };
+    await expect(
+      hre.f.c.optionMarketWrapper.addMarket(hre.f.c.optionMarket.address, 0, omContracts),
+    ).to.be.revertedWith('DuplicateEntry');
+  });
+
+  it('invalid market Id ', async () => {
+    await expect(hre.f.c.optionMarketWrapper.removeMarket(4)).revertedWith('RemovingInvalidId');
+  });
+
+  it('valid market Id ', async () => {
+    // First check the stable ID is valid
+    let id = await hre.f.c.optionMarketWrapper.idToMarket(0);
+    expect(id).to.eq(hre.f.c.optionMarket.address);
+
+    // Remove the ID
+    await hre.f.c.optionMarketWrapper.removeMarket(0);
+    id = await hre.f.c.optionMarketWrapper.idToMarket(0);
+    expect(id).to.eq(ZERO_ADDRESS);
+  });
+
+  describe('External open / close', async () => {
+    it('external open ', async () => {
+      const params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 0,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+
+      const tx = await hre.f.c.optionMarketWrapper.openPosition(params);
+      const event = getEventArgs(await tx.wait(), 'PositionTraded');
+      expect(event.isLong).to.eq(true);
+      expect(event.isOpen).to.eq(true);
+      expect(event.amount).to.eq(toBN('1'));
+    });
+
+    it('external close', async () => {
+      let params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 0,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+      await hre.f.c.optionMarketWrapper.openPosition(params);
+
+      params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 6,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+
+      const tx = await hre.f.c.optionMarketWrapper.closePosition(params);
+      const event = getEventArgs(await tx.wait(), 'PositionTraded');
+      expect(event.isOpen).to.eq(false);
+      expect(event.amount).to.eq(toBN('1'));
+    });
+
+    it('external force close', async () => {
+      let params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 0,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+      await hre.f.c.optionMarketWrapper.openPosition(params);
+
+      params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 6,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+
+      const tx = await hre.f.c.optionMarketWrapper.forceClosePosition(params);
+      const event = getEventArgs(await tx.wait(), 'PositionTraded');
+      expect(event.isOpen).to.eq(false);
+      expect(event.amount).to.eq(toBN('1'));
+    });
+  });
+
+  describe('open / close with tracked fees', async () => {
+    it('track fees', async () => {
+      let params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 0,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+
+      let tx = await hre.f.c.optionMarketWrapper.openPosition(params);
+      let openEvent = getEventArgs(await tx.wait(), 'PositionTraded');
+      const openFees = await hre.f.c.basicFeeCounter.totalFeesPerMarket(
+        hre.f.c.optionMarket.address,
+        hre.f.deployer.address,
+      );
+
+      // Tracked fees should equal the opened position fees
+      assertCloseToPercentage(openEvent.totalFee, openFees);
+
+      params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 6,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+
+      tx = await hre.f.c.optionMarketWrapper.closePosition(params);
+      let closeEvent = getEventArgs(await tx.wait(), 'PositionTraded');
+      const totalFees = await hre.f.c.basicFeeCounter.totalFeesPerMarket(
+        hre.f.c.optionMarket.address,
+        hre.f.deployer.address,
+      );
+
+      // Tracked fees should equal the fees paid for opening and closing
+      assertCloseToPercentage(openEvent.totalFee.add(closeEvent.totalFee), totalFees);
+    });
+  });
+
+  describe('updateContractParams', async () => {
+    it('no trading rewards', async () => {
+      // Update trading rewards contract to ZERO ADDRESS
+      await hre.f.c.optionMarketWrapper.updateContractParams(
+        hre.f.c.testCurve.address,
+        hre.f.c.synthetixAdapter.address,
+        ZERO_ADDRESS,
+        toBN('0.98'),
+      );
+
+      const params = {
+        optionMarket: await hre.f.c.optionMarketWrapper.idToMarket(0),
+        strikeId: 1,
+        positionId: 0,
+        iterations: 1,
+        setCollateralTo: 0,
+        currentCollateral: 0,
+        optionType: 0,
+        amount: toBN('1'),
+        minCost: 0,
+        maxCost: toBN('350'),
+        inputAmount: toBN('350'),
+        inputAsset: await hre.f.c.optionMarketWrapper.idToERC(0),
+      };
+      await hre.f.c.optionMarketWrapper.openPosition(params);
+      const openFees = await hre.f.c.basicFeeCounter.totalFeesPerMarket(
+        hre.f.c.optionMarket.address,
+        hre.f.deployer.address,
+      );
+
+      expect(openFees).to.eq(0);
     });
   });
 });

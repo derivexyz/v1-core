@@ -5,6 +5,7 @@ import {
   wrapperAddLong,
   wrapperCloseLong,
   wrapperOpenLong,
+  wrapperOpenShort,
   wrapperReduceLong,
 } from '../../../utils/contractHelpers/wrapper';
 import { allCurrenciesFixture } from '../../../utils/fixture';
@@ -380,6 +381,21 @@ describe('OptionMarketWrapper LONG CALL/PUT trading tests', () => {
       await expect(hre.f.c.optionToken.getPositionWithOwner(positionId)).revertedWith(
         'ERC721: owner query for nonexistent token',
       );
+    });
+  });
+
+  describe('revert OnlyShorts', async () => {
+    it('open Short with long call', async () => {
+      await expect(
+        wrapperOpenShort({
+          token: STABLE_IDS.DAI,
+          optionType: OptionType.LONG_CALL,
+          minReceived: 240,
+          inputAmount: 0,
+          size: 1,
+          collateral: 1,
+        }),
+      ).to.be.revertedWith('OnlyShorts');
     });
   });
 });

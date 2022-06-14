@@ -91,7 +91,7 @@ export async function forceUpdateHedgePosition(testSetup: TestSystemContractsTyp
     return;
   }
 
-  const interactionDelay = (await testSetup.poolHedger.poolHedgerParams()).interactionDelay;
+  const interactionDelay = (await testSetup.poolHedger.getPoolHedgerParams()).interactionDelay;
   const lastInteraction = await testSetup.poolHedger.lastInteraction();
   const currentBlockTime = BigNumber.from(await currentTime());
   const timeSinceLastUpdate = currentBlockTime.sub(lastInteraction);

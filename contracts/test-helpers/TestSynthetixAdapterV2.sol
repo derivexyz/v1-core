@@ -9,7 +9,6 @@ import "../synthetix/OwnedUpgradeable.sol";
 
 // Interfaces
 import "../interfaces/ISynthetix.sol";
-import "../interfaces/ICollateralShort.sol";
 import "../interfaces/IAddressResolver.sol";
 import "../interfaces/IExchanger.sol";
 import "../interfaces/IExchangeRates.sol";
@@ -18,12 +17,10 @@ import "../LiquidityPool.sol";
 import "../interfaces/IDelegateApprovals.sol";
 
 /**
- * @title SynthetixAdapter
+ * @title SynthetixAdapterV2
  * @author Lyra
- * @dev Manages variables across all OptionMarkets, along with managing access to Synthetix.
- * Groups access to variables needed during a trade to reduce the gas costs associated with repetitive
- * inter-contract calls.
- * The OptionMarket contract address is used as the key to access the variables for the market.
+ * @dev Copy of SynthetixAdapter but returns 10x the spot price in getExchangeParams.
+ * Used for testing upgradeability.
  */
 contract TestSynthetixAdapterV2 is OwnedUpgradeable {
   using DecimalMath for uint;
@@ -36,7 +33,6 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     uint spotPrice;
     bytes32 quoteKey;
     bytes32 baseKey;
-    ICollateralShort short;
     uint quoteBaseFeeRate;
     uint baseQuoteFeeRate;
   }
@@ -50,14 +46,12 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
   bytes32 private constant CONTRACT_SYNTHETIX = "ProxySynthetix";
   bytes32 private constant CONTRACT_EXCHANGER = "Exchanger";
   bytes32 private constant CONTRACT_EXCHANGE_RATES = "ExchangeRates";
-  bytes32 private constant CONTRACT_COLLATERAL_SHORT = "CollateralShort";
   bytes32 private constant CONTRACT_DELEGATE_APPROVALS = "DelegateApprovals";
 
   // Cached addresses that can be updated via a public function
   ISynthetix public synthetix;
   IExchanger public exchanger;
   IExchangeRates public exchangeRates;
-  ICollateralShort public collateralShort;
   IDelegateApprovals public delegateApprovals;
 
   // Variables related to calculating premium/fees
@@ -131,10 +125,9 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     synthetix = ISynthetix(addressResolver.getAddress(CONTRACT_SYNTHETIX));
     exchanger = IExchanger(addressResolver.getAddress(CONTRACT_EXCHANGER));
     exchangeRates = IExchangeRates(addressResolver.getAddress(CONTRACT_EXCHANGE_RATES));
-    collateralShort = ICollateralShort(addressResolver.getAddress(CONTRACT_COLLATERAL_SHORT));
     delegateApprovals = IDelegateApprovals(addressResolver.getAddress(CONTRACT_DELEGATE_APPROVALS));
 
-    emit SynthetixAddressesUpdated(synthetix, exchanger, exchangeRates, collateralShort, delegateApprovals);
+    emit SynthetixAddressesUpdated(synthetix, exchanger, exchangeRates, delegateApprovals);
   }
 
   /////////////
@@ -177,7 +170,6 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
       spotPrice: 0,
       quoteKey: quoteKey[_contractAddress],
       baseKey: baseKey[_contractAddress],
-      short: collateralShort,
       quoteBaseFeeRate: 0,
       baseQuoteFeeRate: 0
     });
@@ -308,7 +300,6 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     ISynthetix synthetix,
     IExchanger exchanger,
     IExchangeRates exchangeRates,
-    ICollateralShort collateralShort,
     IDelegateApprovals delegateApprovals
   );
   /**

@@ -34,26 +34,41 @@ contract VaultAdapter is Ownable {
   ///////////////////////
 
   struct Strike {
+    // strike listing identifier
     uint id;
+    // expiry of strike
     uint expiry;
+    // strike price
     uint strikePrice;
+    // volatility component specific to the strike listing (boardIv * skew = vol of strike)
     uint skew;
+    // volatility component specific to the board (boardIv * skew = vol of strike)
     uint boardIv;
   }
 
   struct Board {
+    // board identifier
     uint id;
+    // expiry of all strikes belong to
     uint expiry;
+    // volatility component specific to the board (boardIv * skew = vol of strike)
     uint boardIv;
+    // all strikes belonging to board
     uint[] strikeIds;
   }
 
   struct OptionPosition {
+    // OptionToken ERC721 identifier for position
     uint positionId;
+    // strike identifier
     uint strikeId;
+    // LONG_CALL | LONG_PUT | SHORT_CALL_BASE | SHORT_CALL_QUOTE | SHORT_PUT_QUOTE
     OptionType optionType;
+    // number of options contract owned by position
     uint amount;
+    // collateral held in position (only applies to shorts)
     uint collateral;
+    // EMPTY | ACTIVE | CLOSED | LIQUIDATED | SETTLED | MERGED
     PositionState state;
   }
 
@@ -75,42 +90,71 @@ contract VaultAdapter is Ownable {
   }
 
   struct TradeInputParameters {
+    // id of strike
     uint strikeId;
+    // OptionToken ERC721 id for position (set to 0 for new positions)
     uint positionId;
+    // number of sub-orders to break order into (reduces slippage)
     uint iterations;
+    // type of option to trade
     OptionType optionType;
+    // number of contracts to trade
     uint amount;
+    // final amount of collateral to leave in OptionToken position
     uint setCollateralTo;
+    // revert trade if totalCost is below this value
     uint minTotalCost;
+    // revert trade if totalCost is above this value
     uint maxTotalCost;
+    // address of recipient for Lyra trading rewards (must request Lyra to be whitelisted for rewards)
     address rewardRecipient;
   }
 
   struct TradeResult {
+    // OptionToken ERC721 id for position
     uint positionId;
+    // total option cost paid/received during trade including premium and totalFee
     uint totalCost;
+    // trading fees as determined in OptionMarketPricer.sol
     uint totalFee;
   }
 
   struct Liquidity {
-    uint usedCollat;
-    uint usedDelta;
-    uint pendingDelta;
+    // Amount of liquidity available for option collateral and premiums
     uint freeLiquidity;
+    // Amount of liquidity available for withdrawals - different to freeLiquidity
+    uint burnableLiquidity;
+    // Amount of liquidity reserved for long options sold to traders
+    uint usedCollatLiquidity;
+    // Portion of liquidity reserved for delta hedging (quote outstanding)
+    uint pendingDeltaLiquidity;
+    // Current value of delta hedge
+    uint usedDeltaLiquidity;
+    // Net asset value, including everything and netOptionValue
+    uint NAV;
   }
 
   struct MarketParams {
+    // The amount of options traded to move baseIv for the board up or down 1 point (depending on trade direction)
     uint standardSize;
+    // Determines relative move of skew for a given strike compared to shift in baseIv
     uint skewAdjustmentParam;
+    // Interest/risk free rate used in BlackScholes
     int rateAndCarry;
+    // Delta cutoff past which options can be traded (optionD > minD && optionD < 1 - minD) - can use forceClose to bypass
     int deltaCutOff;
+    // Time when trading closes - can use forceClose to bypass
     uint tradingCutoff;
+    // Delta cutoff at which forceClose can be called (optionD < minD || optionD > 1 - minD) - using call delta
     int minForceCloseDelta;
   }
 
   struct ExchangeRateParams {
+    // current snx oracle base price
     uint spotPrice;
+    // snx spot exchange rate from quote to base
     uint quoteBaseFeeRate;
+    // snx spot exchange rate from base to quote
     uint baseQuoteFeeRate;
   }
 
@@ -134,7 +178,7 @@ contract VaultAdapter is Ownable {
 
   /**
    * @dev Assigns all lyra contracts
-   * @param _curveSwap Curve pool address
+   * @param _curveSwap Curve pool address for swapping sUSD and other stables
    * @param _optionToken OptionToken Address
    * @param _optionMarket OptionMarket Address
    * @param _liquidityPool LiquidityPool address
@@ -144,7 +188,7 @@ contract VaultAdapter is Ownable {
    * @param _greekCache greekCache address
    * @param _quoteAsset Quote asset address
    * @param _baseAsset Base asset address
-   * @param _feeCounter Fee counter address
+   * @param _feeCounter Fee counter addressu used to determine Lyra trading rewards
    */
   function setLyraAddresses(
     address _curveSwap,
@@ -187,27 +231,64 @@ contract VaultAdapter is Ownable {
   // Market Actions //
   ////////////////////
 
-  // setTrustedCounter must be set for approved addresses
-  function _openPosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
+  /**
+   * @notice Attempts to open positions within cost bounds.
+   * @dev If a positionId is specified params.amount will be added to the position
+   * @dev params.amount can be zero when adjusting an existing position
+   *
+   * @param params The parameters for the requested trade
+   */
+  function _openPosition(TradeInputParameters memory params) internal returns (TradeResult memory tradeResult) {
     OptionMarket.Result memory result = optionMarket.openPosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
-      feeCounter.addFees(address(optionMarket), params.rewardRecipient, result.totalFee);
+      feeCounter.trackFee(
+        address(optionMarket),
+        params.rewardRecipient,
+        _convertParams(params).amount,
+        result.totalCost,
+        result.totalFee
+      );
     }
     return TradeResult({positionId: result.positionId, totalCost: result.totalCost, totalFee: result.totalFee});
   }
 
-  function _closePosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
+  /**
+   * @notice Attempts to close an existing position within cost bounds.
+   * @dev If a positionId is specified params.amount will be subtracted from the position
+   * @dev params.amount can be zero when adjusting an existing position
+   *
+   * @param params The parameters for the requested trade
+   */
+  function _closePosition(TradeInputParameters memory params) internal returns (TradeResult memory tradeResult) {
     OptionMarket.Result memory result = optionMarket.closePosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
-      feeCounter.addFees(address(optionMarket), params.rewardRecipient, result.totalFee);
+      feeCounter.trackFee(
+        address(optionMarket),
+        params.rewardRecipient,
+        _convertParams(params).amount,
+        result.totalCost,
+        result.totalFee
+      );
     }
     return TradeResult({positionId: result.positionId, totalCost: result.totalCost, totalFee: result.totalFee});
   }
 
+  /**
+   * @notice Attempts to close an existing position outside of the delta or trading cutoffs (as specified in MarketParams).
+   * @dev This market action will charge higher fees than the standard `closePosition()`
+   *
+   * @param params The parameters for the requested trade
+   */
   function _forceClosePosition(TradeInputParameters memory params) internal returns (TradeResult memory) {
     OptionMarket.Result memory result = optionMarket.forceClosePosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
-      feeCounter.addFees(address(optionMarket), params.rewardRecipient, result.totalFee);
+      feeCounter.trackFee(
+        address(optionMarket),
+        params.rewardRecipient,
+        _convertParams(params).amount,
+        result.totalCost,
+        result.totalFee
+      );
     }
     return TradeResult({positionId: result.positionId, totalCost: result.totalCost, totalFee: result.totalFee});
   }
@@ -216,11 +297,13 @@ contract VaultAdapter is Ownable {
   // Exchange //
   //////////////
 
+  /// @notice Exchange an exact amount of quote for a minimum amount of base (revert otherwise)
   function _exchangeFromExactQuote(uint amountQuote, uint minBaseReceived) internal returns (uint baseReceived) {
     baseReceived = synthetixAdapter.exchangeFromExactQuote(address(optionMarket), amountQuote);
     require(baseReceived >= minBaseReceived, "base received too low");
   }
 
+  /// @notice Exchange to an exact amount of quote for a maximum amount of base (revert otherwise)
   function _exchangeToExactQuote(uint amountQuote, uint maxBaseUsed) internal returns (uint quoteReceived) {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     (, quoteReceived) = synthetixAdapter.exchangeToExactQuoteWithLimit(
@@ -231,11 +314,13 @@ contract VaultAdapter is Ownable {
     );
   }
 
+  /// @notice Exchange an exact amount of base for a minimum amount of quote (revert otherwise)
   function _exchangeFromExactBase(uint amountBase, uint minQuoteReceived) internal returns (uint quoteReceived) {
     quoteReceived = synthetixAdapter.exchangeFromExactBase(address(optionMarket), amountBase);
     require(quoteReceived >= minQuoteReceived, "quote received too low");
   }
 
+  /// @notice Exchange to an exact amount of base for a maximum amount of quote (revert otherwise)
   function _exchangeToExactBase(uint amountBase, uint maxQuoteUsed) internal returns (uint baseReceived) {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     (, baseReceived) = synthetixAdapter.exchangeToExactBaseWithLimit(
@@ -246,23 +331,43 @@ contract VaultAdapter is Ownable {
     );
   }
 
+  /**
+   * @notice WARNING THIS FUNCTION NOT YET TESTED
+   *         Exchange between stables within the curveSwap sUSD pool.
+   *
+   * @param from start ERC20
+   * @param to destination ERC20
+   * @param amount amount of "from" currency to exchange
+   * @param expected minimum expected amount of "to" currency
+   * @param receiver address of recipient of "to" currency
+   *
+   * @return amountOut received amount
+   */
   function _swapStables(
     address from,
     address to,
     uint amount,
     uint expected,
     address receiver
-  ) internal returns (uint amountOut, int swapFee) {
-    int balStart = int(ERC20(from).balanceOf(address(this)));
+  ) internal returns (uint amountOut) {
     amountOut = curveSwap.exchange_with_best_rate(from, to, amount, expected, receiver);
-    swapFee = balStart - int(amountOut);
   }
 
   //////////////////////////
   // Option Token Actions //
   //////////////////////////
 
-  // option token spilt
+  /**
+   * @notice Allows a user to split a curent position into two. The amount of the original position will
+   *         be subtracted from and a new position will be minted with the desired amount and collateral.
+   * @dev Only ACTIVE positions can be owned by users, so status does not need to be checked
+   * @dev Both resulting positions must not be liquidatable
+   *
+   * @param positionId the positionId of the original position to be split
+   * @param newAmount the amount in the new position
+   * @param newCollateral the amount of collateral for the new position
+   * @param recipient recipient of new position
+   */
   function _splitPosition(
     uint positionId,
     uint newAmount,
@@ -272,7 +377,13 @@ contract VaultAdapter is Ownable {
     newPositionId = optionToken.split(positionId, newAmount, newCollateral, recipient);
   }
 
-  // option token merge
+  /**
+   * @notice User can merge many positions with matching strike and optionType into a single position
+   * @dev Only ACTIVE positions can be owned by users, so status does not need to be checked.
+   * @dev Merged position must not be liquidatable.
+   *
+   * @param positionIds the positionIds to be merged together
+   */
   function _mergePositions(uint[] memory positionIds) internal {
     optionToken.merge(positionIds);
   }
@@ -281,17 +392,18 @@ contract VaultAdapter is Ownable {
   // Market Getters //
   ////////////////////
 
+  /// @notice Returns the list of live board ids.
   function _getLiveBoards() internal view returns (uint[] memory liveBoards) {
     liveBoards = optionMarket.getLiveBoards();
   }
 
-  // get all board related info (non GWAV)
+  /// @notice Returns Board struct for a given boardId
   function _getBoard(uint boardId) internal view returns (Board memory) {
     OptionMarket.OptionBoard memory board = optionMarket.getOptionBoard(boardId);
     return Board({id: board.id, expiry: board.expiry, boardIv: board.iv, strikeIds: board.strikeIds});
   }
 
-  // get all strike related info (non GWAV)
+  /// @notice Returns all Strike structs for a list of strikeIds
   function _getStrikes(uint[] memory strikeIds) internal view returns (Strike[] memory allStrikes) {
     allStrikes = new Strike[](strikeIds.length);
 
@@ -311,7 +423,7 @@ contract VaultAdapter is Ownable {
     return allStrikes;
   }
 
-  // iv * skew only
+  /// @notice Returns current spot volatilities for given strikeIds (boardIv * skew)
   function _getVols(uint[] memory strikeIds) internal view returns (uint[] memory vols) {
     vols = new uint[](strikeIds.length);
 
@@ -325,7 +437,7 @@ contract VaultAdapter is Ownable {
     return vols;
   }
 
-  // get deltas only
+  /// @notice Returns current spot deltas for given strikeIds (using BlackScholes and spot volatilities)
   function _getDeltas(uint[] memory strikeIds) internal view returns (int[] memory callDeltas) {
     callDeltas = new int[](strikeIds.length);
     for (uint i = 0; i < strikeIds.length; i++) {
@@ -334,6 +446,7 @@ contract VaultAdapter is Ownable {
     }
   }
 
+  /// @notice Returns current spot vegas for given strikeIds (using BlackScholes and spot volatilities)
   function _getVegas(uint[] memory strikeIds) internal view returns (uint[] memory vegas) {
     vegas = new uint[](strikeIds.length);
     for (uint i = 0; i < strikeIds.length; i++) {
@@ -342,7 +455,7 @@ contract VaultAdapter is Ownable {
     }
   }
 
-  // get pure black-scholes premium
+  /// @notice Calculate the pure black-scholes premium for given params
   function _getPurePremium(
     uint secondsToExpiry,
     uint vol,
@@ -359,29 +472,48 @@ contract VaultAdapter is Ownable {
     (call, put) = BlackScholes.optionPrices(bsInput);
   }
 
-  // get pure black-scholes premium
+  /// @notice Calculate the spot black-scholes premium for a given strike
+  /// @dev Does not include slippage or trading fees
   function _getPurePremiumForStrike(uint strikeId) internal view returns (uint call, uint put) {
     BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeId);
     (call, put) = BlackScholes.optionPrices(bsInput);
   }
 
-  function _getFreeLiquidity() internal view returns (uint freeLiquidity) {
-    freeLiquidity = liquidityPool.getLiquidityParams().freeLiquidity;
-  }
-
-  function _getMarketParams() internal view returns (MarketParams memory) {
+  /// @notice Returns the breakdown of current liquidity usage (see Liquidity struct)
+  function _getLiquidity() internal view returns (Liquidity memory) {
+    LiquidityPool.Liquidity memory liquidity = liquidityPool.getCurrentLiquidity();
     return
-      MarketParams({
-        standardSize: optionPricer.getPricingParams().standardSize,
-        skewAdjustmentParam: optionPricer.getPricingParams().skewAdjustmentFactor,
-        rateAndCarry: greekCache.getGreekCacheParams().rateAndCarry,
-        deltaCutOff: optionPricer.getTradeLimitParams().minDelta,
-        tradingCutoff: optionPricer.getTradeLimitParams().tradingCutoff,
-        minForceCloseDelta: optionPricer.getTradeLimitParams().minForceCloseDelta
+      Liquidity({
+        freeLiquidity: liquidity.freeLiquidity,
+        burnableLiquidity: liquidity.burnableLiquidity,
+        usedCollatLiquidity: liquidity.usedCollatLiquidity,
+        pendingDeltaLiquidity: liquidity.pendingDeltaLiquidity,
+        usedDeltaLiquidity: liquidity.usedDeltaLiquidity,
+        NAV: liquidity.NAV
       });
   }
 
-  // get spot price of sAsset and exchange fee percentages
+  /// @notice Returns the amount of liquidity available for trading
+  function _getFreeLiquidity() internal view returns (uint freeLiquidity) {
+    freeLiquidity = liquidityPool.getCurrentLiquidity().freeLiquidity;
+  }
+
+  /// @notice Returns the most critical Lyra market trading parameters that determine pricing/slippage/trading restrictions
+  function _getMarketParams() internal view returns (MarketParams memory) {
+    OptionMarketPricer.PricingParameters memory pricingParams = optionPricer.getPricingParams();
+    OptionMarketPricer.TradeLimitParameters memory tradeLimitParams = optionPricer.getTradeLimitParams();
+    return
+      MarketParams({
+        standardSize: pricingParams.standardSize,
+        skewAdjustmentParam: pricingParams.skewAdjustmentFactor,
+        rateAndCarry: greekCache.getGreekCacheParams().rateAndCarry,
+        deltaCutOff: tradeLimitParams.minDelta,
+        tradingCutoff: tradeLimitParams.tradingCutoff,
+        minForceCloseDelta: tradeLimitParams.minForceCloseDelta
+      });
+  }
+
+  /// @notice Returns the ExchangeParams for current market.
   function _getExchangeParams() internal view returns (ExchangeRateParams memory) {
     SynthetixAdapter.ExchangeParams memory params = synthetixAdapter.getExchangeParams(address(optionMarket));
     return
@@ -396,6 +528,7 @@ contract VaultAdapter is Ownable {
   // Option Position Getters //
   /////////////////////////////
 
+  /// @notice Get position info for given positionIds
   function _getPositions(uint[] memory positionIds) internal view returns (OptionPosition[] memory) {
     OptionToken.OptionPosition[] memory positions = optionToken.getOptionPositions(positionIds);
 
@@ -414,6 +547,8 @@ contract VaultAdapter is Ownable {
     return convertedPositions;
   }
 
+  /// @notice Estimate minimum collateral required for given parameters
+  /// @dev Position is liquidatable when position.collateral < minCollateral
   function _getMinCollateral(
     OptionType optionType,
     uint strikePrice,
@@ -425,6 +560,7 @@ contract VaultAdapter is Ownable {
       greekCache.getMinCollateral(OptionMarket.OptionType(uint(optionType)), strikePrice, expiry, spotPrice, amount);
   }
 
+  /// @notice Estimate minimum collateral required for an existing position
   function _getMinCollateralForPosition(uint positionId) internal view returns (uint) {
     OptionToken.PositionWithOwner memory position = optionToken.getPositionWithOwner(positionId);
     if (_isLong(OptionType(uint(position.optionType)))) return 0;
@@ -443,6 +579,7 @@ contract VaultAdapter is Ownable {
       );
   }
 
+  /// @notice Estimate minimum collateral required for a given strike with manual amount
   function _getMinCollateralForStrike(
     OptionType optionType,
     uint strikeId,
@@ -468,6 +605,7 @@ contract VaultAdapter is Ownable {
   // Misc //
   //////////
 
+  /// @dev format all strike related params before input into BlackScholes
   function _getBsInput(uint strikeId) internal view returns (BlackScholes.BlackScholesInputs memory bsInput) {
     (OptionMarket.Strike memory strike, OptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
       strikeId
@@ -481,10 +619,12 @@ contract VaultAdapter is Ownable {
     });
   }
 
+  /// @dev Check if position is long
   function _isLong(OptionType optionType) internal pure returns (bool) {
     return (optionType < OptionType.SHORT_CALL_BASE);
   }
 
+  /// @dev Convert VaultAdapter.TradeInputParameters into OptionMarket.TradeInputParameters
   function _convertParams(TradeInputParameters memory _params)
     internal
     pure

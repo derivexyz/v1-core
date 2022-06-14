@@ -1,30 +1,20 @@
 import { ethers } from 'hardhat';
-import { toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
-import { PoolHedger } from '../../../typechain-types';
+import { toBN, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
+import { ShortPoolHedger } from '../../../typechain-types';
+import { assertCloseToPercentage } from '../../utils/assert';
 import { getLiquidity, setNegativeExpectedHedge, setPositiveExpectedHedge } from '../../utils/contractHelpers';
-import {
-  DEFAULT_BASE_BALANCE,
-  DEFAULT_BASE_PRICE,
-  DEFAULT_POOL_DEPOSIT,
-  DEFAULT_POOL_HEDGER_PARAMS,
-  DEFAULT_QUOTE_BALANCE,
-} from '../../utils/defaultParams';
+import { DEFAULT_POOL_HEDGER_PARAMS, DEFAULT_SHORT_BUFFER } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
-import { deployFixture, seedFixture } from '../../utils/fixture';
-import {
-  createDefaultBoardWithOverrides,
-  seedBalanceAndApprovalFor,
-  seedLiquidityPool,
-} from '../../utils/seedTestSystem';
+import { seedFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
 
 describe('Swap Hedger', async () => {
-  let poolHedgerV2: PoolHedger;
+  let poolHedgerV2: ShortPoolHedger;
   beforeEach(async () => {
     await seedFixture(); /// seed is probably overriding
-    poolHedgerV2 = (await (await ethers.getContractFactory('PoolHedger'))
+    poolHedgerV2 = (await (await ethers.getContractFactory('ShortPoolHedger'))
       .connect(hre.f.signers[0])
-      .deploy()) as PoolHedger;
+      .deploy()) as ShortPoolHedger;
     await poolHedgerV2.init(
       hre.f.c.synthetixAdapter.address,
       hre.f.c.optionMarket.address,
@@ -34,42 +24,7 @@ describe('Swap Hedger', async () => {
       hre.f.c.snx.baseAsset.address,
     );
     await poolHedgerV2.setPoolHedgerParams(DEFAULT_POOL_HEDGER_PARAMS);
-  });
-
-  describe('revert swap', async () => {
-    it('revert swap if shortBalance > 0', async () => {
-      // set hedge
-      await setNegativeExpectedHedge();
-      await hre.f.c.poolHedger.hedgeDelta();
-
-      // changing pool hedger reverted
-      await expect(hre.f.c.liquidityPool.setPoolHedger(poolHedgerV2.address)).revertedWith('HedgerIsNotEmpty');
-    });
-
-    it('revert swap if long amount > 0', async () => {
-      // set hedge
-      await setPositiveExpectedHedge();
-      await hre.f.c.poolHedger.hedgeDelta();
-
-      // changing pool hedger reverted
-      await expect(hre.f.c.liquidityPool.setPoolHedger(poolHedgerV2.address)).revertedWith('HedgerIsNotEmpty');
-    });
-
-    it('revert swap if shortCollateral > 0', async () => {
-      await deployFixture();
-      await hre.f.c.snx.exchangeRates.setRateAndInvalid(toBytes32('sETH'), DEFAULT_BASE_PRICE, false);
-
-      await seedLiquidityPool(hre.f.deployer, hre.f.c, DEFAULT_POOL_DEPOSIT);
-      await seedBalanceAndApprovalFor(hre.f.deployer, hre.f.c, DEFAULT_QUOTE_BALANCE, DEFAULT_BASE_BALANCE);
-      await hre.f.c.poolHedger.openShortAccount();
-      await createDefaultBoardWithOverrides(hre.f.c);
-
-      const [, collateral] = await hre.f.c.poolHedger.getShortPosition(hre.f.c.snx.collateralShort.address);
-      expect(collateral).to.be.gt(0);
-
-      // changing pool hedger reverted
-      await expect(hre.f.c.liquidityPool.setPoolHedger(poolHedgerV2.address)).revertedWith('HedgerIsNotEmpty');
-    });
+    await poolHedgerV2.setShortBuffer(DEFAULT_SHORT_BUFFER);
   });
 
   it('will return zero hedging liquidity if no poolHedger set', async () => {
@@ -113,6 +68,38 @@ describe('Swap Hedger', async () => {
       await setPositiveExpectedHedge();
       await poolHedgerV2.hedgeDelta();
       expect((await getLiquidity()).usedDeltaLiquidity).to.eq(toBN('8001.757538756809582551'));
+    });
+
+    it('from negative hedge: swaps old hedger with balance', async () => {
+      // use old hedger
+      await setNegativeExpectedHedge();
+      await hre.f.c.poolHedger.hedgeDelta();
+
+      // swap into new hedger with balance
+      await hre.f.c.liquidityPool.setPoolHedger(poolHedgerV2.address);
+      await poolHedgerV2.openShortAccount();
+      await poolHedgerV2.hedgeDelta();
+      expect(await hre.f.c.liquidityPool.poolHedger()).to.eq(poolHedgerV2.address);
+      await fastForward(Number(DEFAULT_POOL_HEDGER_PARAMS.interactionDelay) + 1);
+
+      // rehedges even though old hedger has funds
+      await poolHedgerV2.hedgeDelta();
+      assertCloseToPercentage((await getLiquidity()).usedDeltaLiquidity, toBN('13419.25'), toBN('0.01'));
+
+      // empty v2 and set new hedger
+      await poolHedgerV2.setPoolHedgerParams({ ...DEFAULT_POOL_HEDGER_PARAMS, hedgeCap: toBN('0') });
+      await poolHedgerV2.hedgeDelta();
+      await hre.f.c.liquidityPool.setPoolHedger(hre.f.c.poolHedger.address);
+      const lpOldBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
+
+      // return all funds from old hedger
+      await hre.f.c.poolHedger.setPoolHedgerParams({ ...DEFAULT_POOL_HEDGER_PARAMS, hedgeCap: toBN('0') });
+      await fastForward(Number(DEFAULT_POOL_HEDGER_PARAMS.interactionDelay) + 1);
+      await setNegativeExpectedHedge(); // expect to hedge on top of existing hedge
+      await hre.f.c.poolHedger.hedgeDelta();
+      const lpNewBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
+      expect((await getLiquidity()).usedDeltaLiquidity).to.eq(0);
+      expect(lpNewBalance.gt(lpOldBalance));
     });
   });
 

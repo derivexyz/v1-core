@@ -61,16 +61,16 @@ describe('Process withdrawal', async () => {
 
       // test process number limit
       await hre.f.c.liquidityPool.processWithdrawalQueue(0);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
 
       // withdraw 1st withdraw
       let oldBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address);
       await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       let newBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
       expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('5000'));
       await validateWithdrawalRecord(
-        0,
+        1,
         hre.f.alice.address,
         toBN('0'),
         newBal.sub(oldBal),
@@ -82,10 +82,10 @@ describe('Process withdrawal', async () => {
       oldBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address);
       await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       newBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(3);
       expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('0'));
       await validateWithdrawalRecord(
-        1,
+        2,
         hre.f.alice.address,
         toBN('0'),
         newBal.sub(oldBal),
@@ -114,7 +114,7 @@ describe('Process withdrawal', async () => {
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       await hre.f.c.liquidityPool.processWithdrawalQueue(5);
 
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(3);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(4);
       expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('0'));
 
       // <0.01% deviations as alice's remaining funds earn a portion of fees from her earlier withdrawals
@@ -141,7 +141,7 @@ describe('Process withdrawal', async () => {
       // attempt process
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
 
       // ensure process failed
       expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('10000'));
@@ -159,7 +159,7 @@ describe('Process withdrawal', async () => {
 
       // attempt withdrawal
       await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
 
       // ensure process failed
       expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('10000'));
@@ -178,7 +178,7 @@ describe('Process withdrawal', async () => {
 
       // fails to process both deployer and alice withdrawals
       await hre.f.c.liquidityPool.processWithdrawalQueue(2);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
 
       // confirm CB is blocking withdrawal
       const blockNumber = await ethers.provider.getBlockNumber();
@@ -202,7 +202,7 @@ describe('Process withdrawal', async () => {
 
       // process withdraw
       expect(await hre.f.c.liquidityPool.connect(hre.f.signers[3]).processWithdrawalQueue(1));
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(0);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
       expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('1000'));
       const newQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address);
       expect(newQuote.sub(oldQuote)).to.eq(toBN('0')); // no withdrawal
@@ -217,7 +217,7 @@ describe('Process withdrawal', async () => {
       expect(liquidity.burnableLiquidity).to.lt(toBN('200000')); // ensure partial fill is correct
 
       const firstTx = await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('200000'));
-      // prevent withdrawal from triggerring CBTimeout
+      // prevent withdrawal from triggering CBTimeout
       await hre.f.c.liquidityPool.setLiquidityPoolParameters({
         ...DEFAULT_LIQUIDITY_POOL_PARAMS,
         liquidityCBThreshold: toBN('0'),
@@ -230,10 +230,10 @@ describe('Process withdrawal', async () => {
       const newQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
       // assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('75488.496'), toBN('1'));
 
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(0);
-      assertCloseTo(newQuote.sub(oldQuote), toBN('123787.16386'), toBN('2'));
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
+      assertCloseTo(newQuote.sub(oldQuote), toBN('123787.16386'), toBN('5'));
       await validateWithdrawalRecord(
-        0,
+        1,
         hre.f.deployer.address,
         toBN('75556.3265'),
         newQuote.sub(oldQuote),
@@ -254,7 +254,7 @@ describe('Process withdrawal', async () => {
       assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('0'), toBN('1'));
       // confirmQuoteSentReceipt(0, totalWithdrawnQuote);
       await validateWithdrawalRecord(
-        0,
+        1,
         hre.f.deployer.address,
         toBN('0'),
         totalWithdrawnQuote,
@@ -343,11 +343,11 @@ describe('Process withdrawal', async () => {
       await fastForward(HOUR_SEC * 6 + 1);
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(boardId2);
       await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
 
       // confirm 100% withdrawn, except pool fees and settlement values
       const globals = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
-      const liquidity = await hre.f.c.liquidityPool.getLiquidity(globals.spotPrice, globals.short);
+      const liquidity = await hre.f.c.liquidityPool.getLiquidity(globals.spotPrice);
       assertCloseToPercentage(
         await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address),
         toBN('5242.0727'),
@@ -382,7 +382,7 @@ describe('Process withdrawal', async () => {
       await hre.f.c.liquidityPool.exchangeBase();
       await fastForward(HOUR_SEC * 6 + 1);
       await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
 
       // confirm settling is fully functional even with 100% withdrawal
       await expectCorrectSettlement(positionIds);

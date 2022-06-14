@@ -430,7 +430,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   //////////////////////////////////////////////
 
   /**
-   * @dev During a trade, updates the exposure of the given strike, board and global state. Computes the cost of the
+   * @notice During a trade, updates the exposure of the given strike, board and global state. Computes the cost of the
    * trade and returns it to the OptionMarketPricer.
    * @return pricing The final price of the option to be paid for by the user. This could use marketVol or shockVol,
    * depending on the trade executed.
@@ -535,7 +535,18 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   // Liquidation/Force Close pricing //
   /////////////////////////////////////
 
-  /// @dev Figure out the price paid by the user for the options, given a trade that is a forceClose
+  /**
+   * @notice Calculate price paid by the user to forceClose an options position
+   * 
+   * @param trade TradeParameter as defined in OptionMarket
+   * @param strike strikes details (including total exposure)
+   * @param expiry expiry of option
+   * @param newVol volatility post slippage as determined in `OptionTokOptionMarketPriceren.ivImpactForTrade()`
+   * @param isPostCutoff flag for whether order is closer to expiry than postCutoff param.
+
+   * @return optionPrice premium to charge for close order (excluding fees added in OptionMarketPricer)
+   * @return forceCloseVol volatility used to calculate optionPrice
+   */
   function getPriceForForceClose(
     OptionMarket.TradeParameters memory trade,
     OptionMarket.Strike memory strike,
@@ -628,7 +639,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     uint expiry,
     uint spotPrice,
     uint amount
-  ) external view returns (uint) {
+  ) external view returns (uint minCollateral) {
     if (amount == 0) {
       return 0;
     }
@@ -691,7 +702,10 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   //////////////////////////////////////////
 
   /**
-   * @notice Updates the cached greeks for an OptionBoardCache.
+   * @notice Updates the cached greeks for an OptionBoardCache used to calculate:
+   * - trading fees
+   * - aggregate AMM option value
+   * - net delta exposure for proper hedging
    *
    * @param boardId The id of the OptionBoardCache.
    */
@@ -699,16 +713,14 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     _updateBoardCachedGreeks(synthetixAdapter.getSpotPriceForMarket(address(optionMarket)), boardId);
   }
 
-  /**
-   * @dev Updates the cached greeks for an OptionBoardCache.
-   *
-   * @param spotPrice The price of baseAsset
-   * @param boardId The id of the OptionBoardCache.
-   */
   function _updateBoardCachedGreeks(uint spotPrice, uint boardId) internal {
     OptionBoardCache storage boardCache = boardCaches[boardId];
     if (boardCache.id == 0) {
       revert InvalidBoardId(address(this), boardCache.id);
+    }
+
+    if (block.timestamp > boardCache.expiry) {
+      revert CannotUpdateExpiredBoard(address(this), boardCache.id, boardCache.expiry, block.timestamp);
     }
 
     // Zero out the board net greeks and recompute all strikes, adding to the totals
@@ -802,9 +814,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     emit StrikeSkewUpdated(strikeCache.id, strikeCache.skew, globalCache.maxSkewVariance);
   }
 
-  /**
-   * @dev Updates global `lastUpdatedAt`.
-   */
+  /// @dev Updates global `lastUpdatedAt`.
   function _updateGlobalLastUpdatedAt() internal {
     OptionBoardCache storage boardCache = boardCaches[liveBoards[0]];
     uint minUpdatedAt = boardCache.updatedAt;
@@ -883,6 +893,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     globalCache.maxIvVariance = maxIvVariance;
   }
 
+  /// @dev updates skewVariance for strike, used to trigger CBs and charge varianceFees
   function _updateStrikeSkewVariance(StrikeCache storage strikeCache) internal {
     uint strikeVarianceGWAVSkew = strikeSkewGWAV[strikeCache.id].getGWAVForPeriod(
       greekCacheParams.varianceSkewGWAVPeriod,
@@ -896,6 +907,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
+  /// @dev updates ivVariance for board, used to trigger CBs and charge varianceFees
   function _updateBoardIvVariance(OptionBoardCache storage boardCache) internal {
     uint boardVarianceGWAVIv = boardIVGWAV[boardCache.id].getGWAVForPeriod(greekCacheParams.varianceIvGWAVPeriod, 0);
 
@@ -931,7 +943,11 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   // Stale cache checking //
   //////////////////////////
 
-  /// @notice returns bool if the global cache is stale based off input spotPrice
+  /**
+   * @notice returns `true` if even one board not updated within `staleUpdateDuration` or
+   *         if spot price moves up/down beyond `acceptablePriceMovement`
+   */
+
   function isGlobalCacheStale(uint spotPrice) external view returns (bool) {
     if (liveBoards.length == 0) {
       return false;
@@ -942,7 +958,10 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
-  /// @notice returns bool is the board cache is stale
+  /**
+   * @notice returns `true` if board not updated within `staleUpdateDuration` or
+   *         if spot price moves up/down beyond `acceptablePriceMovement`
+   */
   function isBoardCacheStale(uint boardId) external view returns (bool) {
     uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
     OptionBoardCache memory boardCache = boardCaches[boardId];
@@ -954,7 +973,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @notice Check if the price move of an asset is acceptable given the time to expiry.
+   * @notice Check if the price move of base asset renders the cache stale.
    *
    * @param pastPrice The previous price.
    * @param currentPrice The current price.
@@ -969,7 +988,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @notice Checks if `updatedAt` is stale.
+   * @notice Checks if board updated within `staleUpdateDuration`.
    *
    * @param updatedAt The time of the last update.
    */
@@ -982,7 +1001,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   // External View functions //
   /////////////////////////////
 
-  /// @notice Get the current cached global netDelta value.
+  /// @notice Get the current cached global netDelta exposure.
   function getGlobalNetDelta() external view returns (int) {
     return globalCache.netGreeks.netDelta;
   }
@@ -1028,12 +1047,12 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     return globalCache;
   }
 
-  /// @notice Returns ivGWAV given for a boardId and time period (seconds ago)
+  /// @notice Returns ivGWAV for a given boardId and GWAV time interval
   function getIvGWAV(uint boardId, uint secondsAgo) external view returns (uint ivGWAV) {
     return boardIVGWAV[boardId].getGWAVForPeriod(secondsAgo, 0);
   }
 
-  /// @notice Returns skewGWAV given for a strikeId and time period (seconds ago)
+  /// @notice Returns skewGWAV for a given strikeId and GWAV time interval
   function getSkewGWAV(uint strikeId, uint secondsAgo) external view returns (uint skewGWAV) {
     return strikeSkewGWAV[strikeId].getGWAVForPeriod(secondsAgo, 0);
   }
@@ -1056,6 +1075,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   ////////////////////////////
   // Utility/Math functions //
   ////////////////////////////
+
+  /// @dev Calculate option payout on expiry given a strikePrice, spot on expiry and optionType.
   function _getParity(
     uint strikePrice,
     uint spot,
@@ -1065,7 +1086,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       ? SafeCast.toInt256(strikePrice) - SafeCast.toInt256(spot)
       : SafeCast.toInt256(spot) - SafeCast.toInt256(strikePrice);
 
-    parity = diff > 0 ? SafeCast.toUint256(diff) : 0;
+    parity = diff > 0 ? uint(diff) : 0;
   }
 
   /// @dev Returns time to maturity for a given expiry.
@@ -1133,6 +1154,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   // Board related
   error BoardStrikeLimitExceeded(address thrower, uint boardId, uint newStrikesLength, uint maxStrikesPerBoard);
   error InvalidBoardId(address thrower, uint boardId);
+  error CannotUpdateExpiredBoard(address thrower, uint boardId, uint expiry, uint currentTimestamp);
 
   // Access
   error OnlyOptionMarket(address thrower, address caller, address optionMarket);

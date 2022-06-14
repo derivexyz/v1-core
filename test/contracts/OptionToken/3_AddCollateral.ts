@@ -142,7 +142,6 @@ describe('OptionToken - AddCollateral', async () => {
       it('settled position', async () => {
         // fully close
         await fastForward(MONTH_SEC);
-        await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
         await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
         await hre.f.c.shortCollateral.settleOptions([positionId]);
 

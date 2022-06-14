@@ -81,6 +81,7 @@ contract TestCollateralShort is ICollateralShort, Owned {
 
   function draw(uint id, uint amount) external override returns (uint, uint) {
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     require(loan.account == msg.sender, "draw: loan.account mismatch");
     uint price = synthetixAdapter.getSpotPriceForMarket(markets[loan.currency]);
 
@@ -97,6 +98,7 @@ contract TestCollateralShort is ICollateralShort, Owned {
     uint amount
   ) external override returns (uint, uint) {
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     uint price = synthetixAdapter.getSpotPriceForMarket(markets[loan.currency]);
     ITestERC20 baseAsset = baseAssets[loan.currency];
 
@@ -111,6 +113,7 @@ contract TestCollateralShort is ICollateralShort, Owned {
 
   function repayWithCollateral(uint id, uint amount) external override returns (uint, uint) {
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     require(loan.account == msg.sender, "only loan account");
     uint price = synthetixAdapter.getSpotPriceForMarket(markets[loan.currency]);
 
@@ -126,7 +129,8 @@ contract TestCollateralShort is ICollateralShort, Owned {
     uint mockAccruedInterest = amount.multiplyDecimal(issueFeeRate).multiplyDecimal((50 * DecimalMath.UNIT) / 100); // 50%
     uint repaidAmount = amount + mockAccruedInterest;
 
-    require(price.multiplyDecimal(loan.amount) <= loan.collateral.multiplyDecimal(minCratio), "not enough collateral");
+    // shouldn't be checking cRatio when loan is being reduced
+    // require(price.multiplyDecimal(loan.amount) <= loan.collateral.multiplyDecimal(minCratio), "not enough collateral");
 
     return (repaidAmount, loan.collateral);
   }
@@ -138,6 +142,7 @@ contract TestCollateralShort is ICollateralShort, Owned {
   ) external override returns (uint, uint) {
     quoteAsset.burn(msg.sender, amount);
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     loan.collateral += amount;
 
     return (loan.amount, loan.collateral);
@@ -145,6 +150,7 @@ contract TestCollateralShort is ICollateralShort, Owned {
 
   function withdraw(uint id, uint amount) external override returns (uint, uint) {
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     require(loan.account == msg.sender, "withdraw: loan.account mismatch");
 
     loan.collateral = loan.collateral - amount;
@@ -187,5 +193,9 @@ contract TestCollateralShort is ICollateralShort, Owned {
 
   function testForceClose(uint id) external onlyOwner {
     loans[id].interestIndex = 0;
+  }
+
+  function _isLoanOpen(uint interestIndex) internal pure {
+    require(interestIndex != 0, "Loan is closed");
   }
 }

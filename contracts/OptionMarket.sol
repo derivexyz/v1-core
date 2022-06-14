@@ -57,22 +57,36 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   ///////////////////
 
   struct Strike {
+    // strike listing identifier
     uint id;
+    // strike price
     uint strikePrice;
+    // volatility component specific to the strike listing (boardIv * skew = vol of strike)
     uint skew;
+    // total user long call exposure
     uint longCall;
+    // total user short call (base collateral) exposure
     uint shortCallBase;
+    // total user short call (quote collateral) exposure
     uint shortCallQuote;
+    // total user long put exposure
     uint longPut;
+    // total user short put (quote collateral) exposure
     uint shortPut;
+    // id of board to which strike belongs
     uint boardId;
   }
 
   struct OptionBoard {
+    // board identifier
     uint id;
+    // expiry of all strikes belonging to board
     uint expiry;
+    // volatility component specific to board (boardIv * skew = vol of strike)
     uint iv;
+    // admin settable flag blocking all trading on this board
     bool frozen;
+    // list of all strikes belonging to this board
     uint[] strikeIds;
   }
 
@@ -81,19 +95,32 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   ///////////////
 
   struct OptionMarketParameters {
+    // max allowable expiry of added boards
     uint maxBoardExpiry;
+    // security module address
     address securityModule;
+    // fee portion reserved for Lyra DAO
     uint feePortionReserved;
+    // expected fee charged to LPs, used for pricing short_call_base settlement
+    uint staticBaseSettlementFee;
   }
 
   struct TradeInputParameters {
+    // id of strike
     uint strikeId;
+    // OptionToken ERC721 id for position (set to 0 for new positions)
     uint positionId;
+    // number of sub-orders to break order into (reduces slippage)
     uint iterations;
+    // type of option to trade
     OptionType optionType;
+    // number of contracts to trade
     uint amount;
+    // final amount of collateral to leave in OptionToken position
     uint setCollateralTo;
+    // revert trade if totalCost is below this value
     uint minTotalCost;
+    // revert trade if totalCost is above this value
     uint maxTotalCost;
   }
 
@@ -193,12 +220,12 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   /////////////////////
 
   /**
-   * @dev Creates a new OptionBoard which contains Strikes.
+   * @notice Creates a new OptionBoard with defined strikePrices and initial skews.
    *
    * @param expiry The timestamp when the board expires.
-   * @param baseIV The initial value for implied volatility.
+   * @param baseIV The initial value for baseIv (baseIv * skew = strike volatility).
    * @param strikePrices The array of strikePrices offered for this expiry.
-   * @param skews The array of skews for each strikePrice.
+   * @param skews The array of initial skews for each strikePrice.
    * @param frozen Whether the board is frozen or not at creation.
    */
   function createOptionBoard(
@@ -207,7 +234,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint[] memory strikePrices,
     uint[] memory skews,
     bool frozen
-  ) external onlyOwner returns (uint) {
+  ) external onlyOwner returns (uint boardId) {
     // strikePrice and skew length must match and must have at least 1
     if (strikePrices.length != skews.length || strikePrices.length == 0) {
       revert StrikeSkewLengthMismatch(address(this), strikePrices.length, skews.length);
@@ -221,7 +248,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       revert ExpectedNonZeroValue(address(this), NonZeroValues.BASE_IV);
     }
 
-    uint boardId = nextBoardId++;
+    boardId = nextBoardId++;
     OptionBoard storage board = optionBoards[boardId];
     board.id = boardId;
     board.expiry = expiry;
@@ -243,13 +270,13 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Sets the frozen state of an OptionBoard.
+   * @notice Sets the frozen state of an OptionBoard, preventing or allowing all trading on board.
    * @param boardId The id of the OptionBoard.
    * @param frozen Whether the board will be frozen or not.
    */
   function setBoardFrozen(uint boardId, bool frozen) external onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
-    if (board.id != boardId) {
+    if (board.id != boardId || board.id == 0) {
       revert InvalidBoardId(address(this), boardId);
     }
     optionBoards[boardId].frozen = frozen;
@@ -257,13 +284,14 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Sets the baseIv of a frozen OptionBoard.
+   * @notice Sets the baseIv of a frozen OptionBoard.
+   *
    * @param boardId The id of the OptionBoard.
    * @param baseIv The new baseIv value.
    */
   function setBoardBaseIv(uint boardId, uint baseIv) external onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
-    if (board.id != boardId) {
+    if (board.id != boardId || board.id == 0) {
       revert InvalidBoardId(address(this), boardId);
     }
     if (baseIv == 0) {
@@ -279,7 +307,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Sets the skew of an Strike of a frozen OptionBoard.
+   * @notice Sets the skew of a Strike of a frozen OptionBoard.
+   *
    * @param strikeId The id of the strike being modified.
    * @param skew The new skew value.
    */
@@ -303,10 +332,10 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Add a strike to an existing board in the OptionMarket.
+   * @notice Add a strike to an existing board in the OptionMarket.
    *
    * @param boardId The id of the board which the strike will be added
-   * @param strikePrice Strike of the Strike
+   * @param strikePrice The strike price of the strike being added
    * @param skew Skew of the Strike
    */
   function addStrikeToBoard(
@@ -315,14 +344,12 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint skew
   ) external onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
-    if (board.id != boardId) revert InvalidBoardId(address(this), boardId);
+    if (board.id != boardId || board.id == 0) revert InvalidBoardId(address(this), boardId);
     Strike memory strike = _addStrikeToBoard(board, strikePrice, skew);
     greekCache.addStrikeToBoard(boardId, strike.id, strikePrice, skew);
   }
 
-  /**
-   * @dev Add a strike to an existing board.
-   */
+  /// @dev Add a strike to an existing board.
   function _addStrikeToBoard(
     OptionBoard storage board,
     uint strikePrice,
@@ -342,9 +369,15 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     return strikes[strikeId];
   }
 
+  /**
+   * @notice Force settle all open options before expiry.
+   * @dev Only used during emergency situations.
+   *
+   * @param boardId The id of the board to settle
+   */
   function forceSettleBoard(uint boardId) external onlyOwner {
     OptionBoard memory board = optionBoards[boardId];
-    if (board.id != boardId) {
+    if (board.id != boardId || board.id == 0) {
       revert InvalidBoardId(address(this), boardId);
     }
     if (!board.frozen) {
@@ -353,6 +386,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     _clearAndSettleBoard(board);
   }
 
+  /// @notice set OptionMarketParams
   function setOptionMarketParams(OptionMarketParameters memory _optionMarketParams) external onlyOwner {
     if (_optionMarketParams.feePortionReserved > DecimalMath.UNIT) {
       revert InvalidOptionMarketParams(address(this), _optionMarketParams);
@@ -361,6 +395,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     emit OptionMarketParamsSet(optionMarketParams);
   }
 
+  /// @notice claim all reserved option fees
   function smClaim() external notGlobalPaused {
     if (msg.sender != optionMarketParams.securityModule) {
       revert OnlySecurityModule(address(this), msg.sender, optionMarketParams.securityModule);
@@ -393,6 +428,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     for (uint i = 0; i < liveBoards.length; i++) {
       _liveBoards[i] = liveBoards[i];
     }
+    return _liveBoards;
   }
 
   /// @notice Returns the number of current live boards
@@ -502,7 +538,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    *         this transfers tokens (which may be denominated in the quote or the base asset). This allows you to
    *         further collateralise a short position in order to, say, prevent imminent liquidation.
    *
-   * @param positionId addCollateral to this positionId
+   * @param positionId id of OptionToken to add collateral to
    * @param amountCollateral the amount of collateral to be added
    */
   function addCollateral(uint positionId, uint amountCollateral) external nonReentrant notGlobalPaused {
@@ -681,6 +717,10 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     }
     board = optionBoards[strike.boardId];
 
+    if (boardToPriceAtExpiry[board.id] != 0) {
+      revert BoardAlreadySettled(address(this), board.id);
+    }
+
     bool isBuy = (_tradeDirection == TradeDirection.OPEN) ? _isLong(optionType) : !_isLong(optionType);
 
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(this));
@@ -694,7 +734,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       expiry: board.expiry,
       strikePrice: strike.strikePrice,
       exchangeParams: exchangeParams,
-      liquidity: liquidityPool.getLiquidity(exchangeParams.spotPrice, exchangeParams.short)
+      liquidity: liquidityPool.getLiquidity(exchangeParams.spotPrice)
     });
   }
 
@@ -705,9 +745,9 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   /**
    * @dev Determine the cost of the trade and update the system's iv/skew/exposure parameters.
    *
-   * @param strike The relevant Strike.
-   * @param board The relevant OptionBoard.
-   * @param trade The trade parameters.
+   * @param strike The currently traded Strike.
+   * @param board The currently traded OptionBoard.
+   * @param trade The trade parameters struct, informing the trade the caller wants to make.
    */
   function _doTrade(
     Strike storage strike,
@@ -735,7 +775,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     if (board.frozen) {
       revert BoardIsFrozen(address(this), board.id);
     }
-    if (board.expiry < block.timestamp) {
+    if (block.timestamp >= board.expiry) {
       revert BoardExpired(address(this), board.id, board.expiry, block.timestamp);
     }
 
@@ -772,10 +812,10 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   /////////////////
 
   /**
-   * @dev Allows you to liquidate an underwater position
+   * @dev Allows anyone to liquidate an underwater position
    *
    * @param positionId the position to be liquidated
-   * @param rewardBeneficiary the address to receive quote/base
+   * @param rewardBeneficiary the address to receive the liquidator fee in either quote or base
    */
   function liquidatePosition(uint positionId, address rewardBeneficiary) external nonReentrant {
     OptionToken.PositionWithOwner memory position = optionToken.getPositionWithOwner(positionId);
@@ -842,6 +882,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   // Fund routing //
   //////////////////
 
+  /// @dev send/receive quote or base to/from LiquidityPool on position open
   function _routeLPFundsOnOpen(
     TradeParameters memory trade,
     uint totalCost,
@@ -867,6 +908,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
+  /// @dev send/receive quote or base to/from LiquidityPool on position close
   function _routeLPFundsOnClose(
     TradeParameters memory trade,
     uint totalCost,
@@ -895,7 +937,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
-  /// @dev cannot be called with any optionType other than a short with > 0 pendingCollateral
+  /// @dev route collateral to/from msg.sender when short positions are adjusted
   function _routeUserCollateral(OptionType optionType, int pendingCollateral) internal {
     if (pendingCollateral == 0) {
       return;
@@ -919,6 +961,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     }
   }
 
+  /// @dev update all exposures per strike and optionType
   function _updateExposure(
     uint amount,
     OptionType optionType,
@@ -951,16 +994,19 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   /////////////////////////////////
 
   /**
-   * @dev Settle a board that has passed expiry. This function will not preserve the ordering of liveBoards.
+   * @notice Settles an expired board.
+   * - Transfers all AMM profits for user shorts from ShortCollateral to LiquidityPool.
+   * - Reserves all user profits for user longs in LiquidityPool.
+   * - Records any profits that AMM did not receive due to user insolvencies
    *
-   * @param boardId The id of the relevant OptionBoard.
+   * @param boardId The relevant OptionBoard.
    */
   function settleExpiredBoard(uint boardId) external nonReentrant {
     OptionBoard memory board = optionBoards[boardId];
-    if (board.id != boardId) {
+    if (board.id != boardId || board.id == 0) {
       revert InvalidBoardId(address(this), boardId);
     }
-    if (board.expiry > block.timestamp) {
+    if (block.timestamp < board.expiry) {
       revert BoardNotExpired(address(this), boardId);
     }
     _clearAndSettleBoard(board);
@@ -986,15 +1032,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     greekCache.removeBoard(board.id);
   }
 
-  /**
-   * @dev Liquidates an expired board.
-   * It will transfer all short collateral for ITM options that the market owns.
-   * It will reserve collateral for users to settle their ITM long options.
-   *
-   * @param board The relevant OptionBoard.
-   */
   function _settleExpiredBoard(OptionBoard memory board) internal {
-    SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(this));
+    uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(this));
 
     uint totalUserLongProfitQuote;
     uint totalBoardLongCallCollateral;
@@ -1004,7 +1043,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint totalAMMShortPutProfitQuote;
 
     // Store the price now for when users come to settle their options
-    boardToPriceAtExpiry[board.id] = exchangeParams.spotPrice;
+    boardToPriceAtExpiry[board.id] = spotPrice;
 
     for (uint i = 0; i < board.strikeIds.length; i++) {
       Strike memory strike = strikes[board.strikeIds[i]];
@@ -1012,27 +1051,25 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       totalBoardLongCallCollateral += strike.longCall;
       totalBoardLongPutCollateral += strike.longPut.multiplyDecimal(strike.strikePrice);
 
-      if (exchangeParams.spotPrice > strike.strikePrice) {
+      if (spotPrice > strike.strikePrice) {
         // For long calls
-        totalUserLongProfitQuote += strike.longCall.multiplyDecimal(exchangeParams.spotPrice - strike.strikePrice);
+        totalUserLongProfitQuote += strike.longCall.multiplyDecimal(spotPrice - strike.strikePrice);
 
         // Per unit of shortCalls
-        uint baseReturnedRatio = (exchangeParams.spotPrice - strike.strikePrice)
-          .divideDecimal(exchangeParams.spotPrice)
-          .divideDecimal(DecimalMath.UNIT - exchangeParams.baseQuoteFeeRate);
+        uint baseReturnedRatio = (spotPrice - strike.strikePrice).divideDecimal(spotPrice).divideDecimal(
+          DecimalMath.UNIT - optionMarketParams.staticBaseSettlementFee
+        );
 
         // This is impossible unless the baseAsset price has gone up ~900%+
         baseReturnedRatio = baseReturnedRatio > DecimalMath.UNIT ? DecimalMath.UNIT : baseReturnedRatio;
 
         totalAMMShortCallProfitBase += baseReturnedRatio.multiplyDecimal(strike.shortCallBase);
-        totalAMMShortCallProfitQuote += (exchangeParams.spotPrice - strike.strikePrice).multiplyDecimal(
-          strike.shortCallQuote
-        );
+        totalAMMShortCallProfitQuote += (spotPrice - strike.strikePrice).multiplyDecimal(strike.shortCallQuote);
         strikeToBaseReturnedRatio[strike.id] = baseReturnedRatio;
-      } else if (exchangeParams.spotPrice < strike.strikePrice) {
+      } else if (spotPrice < strike.strikePrice) {
         // if amount > 0 can be skipped as it will be multiplied by 0
-        totalUserLongProfitQuote += strike.longPut.multiplyDecimal(strike.strikePrice - exchangeParams.spotPrice);
-        totalAMMShortPutProfitQuote += (strike.strikePrice - exchangeParams.spotPrice).multiplyDecimal(strike.shortPut);
+        totalUserLongProfitQuote += strike.longPut.multiplyDecimal(strike.strikePrice - spotPrice);
+        totalAMMShortPutProfitQuote += (strike.strikePrice - spotPrice).multiplyDecimal(strike.shortPut);
       }
     }
 
@@ -1043,7 +1080,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     // This will batch all base we want to convert to quote and sell it in one transaction
     liquidityPool.boardSettlement(
-      lpQuoteInsolvency + lpBaseInsolvency.multiplyDecimal(exchangeParams.spotPrice),
+      lpQuoteInsolvency + lpBaseInsolvency.multiplyDecimal(spotPrice),
       totalBoardLongPutCollateral,
       totalUserLongProfitQuote,
       totalBoardLongCallCollateral
@@ -1051,7 +1088,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     emit BoardSettled(
       board.id,
-      exchangeParams.spotPrice,
+      spotPrice,
       totalUserLongProfitQuote,
       totalBoardLongCallCollateral,
       totalBoardLongPutCollateral,
@@ -1061,7 +1098,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     );
   }
 
-  /// @dev Returns the strike price, price at expiry, strike to base returned for a given strikeId
+  /// @dev Returns the strike price, price at expiry, and profit ratio for user shorts post expiry
   function getSettlementParameters(uint strikeId)
     external
     view

@@ -9,7 +9,7 @@ import "./lib/SimpleInitializeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./PoolHedger.sol";
+import "./lib/PoolHedger.sol";
 import "./SynthetixAdapter.sol";
 import "./LiquidityPool.sol";
 import "./OptionMarket.sol";
@@ -62,12 +62,21 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
   }
 
+  ///////////
+  // Admin //
+  ///////////
+
+  /// @dev In case of an update to the synthetix contract that revokes the approval
+  function updateDelegateApproval() external onlyOwner {
+    synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
+  }
+
   ////////////////////////////////
   // Collateral/premium sending //
   ////////////////////////////////
 
   /**
-   * @dev Transfers quoteAsset to the recipient. This should only be called by the option market in the following cases:
+   * @notice Transfers quoteAsset to the recipient. This should only be called by OptionMarket in the following cases:
    * - A short is closed, in which case the premium for the option is sent to the LP
    * - A user reduces their collateral position on a quote collateralized option
    *
@@ -79,7 +88,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @dev Transfers baseAsset to the recipient. This should only be called by the option market when a user is reducing
+   * @notice Transfers baseAsset to the recipient. This should only be called by OptionMarket when a user is reducing
    * their collateral on a base collateralized option.
    *
    * @param recipient The recipient of the transfer.
@@ -89,6 +98,18 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     _sendBaseCollateral(recipient, amount);
   }
 
+  /**
+   * @notice Transfers quote/base fees and remaining collateral when `OptionMarket.liquidatePosition()` called
+   * - liquidator: liquidator portion of liquidation fees
+   * - LiquidityPool: premium to close position + LP portion of liquidation fees
+   * - OptionMarket: SM portion of the liquidation fees
+   * - position owner: remaining collateral after all above fees deducted
+   *
+   * @param trader address of position owner
+   * @param liquidator address of liquidator
+   * @param optionType OptionType
+   * @param liquidationFees fee/collateral distribution as determined by OptionToken
+   */
   function routeLiquidationFunds(
     address trader,
     address liquidator,
@@ -114,10 +135,12 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   //////////////////////
 
   /**
-   * @dev Transfers quoteAsset and baseAsset to the LiquidityPool.
+   * @notice Transfers quoteAsset and baseAsset to the LiquidityPool on board settlement.
    *
    * @param amountBase The amount of baseAsset to transfer.
    * @param amountQuote The amount of quoteAsset to transfer.
+   * @return lpBaseInsolvency total base amount owed to LP but not sent due to large amount of user insolvencies
+   * @return lpQuoteInsolvency total quote amount owed to LP but not sent due to large amount of user insolvencies
    */
   function boardSettlement(uint amountBase, uint amountQuote)
     external
@@ -149,6 +172,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
       LPBaseExcess,
       LPQuoteExcess
     );
+
+    return (lpBaseInsolvency, lpQuoteInsolvency);
   }
 
   /////////////////////////
@@ -156,16 +181,15 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   /////////////////////////
 
   /**
-   * @dev Settles options for expired and liquidated strikes. Also functions as the way to reclaim capital for options
-   * sold to the market.
+   * @notice Routes profits or remaining collateral for settled long and short options.
    *
    * @param positionIds The ids of the relevant OptionTokens.
    */
   function settleOptions(uint[] memory positionIds) external nonReentrant notGlobalPaused {
     // This is how much is missing from the ShortCollateral contract that was claimed by LPs at board expiry
     // We want to take it back when we know how much was missing.
-    uint baseInsolventAmount = 0;
-    uint quoteInsolventAmount = 0;
+    uint baseInsolventAmount;
+    uint quoteInsolventAmount;
 
     OptionToken.PositionWithOwner[] memory optionPositions = optionToken.getPositionsWithOwner(positionIds);
 
@@ -231,7 +255,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     optionToken.settlePositions(positionIds);
   }
 
-  // Clear excess LP never received first, before reclaiming excess from LP
+  /// @dev Send quote or base owed to LiquidityPool due to large number of insolvencies
   function _reclaimInsolvency(uint baseInsolventAmount, uint quoteInsolventAmount) internal {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
 
@@ -248,7 +272,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     } else if (quoteInsolventAmount > 0) {
       quoteInsolventAmount -= LPQuoteExcess;
       LPQuoteExcess = 0;
-      liquidityPool.reclaimInsolventQuote(exchangeParams, quoteInsolventAmount);
+      liquidityPool.reclaimInsolventQuote(exchangeParams.spotPrice, quoteInsolventAmount);
     }
   }
 
@@ -260,6 +284,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   ) internal returns (uint settlementAmount) {
     settlementAmount = (priceAtExpiry > strikePrice) ? (priceAtExpiry - strikePrice).multiplyDecimal(amount) : 0;
     liquidityPool.sendSettlementValue(account, settlementAmount);
+    return settlementAmount;
   }
 
   function _sendLongPutProceeds(
@@ -270,6 +295,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   ) internal returns (uint settlementAmount) {
     settlementAmount = (strikePrice > priceAtExpiry) ? (strikePrice - priceAtExpiry).multiplyDecimal(amount) : 0;
     liquidityPool.sendSettlementValue(account, settlementAmount);
+    return settlementAmount;
   }
 
   function _sendShortCallBaseProceeds(
@@ -281,6 +307,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     uint ammProfit = strikeToBaseReturnedRatio.multiplyDecimal(amount);
     (settlementAmount, insolvency) = _getInsolvency(userCollateral, ammProfit);
     _sendBaseCollateral(account, settlementAmount);
+    return (settlementAmount, insolvency);
   }
 
   function _sendShortCallQuoteProceeds(
@@ -293,6 +320,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     uint ammProfit = (priceAtExpiry > strikePrice) ? (priceAtExpiry - strikePrice).multiplyDecimal(amount) : 0;
     (settlementAmount, insolvency) = _getInsolvency(userCollateral, ammProfit);
     _sendQuoteCollateral(account, settlementAmount);
+    return (settlementAmount, insolvency);
   }
 
   function _sendShortPutQuoteProceeds(
@@ -305,6 +333,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     uint ammProfit = (priceAtExpiry < strikePrice) ? (strikePrice - priceAtExpiry).multiplyDecimal(amount) : 0;
     (settlementAmount, insolvency) = _getInsolvency(userCollateral, ammProfit);
     _sendQuoteCollateral(account, settlementAmount);
+    return (settlementAmount, insolvency);
   }
 
   function _getInsolvency(uint userCollateral, uint ammProfit)
@@ -317,6 +346,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     } else {
       insolvency = ammProfit - userCollateral;
     }
+    return (returnCollateral, insolvency);
   }
 
   ///////////////

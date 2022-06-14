@@ -62,8 +62,16 @@ contract LyraRegistry is Owned {
   function _removeMarket(OptionMarket market) internal {
     // do something with marketAddresses ?
     uint index = 0;
+    bool found = false;
     for (uint i = 0; i < optionMarkets.length; i++) {
-      if (optionMarkets[i] == market) index = i;
+      if (optionMarkets[i] == market) {
+        index = i;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      revert RemovingInvalidMarket(address(this), address(market));
     }
     optionMarkets[index] = optionMarkets[optionMarkets.length - 1];
     optionMarkets.pop();
@@ -86,4 +94,9 @@ contract LyraRegistry is Owned {
    * @dev Emitted when an optionMarket is removed
    */
   event MarketRemoved(OptionMarket indexed market);
+
+  ////////////
+  // Errors //
+  ////////////
+  error RemovingInvalidMarket(address thrower, address market);
 }

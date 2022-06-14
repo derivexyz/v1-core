@@ -238,8 +238,8 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   /**
    * @dev The entry point for the OptionMarket into the pricing logic when a trade is performed.
    *
-   * @param strike The Strike.
-   * @param trade The Trade.
+   * @param strike The strike being traded.
+   * @param trade The trade struct, containing fields related to the ongoing trade.
    * @param boardBaseIv The base IV of the OptionBoard.
    */
   function updateCacheAndGetTradeResult(
@@ -247,7 +247,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
     OptionMarket.TradeParameters memory trade,
     uint boardBaseIv,
     uint boardExpiry
-  ) external onlyOptionMarket returns (TradeResult memory) {
+  ) external onlyOptionMarket returns (TradeResult memory tradeResult) {
     (uint newBaseIv, uint newSkew) = ivImpactForTrade(trade, boardBaseIv, strike.skew);
 
     bool isPostCutoff = block.timestamp + tradeLimitParams.tradingCutoff > boardExpiry;
@@ -356,7 +356,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   /**
    * @dev Calculates the impact a trade has on the base IV of the OptionBoard and the skew of the Strike.
    *
-   * @param trade The Trade.
+   * @param trade The trade struct, containing fields related to the ongoing trade.
    * @param boardBaseIv The base IV of the OptionBoard.
    * @param strikeSkew The skew of the option being traded.
    */
@@ -364,7 +364,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
     OptionMarket.TradeParameters memory trade,
     uint boardBaseIv,
     uint strikeSkew
-  ) public view returns (uint, uint) {
+  ) public view returns (uint newBaseIv, uint newSkew) {
     uint orderSize = trade.amount.divideDecimal(pricingParams.standardSize);
     uint orderMoveBaseIv = orderSize / 100;
     uint orderMoveSkew = orderMoveBaseIv.multiplyDecimal(pricingParams.skewAdjustmentFactor);
@@ -382,15 +382,15 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   /**
    * @dev Calculates the final premium for a trade.
    *
-   * @param trade The Trade.
-   * @param pricing The Pricing.
+   * @param trade The trade struct, containing fields related to the ongoing trade.
+   * @param pricing Fields related to option pricing and required for fees.
    */
   function getTradeResult(
     OptionMarket.TradeParameters memory trade,
     OptionGreekCache.TradePricing memory pricing,
     uint newBaseIv,
     uint newSkew
-  ) public view returns (TradeResult memory) {
+  ) public view returns (TradeResult memory tradeResult) {
     uint premium = pricing.optionPrice.multiplyDecimal(trade.amount);
 
     // time weight fees
@@ -486,8 +486,8 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
    * @dev Calculates vega utilisation to be used as part of the trade fee. If the trade reduces net standard vega, this
    * component is omitted from the fee.
    *
-   * @param trade The Trade.
-   * @param pricing The Pricing.
+   * @param trade The trade struct, containing fields related to the ongoing trade.
+   * @param pricing Fields related to option pricing and required for fees.
    */
   function getVegaUtilFee(OptionMarket.TradeParameters memory trade, OptionGreekCache.TradePricing memory pricing)
     public
@@ -525,6 +525,12 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
       });
   }
 
+  /**
+   * @dev Calculates the variance fee to be used as part of the trade fee.
+   *
+   * @param trade The trade struct, containing fields related to the ongoing trade.
+   * @param pricing Fields related to option pricing and required for fees.
+   */
   function getVarianceFee(
     OptionMarket.TradeParameters memory trade,
     OptionGreekCache.TradePricing memory pricing,
@@ -579,17 +585,17 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   /////////////////////////////
 
   /// @notice returns current pricing paramters
-  function getPricingParams() external view returns (PricingParameters memory) {
+  function getPricingParams() external view returns (PricingParameters memory pricingParameters) {
     return pricingParams;
   }
 
   /// @notice returns current trade limit parameters
-  function getTradeLimitParams() external view returns (TradeLimitParameters memory) {
+  function getTradeLimitParams() external view returns (TradeLimitParameters memory tradeLimitParameters) {
     return tradeLimitParams;
   }
 
   /// @notice returns current variance fee parameters
-  function getVarianceFeeParams() external view returns (VarianceFeeParameters memory) {
+  function getVarianceFeeParams() external view returns (VarianceFeeParameters memory varianceFeeParameters) {
     return varianceFeeParams;
   }
 

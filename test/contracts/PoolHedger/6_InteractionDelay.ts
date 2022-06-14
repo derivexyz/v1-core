@@ -1,6 +1,6 @@
 import { beforeEach } from 'mocha';
 import { HOUR_SEC, MAX_UINT, MONTH_SEC, toBN } from '../../../scripts/util/web3utils';
-import { openDefaultShortCallBase, setFreeLiquidityToZero } from '../../utils/contractHelpers';
+import { fullyClosePosition, openDefaultShortCallBase } from '../../utils/contractHelpers';
 import { DEFAULT_POOL_HEDGER_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
@@ -43,14 +43,18 @@ describe('Interaction Delay', async () => {
   it('proceeds with hedge if interaction delay param adjusted', async () => {
     await openDefaultShortCallBase();
     await expect(hre.f.c.poolHedger.hedgeDelta()).revertedWith('InteractionDelayNotExpired');
-    await hre.f.c.poolHedger.setPoolHedgerParams({ interactionDelay: 0, shortBuffer: toBN('2'), hedgeCap: MAX_UINT });
+    await hre.f.c.poolHedger.setPoolHedgerParams({ interactionDelay: 0, hedgeCap: MAX_UINT });
+    await hre.f.c.poolHedger.setShortBuffer(toBN('2'));
     await hre.f.c.poolHedger.hedgeDelta();
   });
   it('skip interaction delay if hedge unchanged', async () => {
-    const lastInteraction = await hre.f.c.poolHedger.lastInteraction();
     await fastForward(defaultDelay + 1);
-    await openDefaultShortCallBase();
-    await setFreeLiquidityToZero();
+    await fullyClosePosition(1);
+    await hre.f.c.poolHedger.hedgeDelta();
+    const lastInteraction = await hre.f.c.poolHedger.lastInteraction();
+
+    await fastForward(defaultDelay + 1);
+
     await hre.f.c.poolHedger.hedgeDelta();
     expect(await hre.f.c.poolHedger.lastInteraction()).to.eq(lastInteraction);
   });
@@ -60,9 +64,9 @@ describe('Interaction Delay', async () => {
     await openDefaultShortCallBase();
     await hre.f.c.poolHedger.setPoolHedgerParams({
       interactionDelay: 24 * HOUR_SEC,
-      shortBuffer: toBN('2'),
       hedgeCap: 0,
     });
+    await hre.f.c.poolHedger.setShortBuffer(toBN('2'));
     await hre.f.c.poolHedger.hedgeDelta();
     expect(await hre.f.c.poolHedger.lastInteraction()).to.eq(lastInteraction);
   });

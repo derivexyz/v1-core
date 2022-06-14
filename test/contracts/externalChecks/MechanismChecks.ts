@@ -218,7 +218,7 @@ describe('MechanismChecks', () => {
         assertCloseToPercentage(gwavs.ivGWAV, expectedResults['BaseIVsGWAV'][i]);
         assertCloseToPercentage(gwavs.skewGWAVs[0], expectedResults['SkewsGWAV'][i]);
 
-        const liquidity = await hre.f.c.liquidityPool.getLiquidityParams();
+        const liquidity = await hre.f.c.liquidityPool.getCurrentLiquidity();
 
         assertCloseToPercentage(liquidity.NAV.sub(toBN('50000000')), expectedResults['NAV'][i], toBN('0.005'));
         assertCloseToPercentage(liquidity.usedCollatLiquidity, expectedResults['TotalCollateralValue'][i]);

@@ -6,7 +6,7 @@ import { ethers } from 'hardhat';
 import { currentTime, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { LiquidityPool } from '../../../typechain-types';
 import { openDefaultLongPut } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS, DEFAULT_SECURITY_MODULE } from '../../utils/defaultParams';
+import { DEFAULT_BASE_PRICE, DEFAULT_LIQUIDITY_POOL_PARAMS, DEFAULT_SECURITY_MODULE } from '../../utils/defaultParams';
 import {
   deployGlobalTestContracts,
   deployMarketTestContracts,
@@ -83,12 +83,11 @@ describe('Misc', async () => {
     // only 10 is transferred as that is how much is outstanding
     expect(await c.snx.quoteAsset.balanceOf(alice.address)).eq(toBN('10'));
 
-    const exchangeParams = await c.synthetixAdapter.getExchangeParams(c.optionMarket.address);
-    await expect(lp.reclaimInsolventQuote(exchangeParams, toBN('1000'))).revertedWith(
+    await expect(lp.reclaimInsolventQuote(DEFAULT_BASE_PRICE, toBN('1000'))).revertedWith(
       'NotEnoughFreeToReclaimInsolvency',
     );
 
-    await expect(lp.connect(alice).transferQuoteToHedge(exchangeParams, 0)).revertedWith('OnlyPoolHedger');
+    await expect(lp.connect(alice).transferQuoteToHedge(DEFAULT_BASE_PRICE, 0)).revertedWith('OnlyPoolHedger');
     await expect(lp.connect(alice).lockQuote(0, 0)).revertedWith('OnlyOptionMarket');
     await expect(lp.connect(alice).sendSettlementValue(alice.address, 0)).revertedWith('OnlyShortCollateral');
   });

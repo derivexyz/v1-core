@@ -87,7 +87,6 @@ describe('SettlePosition', () => {
       await fastForward(HOUR_SEC);
       await fullyClosePosition(position);
       await fastForward(MONTH_SEC);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
       await expect(hre.f.c.shortCollateral.settleOptions([position])).to.revertedWith(
         'ERC721: owner query for nonexistent token',
@@ -112,7 +111,6 @@ describe('SettlePosition', () => {
       expect((await hre.f.c.optionToken.getOptionPosition(secondPosition)).state).to.eq(PositionState.MERGED);
 
       await fastForward(MONTH_SEC);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
       await expect(hre.f.c.shortCollateral.settleOptions([secondPosition])).to.revertedWith(
         'ERC721: owner query for nonexistent token',
@@ -134,7 +132,6 @@ describe('SettlePosition', () => {
       expect((await hre.f.c.optionToken.getOptionPosition(position)).state).to.eq(PositionState.LIQUIDATED);
 
       await fastForward(MONTH_SEC);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
       await expect(hre.f.c.shortCollateral.settleOptions([position])).to.revertedWith(
         'ERC721: owner query for nonexistent token',
@@ -240,7 +237,6 @@ describe('SettlePosition', () => {
       expect((await hre.f.c.optionToken.getOptionPosition(secondPosition)).state).to.eq(PositionState.ACTIVE);
 
       await fastForward(MONTH_SEC);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
       await hre.f.c.shortCollateral.settleOptions([firstPosition, secondPosition]);
     });

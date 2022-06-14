@@ -138,10 +138,18 @@ contract OptionMarketViewer is Owned {
   }
 
   function removeMarket(OptionMarket market) external onlyOwner {
-    // do something with marketAddresses ?
     uint index = 0;
+    bool found = false;
+
     for (uint i = 0; i < optionMarkets.length; i++) {
-      if (optionMarkets[i] == market) index = i;
+      if (optionMarkets[i] == market) {
+        index = i;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      revert RemovingInvalidMarket(address(this), address(market));
     }
     optionMarkets[index] = optionMarkets[optionMarkets.length - 1];
     optionMarkets.pop();
@@ -152,14 +160,14 @@ contract OptionMarketViewer is Owned {
 
   function getMarketAddresses() external view returns (OptionMarketAddresses[] memory) {
     uint marketsLen = optionMarkets.length;
-    OptionMarketAddresses[] memory res = new OptionMarketAddresses[](marketsLen);
+    OptionMarketAddresses[] memory allMarketAddresses = new OptionMarketAddresses[](marketsLen);
     for (uint i = 0; i < marketsLen; i++) {
-      res[i] = marketAddresses[optionMarkets[i]];
+      allMarketAddresses[i] = marketAddresses[optionMarkets[i]];
     }
-    return res;
+    return allMarketAddresses;
   }
 
-  function getMarkets(OptionMarket[] memory markets) external view returns (MarketsView memory) {
+  function getMarkets(OptionMarket[] memory markets) external view returns (MarketsView memory marketsView) {
     MarketView[] memory marketViews = new MarketView[](markets.length);
     bool isGlobalPaused = synthetixAdapter.isGlobalPaused();
     for (uint i = 0; i < markets.length; i++) {
@@ -184,6 +192,7 @@ contract OptionMarketViewer is Owned {
       }
     }
     require(address(market.marketAddresses.optionMarket) != address(0), "No market for base key");
+    return market;
   }
 
   function getMarket(OptionMarket market) public view returns (MarketViewWithBoards memory) {
@@ -224,7 +233,7 @@ contract OptionMarketViewer is Owned {
           totalQueuedDeposits: marketC.liquidityPool.totalQueuedDeposits(),
           totalQueuedWithdrawals: marketC.liquidityPool.totalQueuedWithdrawals(),
           tokenPrice: marketC.liquidityPool.getTokenPrice(),
-          liquidity: marketC.liquidityPool.getLiquidity(exchangeParams.spotPrice, exchangeParams.short),
+          liquidity: marketC.liquidityPool.getLiquidity(exchangeParams.spotPrice),
           globalNetGreeks: globalCache.netGreeks,
           exchangeParams: exchangeParams
         });
@@ -250,7 +259,6 @@ contract OptionMarketViewer is Owned {
             spotPrice: 0,
             quoteKey: synthetixAdapter.quoteKey(address(marketC.optionMarket)),
             baseKey: synthetixAdapter.baseKey(address(marketC.optionMarket)),
-            short: synthetixAdapter.collateralShort(),
             quoteBaseFeeRate: 0,
             baseQuoteFeeRate: 0
           })
@@ -277,28 +285,28 @@ contract OptionMarketViewer is Owned {
       });
   }
 
-  function getOwnerPositions(address owner) external view returns (MarketOptionPositions[] memory) {
+  function getOwnerPositions(address account) external view returns (MarketOptionPositions[] memory) {
     MarketOptionPositions[] memory positions = new MarketOptionPositions[](optionMarkets.length);
     for (uint i = 0; i < optionMarkets.length; i++) {
       OptionMarketAddresses memory marketC = marketAddresses[optionMarkets[i]];
       positions[i].market = address(marketC.optionMarket);
-      positions[i].positions = marketC.optionToken.getOwnerPositions(owner);
+      positions[i].positions = marketC.optionToken.getOwnerPositions(account);
     }
     return positions;
   }
 
   function getOwnerPositionsInRange(
     OptionMarket market,
-    address owner,
+    address account,
     uint start,
     uint limit
   ) external view returns (OptionToken.OptionPosition[] memory) {
     OptionMarketAddresses memory marketC = marketAddresses[market];
-    uint balance = marketC.optionToken.balanceOf(owner);
+    uint balance = marketC.optionToken.balanceOf(account);
     uint n = limit > balance - start ? balance - start : limit;
     OptionToken.OptionPosition[] memory result = new OptionToken.OptionPosition[](n);
     for (uint i = 0; i < n; i++) {
-      result[i] = marketC.optionToken.getOptionPosition(marketC.optionToken.tokenOfOwnerByIndex(owner, start + i));
+      result[i] = marketC.optionToken.getOptionPosition(marketC.optionToken.tokenOfOwnerByIndex(account, start + i));
     }
     return result;
   }
@@ -383,7 +391,7 @@ contract OptionMarketViewer is Owned {
     }
   }
 
-  function getLiquidityBalancesAndAllowances(OptionMarket[] memory markets, address owner)
+  function getLiquidityBalancesAndAllowances(OptionMarket[] memory markets, address account)
     external
     view
     returns (LiquidityBalanceAndAllowance[] memory)
@@ -392,8 +400,8 @@ contract OptionMarketViewer is Owned {
     for (uint i = 0; i < markets.length; i++) {
       OptionMarketAddresses memory marketC = marketAddresses[markets[i]];
       IERC20 liquidityToken = IERC20(marketC.liquidityTokens);
-      balances[i].balance = liquidityToken.balanceOf(owner);
-      balances[i].allowance = liquidityToken.allowance(owner, address(marketC.liquidityPool));
+      balances[i].balance = liquidityToken.balanceOf(account);
+      balances[i].allowance = marketC.quoteAsset.allowance(account, address(marketC.liquidityPool));
       balances[i].token = address(marketC.liquidityPool);
     }
     return balances;
@@ -408,4 +416,9 @@ contract OptionMarketViewer is Owned {
    * @dev Emitted when an optionMarket is removed
    */
   event MarketRemoved(OptionMarket market);
+
+  ////////////
+  // Errors //
+  ////////////
+  error RemovingInvalidMarket(address thrower, address market);
 }

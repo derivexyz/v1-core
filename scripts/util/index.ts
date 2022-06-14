@@ -242,3 +242,8 @@ export function getSelectedNetwork(): AllowedNetworks {
   }
   throw Error('Invalid network ' + network);
 }
+
+export async function getAltSigner(envVars: any) {
+  const provider = new ethers.providers.JsonRpcProvider(envVars.RPC_URL);
+  return new ethers.Wallet(envVars.ALT_SIGNER_KEY, provider);
+}

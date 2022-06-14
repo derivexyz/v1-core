@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 // Inherited
 import "./synthetix/Owned.sol";
 import "./lib/SimpleInitializeable.sol";
+import "./lib/PoolHedger.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -17,7 +18,6 @@ import "./interfaces/ICollateralShort.sol";
 import "./SynthetixAdapter.sol";
 import "./OptionMarket.sol";
 import "./OptionGreekCache.sol";
-import "./PoolHedger.sol";
 
 /**
  * @title PoolHedger
@@ -25,38 +25,28 @@ import "./PoolHedger.sol";
  * @dev Uses the delta hedging funds from the LiquidityPool to hedge option deltas, so LPs are minimally exposed to
  * movements in the underlying asset price.
  */
-contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
+contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyGuard {
   using DecimalMath for uint;
 
-  struct PoolHedgerParameters {
-    uint shortBuffer;
-    uint interactionDelay;
-    uint hedgeCap;
-  }
+  bytes32 private constant CONTRACT_COLLATERAL_SHORT = "CollateralShort";
 
   SynthetixAdapter internal synthetixAdapter;
   OptionMarket internal optionMarket;
   OptionGreekCache internal optionGreekCache;
-  LiquidityPool internal liquidityPool;
   ERC20 internal quoteAsset;
   ERC20 internal baseAsset;
 
+  ICollateralShort public collateralShort;
+
   /// @dev The ID of our short that is opened when we open short account.
   uint public shortId;
-  PoolHedgerParameters public poolHedgerParams;
-  /// @dev The last time a short or long position was updated
-  uint public lastInteraction;
+  uint public shortBuffer;
 
   ///////////
   // Setup //
   ///////////
 
-  constructor() Owned() {
-    poolHedgerParams.shortBuffer = (2 * DecimalMath.UNIT);
-    poolHedgerParams.interactionDelay = 24 hours;
-    poolHedgerParams.hedgeCap = type(uint).max;
-    emit PoolHedgerParametersSet(poolHedgerParams);
-  }
+  constructor() Owned() {}
 
   /**
    * @dev Initialize the contract.
@@ -83,6 +73,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     baseAsset = _baseAsset;
 
     synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
+    collateralShort = ICollateralShort(synthetixAdapter.addressResolver().getAddress(CONTRACT_COLLATERAL_SHORT));
   }
 
   ///////////
@@ -93,11 +84,28 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * @dev Update pool hedger parameters.
    */
   function setPoolHedgerParams(PoolHedgerParameters memory _poolHedgerParams) external onlyOwner {
-    if (_poolHedgerParams.shortBuffer < DecimalMath.UNIT) {
-      revert InvalidPoolHedgerParameters(address(this), _poolHedgerParams);
+    _setPoolHedgerParams(_poolHedgerParams);
+  }
+
+  /// @dev update the shortBuffer of the contract. 1.0 (1e18) means collateral equal to debt, which would get the
+  ///  contract liquidated. 2.0 would be considered very safe.
+  function setShortBuffer(uint _shortBuffer) external onlyOwner {
+    if (_shortBuffer < DecimalMath.UNIT) {
+      revert InvalidShortBuffer(address(this), _shortBuffer);
     }
-    poolHedgerParams = _poolHedgerParams;
-    emit PoolHedgerParametersSet(poolHedgerParams);
+    shortBuffer = _shortBuffer;
+    emit ShortBufferSet(shortBuffer);
+  }
+
+  /// @dev update the collateralShort address based on the synthetix addressResolver
+  function updateCollateralShortAddress() external {
+    collateralShort = ICollateralShort(synthetixAdapter.addressResolver().getAddress(CONTRACT_COLLATERAL_SHORT));
+    emit ShortCollateralSet(collateralShort);
+  }
+
+  /// @dev In case of an update to the synthetix contract that revokes the approval
+  function updateDelegateApproval() external onlyOwner {
+    synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
   }
 
   ///////////////////
@@ -110,7 +118,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   function openShortAccount() external nonReentrant {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
 
-    (, , , , , , , uint interestIndex, ) = exchangeParams.short.loans(shortId);
+    (, , , , , , , uint interestIndex, ) = collateralShort.loans(shortId);
     // Cannot open a new short if the old one is still open
     if (interestIndex != 0) {
       revert ShortAccountAlreadyOpen(address(this), shortId);
@@ -125,14 +133,14 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param exchangeParams The ExchangeParams.
    */
   function _openShortAccount(SynthetixAdapter.ExchangeParams memory exchangeParams) internal {
-    uint minCollateral = exchangeParams.short.minCollateral();
+    uint minCollateral = collateralShort.minCollateral();
 
-    if (!quoteAsset.approve(address(exchangeParams.short), type(uint).max)) {
-      revert QuoteApprovalFailure(address(this), address(exchangeParams.short), type(uint).max);
+    if (!quoteAsset.approve(address(collateralShort), type(uint).max)) {
+      revert QuoteApprovalFailure(address(this), address(collateralShort), type(uint).max);
     }
 
     // Open a short with min collateral and 0 amount, to get a static Id for this contract to use.
-    liquidityPool.transferQuoteToHedge(exchangeParams, minCollateral);
+    liquidityPool.transferQuoteToHedge(exchangeParams.spotPrice, minCollateral);
 
     uint currentBalance = quoteAsset.balanceOf(address(this));
     if (currentBalance < minCollateral) {
@@ -140,17 +148,10 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     }
 
     // This will revert if the LP did not provide enough quote
-    shortId = exchangeParams.short.open(minCollateral, 0, exchangeParams.baseKey);
+    shortId = collateralShort.open(minCollateral, 0, exchangeParams.baseKey);
     _sendAllQuoteToLP();
     emit OpenedShortAccount(shortId);
     emit ShortSetTo(0, 0, 0, minCollateral);
-  }
-
-  /////////////
-  // Only LP //
-  /////////////
-  function resetInteractionDelay() external onlyLiquidityPool {
-    lastInteraction = 0;
   }
 
   /////////////
@@ -158,41 +159,38 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   /////////////
 
   /**
-   * @dev Returns short balance and collateral.
-   *
-   * @param short The short contract.
+   * @dev Returns short balance and collateral owned by this contract.
    */
-  function getShortPosition(ICollateralShort short) public view returns (uint shortBalance, uint collateral) {
+  function getShortPosition() public view returns (uint shortBalance, uint collateral) {
     if (shortId == 0) {
       return (0, 0);
     }
-    return short.getShortAndCollateral(address(this), shortId);
+    return collateralShort.getShortAndCollateral(address(this), shortId);
   }
 
   /**
    * @dev Returns the current hedged netDelta position.
    */
-  function getCurrentHedgedNetDelta() external view returns (int) {
-    SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
-
+  function getCurrentHedgedNetDelta() external view override returns (int) {
     uint longBalance = baseAsset.balanceOf(address(this));
-    (uint shortBalance, ) = getShortPosition(exchangeParams.short);
+    (uint shortBalance, ) = getShortPosition();
 
     return SafeCast.toInt256(longBalance) - SafeCast.toInt256(shortBalance);
   }
 
   /// @notice Returns pending delta hedge liquidity and used delta hedge liquidity
   /// @dev include funds potentially transferred to the contract
-  function getHedgingLiquidity(ICollateralShort short, uint spotPrice)
+  function getHedgingLiquidity(uint spotPrice)
     external
     view
+    override
     returns (uint pendingDeltaLiquidity, uint usedDeltaLiquidity)
   {
     // Get capped expected hedge
     int expectedHedge = getCappedExpectedHedge();
 
     // Get current hedge
-    (uint shortBalance, uint shortCollateral) = getShortPosition(short);
+    (uint shortBalance, uint shortCollateral) = getShortPosition();
     uint longBalance = baseAsset.balanceOf(address(this));
     uint totalBal = shortBalance + longBalance;
 
@@ -212,7 +210,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     } else if (expectedHedge < 0) {
       if (_abs(expectedHedge) > totalBal) {
         pendingDeltaLiquidity = (_abs(expectedHedge) - totalBal).multiplyDecimal(spotPrice).multiplyDecimal(
-          poolHedgerParams.shortBuffer
+          shortBuffer
         );
       }
     }
@@ -226,7 +224,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * @dev Retrieves the netDelta from the OptionGreekCache and updates the hedge position based off base
    *      asset balance of the liquidityPool minus netDelta (from OptionGreekCache)
    */
-  function hedgeDelta() external nonReentrant {
+  function hedgeDelta() external override nonReentrant {
     // Subtract the baseAsset balance from netDelta, to account for the variance from collateral held by LP.
     int expectedHedge = getCappedExpectedHedge();
 
@@ -249,12 +247,12 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * @dev Updates the collateral held in the short to prevent liquidations and
    * return excess collateral without checking/triggering the interaction delay.
    */
-  function updateCollateral() external nonReentrant {
-    SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
-    (uint shortBalance, uint startCollateral) = getShortPosition(exchangeParams.short);
+  function updateCollateral() external override nonReentrant {
+    uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
+    (uint shortBalance, uint startCollateral) = getShortPosition();
 
     // do not change shortBalance
-    uint newCollateral = _updateCollateral(exchangeParams, shortBalance, startCollateral);
+    uint newCollateral = _updateCollateral(spotPrice, shortBalance, startCollateral);
     _sendAllQuoteToLP();
     emit ShortSetTo(shortBalance, shortBalance, startCollateral, newCollateral);
   }
@@ -272,7 +270,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   function _hedgeDelta(int expectedHedge) internal {
     SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     uint longBalance = baseAsset.balanceOf(address(this));
-    (uint shortBalance, uint collateral) = getShortPosition(exchangeParams.short);
+    (uint shortBalance, uint collateral) = getShortPosition();
 
     int oldHedge = longBalance != 0 ? SafeCast.toInt256(longBalance) : -SafeCast.toInt256(shortBalance);
     int newHedge = _updatePosition(exchangeParams, longBalance, shortBalance, collateral, expectedHedge);
@@ -308,7 +306,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
       uint expectedLong = uint(expectedHedge);
       // if we have any short open, close it all.
       if (shortBalance > 0 || collateral > 0) {
-        _setShortTo(exchangeParams, 0, shortBalance, collateral);
+        _setShortTo(exchangeParams.spotPrice, 0, shortBalance, collateral);
       }
 
       if (expectedLong > longBalance) {
@@ -328,7 +326,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
       if (longBalance > 0) {
         _decreaseLong(longBalance, longBalance);
       }
-      return -SafeCast.toInt256(_setShortTo(exchangeParams, expectedShort, shortBalance, collateral));
+      return -SafeCast.toInt256(_setShortTo(exchangeParams.spotPrice, expectedShort, shortBalance, collateral));
     }
   }
 
@@ -345,7 +343,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   ) internal returns (uint newBalance) {
     uint base = amount.divideDecimal(DecimalMath.UNIT - exchangeParams.quoteBaseFeeRate);
     uint purchaseAmount = base.multiplyDecimal(exchangeParams.spotPrice);
-    uint receivedQuote = liquidityPool.transferQuoteToHedge(exchangeParams, purchaseAmount);
+    uint receivedQuote = liquidityPool.transferQuoteToHedge(exchangeParams.spotPrice, purchaseAmount);
 
     // We buy as much as is possible with the quote given
     if (receivedQuote < purchaseAmount) {
@@ -374,34 +372,36 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
    * hedge() may have to be called a second time to re-balance collateral after calling `repayWithCollateral`. As that
    * disregards the desired ratio.
    *
-   * @param exchangeParams The ExchangeParams.
+   * @param spotPrice The spot price of the base asset.
    * @param desiredShort The desired short balance.
    * @param startShort Trusted value for current short amount, in base.
    * @param startCollateral Trusted value for current amount of collateral, in quote.
    */
+
   function _setShortTo(
-    SynthetixAdapter.ExchangeParams memory exchangeParams,
+    uint spotPrice,
     uint desiredShort,
     uint startShort,
     uint startCollateral
   ) internal returns (uint newShort) {
     uint newCollateral;
     if (startShort <= desiredShort) {
-      newCollateral = _updateCollateral(exchangeParams, desiredShort, startCollateral);
-      uint maxPossibleShort = newCollateral.divideDecimal(exchangeParams.spotPrice).divideDecimal(
-        poolHedgerParams.shortBuffer
-      );
+      newCollateral = _updateCollateral(spotPrice, desiredShort, startCollateral);
+      uint maxPossibleShort = newCollateral.divideDecimal(spotPrice).divideDecimal(shortBuffer);
 
       if (maxPossibleShort > startShort) {
-        (newShort, ) = exchangeParams.short.draw(shortId, maxPossibleShort - startShort);
+        collateralShort.draw(shortId, maxPossibleShort - startShort);
+      } else if (maxPossibleShort < startShort) {
+        collateralShort.repayWithCollateral(shortId, startShort - maxPossibleShort);
       } else {
         newShort = startShort;
       }
+      (newShort, ) = getShortPosition();
     } else {
-      exchangeParams.short.repayWithCollateral(shortId, startShort - desiredShort);
-      (newShort, newCollateral) = getShortPosition(exchangeParams.short);
+      collateralShort.repayWithCollateral(shortId, startShort - desiredShort);
+      (newShort, newCollateral) = getShortPosition();
 
-      newCollateral = _updateCollateral(exchangeParams, newShort, newCollateral);
+      newCollateral = _updateCollateral(spotPrice, newShort, newCollateral);
     }
 
     emit ShortSetTo(startShort, newShort, startCollateral, newCollateral);
@@ -409,36 +409,36 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   function _updateCollateral(
-    SynthetixAdapter.ExchangeParams memory exchangeParams,
+    uint spotPrice,
     uint shortBalance,
     uint startCollateral
   ) internal returns (uint newCollateral) {
-    uint desiredCollateral = shortBalance.multiplyDecimal(exchangeParams.spotPrice).multiplyDecimal(
-      poolHedgerParams.shortBuffer
-    );
+    uint desiredCollateral = shortBalance.multiplyDecimal(spotPrice).multiplyDecimal(shortBuffer);
 
     if (startCollateral < desiredCollateral) {
-      uint received = liquidityPool.transferQuoteToHedge(exchangeParams, desiredCollateral - startCollateral);
+      uint received = liquidityPool.transferQuoteToHedge(spotPrice, desiredCollateral - startCollateral);
       if (received > 0) {
-        (, newCollateral) = exchangeParams.short.deposit(address(this), shortId, received);
-      } else {
-        newCollateral = startCollateral;
+        collateralShort.deposit(address(this), shortId, received);
       }
     } else if (startCollateral > desiredCollateral) {
-      (, newCollateral) = exchangeParams.short.withdraw(shortId, startCollateral - desiredCollateral);
+      collateralShort.withdraw(shortId, startCollateral - desiredCollateral);
     }
+
+    (, newCollateral) = getShortPosition();
   }
 
   /**
    * @dev Calculates the expected delta hedge that hedger must perform and
    * adjusts the result down to the hedgeCap param if needed.
    */
-  function getCappedExpectedHedge() public view returns (int cappedExpectedHedge) {
+  function getCappedExpectedHedge() public view override returns (int cappedExpectedHedge) {
     // Update any stale boards to get an accurate netDelta value
     int netOptionDelta = optionGreekCache.getGlobalNetDelta();
 
-    // Subtract the baseAsset balance from netDelta, to account for the variance from collateral held by LP.
-    int expectedHedge = netOptionDelta - int(baseAsset.balanceOf(address(liquidityPool)));
+    // Subtract the locked base collateral from netDelta, to account for the exposure from collateral held by LP.
+    // If exchange fees > LiquidityPool.maxFeePaid, actual baseBalance != lockedCollateral.base
+    (, uint lpLockedBase) = liquidityPool.lockedCollateral();
+    int expectedHedge = netOptionDelta - int(lpLockedBase);
     bool exceedsCap = _abs(expectedHedge) > poolHedgerParams.hedgeCap;
 
     // Cap expected hedge
@@ -463,8 +463,8 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /// @dev Returns PoolHedgerParameters struct
-  function getPoolHedgerParams() external view returns (PoolHedgerParameters memory) {
-    return poolHedgerParams;
+  function getPoolHedgerSettings() external view returns (PoolHedgerParameters memory, uint _shortBuffer) {
+    return (poolHedgerParams, _shortBuffer);
   }
 
   /**
@@ -476,22 +476,15 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
     return uint(val < 0 ? -val : val);
   }
 
-  /// Modifiers
-
-  modifier onlyLiquidityPool() {
-    if (msg.sender != address(liquidityPool)) {
-      revert OnlyLiquidityPool(address(this), msg.sender, address(liquidityPool));
-    }
-    _;
-  }
-
   ////////////
   // Events //
   ////////////
+  /// @dev Emitted when the collateralShort address is updated
+  event ShortCollateralSet(ICollateralShort collateralShort);
   /**
    * @dev Emitted when pool hedger parameters are updated.
    */
-  event PoolHedgerParametersSet(PoolHedgerParameters poolHedgerParams);
+  event ShortBufferSet(uint newShortBuffer);
   /**
    * @dev Emitted when the short is initialized.
    */
@@ -517,7 +510,7 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
   // Errors //
   ////////////
   // Admin
-  error InvalidPoolHedgerParameters(address thrower, PoolHedgerParameters poolHedgerParams);
+  error InvalidShortBuffer(address thrower, uint newShortBuffer);
 
   // Initialising Short
   error ShortAccountAlreadyOpen(address thrower, uint shortId);
@@ -525,9 +518,6 @@ contract PoolHedger is Owned, SimpleInitializeable, ReentrancyGuard {
 
   // Hedging
   error InteractionDelayNotExpired(address thrower, uint lastInteraction, uint interactionDelta, uint currentTime);
-
-  // Access
-  error OnlyLiquidityPool(address thrower, address caller, address liquidityPool);
 
   // Token transfers
   error QuoteApprovalFailure(address thrower, address approvee, uint amount);

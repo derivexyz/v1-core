@@ -28,6 +28,7 @@ import {
   DEFAULT_BOARD_PARAMS,
   DEFAULT_LIQUIDITY_POOL_PARAMS,
   DEFAULT_POOL_HEDGER_PARAMS,
+  DEFAULT_SHORT_BUFFER,
 } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { deployFixture, seedFixture } from '../../utils/fixture';
@@ -156,17 +157,21 @@ describe('Liquidity Accounting', async () => {
       const [, oldLiquidity] = await openLongCallAndGetLiquidity(toBN('10'));
       expect(oldLiquidity.usedCollatLiquidity).eq(DEFAULT_BASE_PRICE.mul(10));
 
+      await mockPrice('sETH', toBN('2500'));
       await fastForward(MONTH_SEC + 1);
-
+      const preSettlePendingDeltaLiquidity = (await getLiquidity()).pendingDeltaLiquidity;
       await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
 
       // longs settle ITM, so the pool owes value to the trader.
       // however, until exchangeBase happens the used will remain
-
       const preExchangeLiquidity = await getLiquidity();
-      expect(preExchangeLiquidity.usedCollatLiquidity).eq(DEFAULT_BASE_PRICE.mul(10));
-      // less because quote reserved, but excess base is
-      expect(preExchangeLiquidity.freeLiquidity).to.be.lt(oldLiquidity.freeLiquidity);
+      expect(preExchangeLiquidity.usedCollatLiquidity).eq(toBN('2500').mul(10));
+      // freeLiq goes down since base not unlocked but profits paid to trader
+      expect(
+        preExchangeLiquidity.freeLiquidity
+          .add(preExchangeLiquidity.pendingDeltaLiquidity)
+          .sub(preSettlePendingDeltaLiquidity),
+      ).to.be.lt(oldLiquidity.freeLiquidity);
       expect(preExchangeLiquidity.NAV).to.be.gt(oldLiquidity.NAV); // fees greater than payout
 
       await hre.f.c.liquidityPool.exchangeBase();
@@ -259,7 +264,7 @@ describe('Liquidity Accounting', async () => {
       expect(preLiquidityExpectedPendingDelta).to.be.gt(postHedgeLiquidity.usedDeltaLiquidity);
       expect(postHedgeLiquidity.freeLiquidity).to.eq(0);
       assertCloseToPercentage(
-        preHedgeLiquidity.pendingDeltaLiquidity.div(DEFAULT_POOL_HEDGER_PARAMS.shortBuffer).mul(UNIT),
+        preHedgeLiquidity.pendingDeltaLiquidity.div(DEFAULT_SHORT_BUFFER).mul(UNIT),
         postHedgeLiquidity.pendingDeltaLiquidity,
         toBN('0.01'),
       ); // leave some for exchange/shorting fees
@@ -270,7 +275,7 @@ describe('Liquidity Accounting', async () => {
       expect(preLiquidityExpectedPendingDelta).to.be.gt(postHedgeLiquidity.usedDeltaLiquidity);
       expect(finalHedgeLiquidity.freeLiquidity).to.eq(0);
       assertCloseToPercentage(
-        postHedgeLiquidity.pendingDeltaLiquidity.div(DEFAULT_POOL_HEDGER_PARAMS.shortBuffer).mul(UNIT),
+        postHedgeLiquidity.pendingDeltaLiquidity.div(DEFAULT_SHORT_BUFFER).mul(UNIT),
         finalHedgeLiquidity.pendingDeltaLiquidity,
         toBN('0.01'),
       ); // leave some for exchange/shorting fees
@@ -370,10 +375,9 @@ describe('Liquidity Accounting', async () => {
 
 export async function estimatePendingDeltaInShortDirection() {
   const netDelta = toBN('0').sub(await getRequiredHedge());
-  const shortBuffer = DEFAULT_POOL_HEDGER_PARAMS.shortBuffer;
   return netDelta
     .mul(await getSpotPrice())
-    .mul(shortBuffer)
+    .mul(DEFAULT_SHORT_BUFFER)
     .div(UNIT)
     .div(UNIT);
 }

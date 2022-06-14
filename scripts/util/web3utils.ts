@@ -1,5 +1,5 @@
 import { TransactionReceipt, TransactionResponse } from '@ethersproject/abstract-provider';
-import { BigNumber, ContractReceipt } from 'ethers';
+import { BigNumberish, ContractReceipt } from 'ethers';
 import { ethers } from 'hardhat';
 import { TypedEvent } from '../../typechain-types/common';
 
@@ -64,7 +64,7 @@ export function toBN(val: string) {
   return ethers.utils.parseUnits(val, 18);
 }
 
-export function fromBN(val: BigNumber): string {
+export function fromBN(val: BigNumberish): string {
   return ethers.utils.formatUnits(val, 18);
 }
 
@@ -93,18 +93,18 @@ export function getEvent(receipt: ContractReceipt, eventName: string): TypedEven
   return value as any;
 }
 
-export function getAllMatchingEvents(receipt: ContractReceipt, eventName: string): TypedEvent[] {
+export function getAllMatchingEvents(receipt: ContractReceipt, eventNames: string[]): TypedEvent[] {
   if (!receipt.events) {
     throw Error('no events on contract receipt');
   }
-  const values = receipt.events.filter(e => e.event === eventName);
+  const values = receipt.events.filter(e => eventNames.includes(e.event || '_'));
   if (values == []) {
-    throw new Error(`Could not find event ${eventName}`);
+    throw new Error(`Could not find event ${eventNames}`);
   }
 
   for (const event of values) {
     if (event == undefined || event.args == undefined) {
-      throw new Error(`Could not find event ${eventName}`);
+      throw new Error(`Could not find event ${eventNames}`);
     }
   }
   return values as any;

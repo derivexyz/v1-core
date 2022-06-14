@@ -7,7 +7,7 @@ import { DEFAULT_POOL_DEPOSIT, DEFAULT_PRICING_PARAMS } from '../defaultParams';
 import { hre } from '../testSetup';
 
 export async function getLiquidity() {
-  return await hre.f.c.liquidityPool.getLiquidityParams();
+  return await hre.f.c.liquidityPool.getCurrentLiquidity();
 }
 
 export async function setFreeLiquidityToZero() {

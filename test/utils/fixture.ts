@@ -85,7 +85,7 @@ export async function seedFixture() {
     hre.f.strike = hre.f.board.strikes[0];
 
     const exchangeParams = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
-    const liquidity = await hre.f.c.liquidityPool.getLiquidity(exchangeParams.spotPrice, exchangeParams.short);
+    const liquidity = await hre.f.c.liquidityPool.getLiquidity(exchangeParams.spotPrice);
 
     hre.f.defaultTradeParametersStruct = {
       amount: toBN('1'),
@@ -152,6 +152,7 @@ export async function allCurrenciesFixture() {
     await hre.f.c.optionMarketWrapper.addCurveStable(hre.f.USDC.address, STABLE_IDS.USDC);
 
     await hre.f.c.optionToken.setApprovalForAll(hre.f.c.optionMarketWrapper.address, true);
+    await hre.f.c.basicFeeCounter.setTrustedCounter(hre.f.c.optionMarketWrapper.address, true);
     hre.f.positionIds = await openAllTrades();
   } else {
     await restoreSnapshot(hre.f.allCurrenciesSnap);

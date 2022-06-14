@@ -14,6 +14,11 @@ import {
 import { PartialCollateralParametersStruct } from '../../typechain-types/OptionToken';
 import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
 
+export const DEFAULT_SHORT_BUFFER = toBN('2');
+export const DEFAULT_BASE_PRICE = toBN('1742.01337');
+export const DEFAULT_FEE_RATE_FOR_BASE = toBN('0.0075');
+export const DEFAULT_FEE_RATE_FOR_QUOTE = toBN('0.005');
+
 export const DEFAULT_LIQUIDITY_POOL_PARAMS: LiquidityPoolParametersStruct = {
   minDepositWithdraw: toBN('1'),
   depositDelay: WEEK_SEC,
@@ -113,6 +118,7 @@ export const DEFAULT_OPTION_MARKET_PARAMS: OptionMarketParametersStruct = {
   securityModule: DEFAULT_SECURITY_MODULE,
   feePortionReserved: toBN('0.1'),
   maxBoardExpiry: MONTH_SEC * 12,
+  staticBaseSettlementFee: DEFAULT_FEE_RATE_FOR_BASE,
 };
 
 export const DEFAULT_PARTIAL_COLLAT_PARAMS: PartialCollateralParametersStruct = {
@@ -123,14 +129,9 @@ export const DEFAULT_PARTIAL_COLLAT_PARAMS: PartialCollateralParametersStruct = 
 };
 
 export const DEFAULT_POOL_HEDGER_PARAMS: PoolHedgerParametersStruct = {
-  shortBuffer: toBN('2'),
   interactionDelay: 24 * HOUR_SEC,
   hedgeCap: MAX_UINT,
 };
-
-export const DEFAULT_BASE_PRICE = toBN('1742.01337');
-export const DEFAULT_FEE_RATE_FOR_BASE = toBN('0.0075');
-export const DEFAULT_FEE_RATE_FOR_QUOTE = toBN('0.005');
 
 export const DEFAULT_BOARD_PARAMS: BoardParameters = {
   expiresIn: MONTH_SEC,

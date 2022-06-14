@@ -19,10 +19,7 @@ async function expectHedgingLiquidityCloseTo(
   usedLiquidity: BigNumberish,
   priceOverride?: BigNumberish,
 ) {
-  const res = await hre.f.c.poolHedger.getHedgingLiquidity(
-    hre.f.c.snx.collateralShort.address,
-    priceOverride || DEFAULT_BASE_PRICE,
-  );
+  const res = await hre.f.c.poolHedger.getHedgingLiquidity(priceOverride || DEFAULT_BASE_PRICE);
   assertCloseTo(res[0], BigNumber.from(pendingLiquidity), toBN('1'));
   assertCloseTo(res[1], BigNumber.from(usedLiquidity), toBN('1'));
 }
@@ -162,7 +159,7 @@ describe('Delta Liquidity', () => {
       await setNegativeExpectedHedge(toBN('1'));
       await hre.f.c.poolHedger.hedgeDelta();
       await expectHedgingLiquidityCloseTo(0, toBN('1341'));
-      const shortPos = await hre.f.c.poolHedger.getShortPosition(hre.f.c.snx.collateralShort.address);
+      const shortPos = await hre.f.c.poolHedger.getShortPosition();
       assertCloseTo(
         toBN('1341'),
         shortPos.collateral.sub(shortPos.shortBalance.mul(DEFAULT_BASE_PRICE).div(UNIT)),

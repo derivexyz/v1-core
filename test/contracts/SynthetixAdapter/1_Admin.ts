@@ -48,7 +48,6 @@ describe('Admin', async () => {
       expect(await hre.f.c.synthetixAdapter.synthetix()).to.eq(hre.f.c.snx.synthetix.address);
       expect(await hre.f.c.synthetixAdapter.exchanger()).to.eq(hre.f.c.snx.exchanger.address);
       expect(await hre.f.c.synthetixAdapter.exchangeRates()).to.eq(hre.f.c.snx.exchangeRates.address);
-      expect(await hre.f.c.synthetixAdapter.collateralShort()).to.eq(hre.f.c.snx.collateralShort.address);
       expect(await hre.f.c.synthetixAdapter.delegateApprovals()).to.eq(hre.f.c.snx.delegateApprovals.address);
     });
     it('sets globals for market', async () => {

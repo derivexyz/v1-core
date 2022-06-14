@@ -4,7 +4,7 @@ import { TradeParametersStruct, TradePricingStruct } from '../../../typechain-ty
 import { seedFixture } from '../../utils/fixture';
 import { hre } from '../../utils/testSetup';
 
-const defaultTradePricingStruct: TradePricingStruct = {
+export const defaultTradePricingStruct: TradePricingStruct = {
   optionPrice: toBN('1'),
   preTradeAmmNetStdVega: toBN('0.1'),
   postTradeAmmNetStdVega: toBN('80'),

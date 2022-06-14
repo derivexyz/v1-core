@@ -139,7 +139,7 @@ describe('Basic Testing - KeeperHelper', () => {
       }
     }
 
-    // check that these positions have been liquidated
+    // check that these positions have been settled
     for (let i = 0; i < positions.length; i++) {
       // console.log(`Checking ${positions[i]}`);
       if (positions[i] != 0) {

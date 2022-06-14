@@ -44,10 +44,7 @@ describe('OptionGreekCache - Pricing', () => {
       boardId = id;
       strikeId = (await hre.f.c.optionMarket.getBoardStrikes(boardId))[0];
 
-      const liquidity = await hre.f.c.liquidityPool.getLiquidity(
-        DEFAULT_BASE_PRICE,
-        hre.f.c.snx.collateralShort.address,
-      );
+      const liquidity = await hre.f.c.liquidityPool.getLiquidity(DEFAULT_BASE_PRICE);
       const exchangeParams = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
 
       [strikeStruct, tradeStruct] = await getDefaults(strikeId, boardId, exchangeParams, liquidity);

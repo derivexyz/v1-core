@@ -9,7 +9,6 @@ import "./synthetix/OwnedUpgradeable.sol";
 
 // Interfaces
 import "./interfaces/ISynthetix.sol";
-import "./interfaces/ICollateralShort.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IExchanger.sol";
 import "./interfaces/IExchangeRates.sol";
@@ -30,11 +29,15 @@ contract SynthetixAdapter is OwnedUpgradeable {
    * Grouped in usage for a particular contract/use case
    */
   struct ExchangeParams {
+    // snx oracle exchange rate for base
     uint spotPrice;
+    // snx quote asset identifier key
     bytes32 quoteKey;
+    // snx base asset identifier key
     bytes32 baseKey;
-    ICollateralShort short;
+    // snx spot exchange rate from quote to base
     uint quoteBaseFeeRate;
+    // snx spot exchange rate from base to quote
     uint baseQuoteFeeRate;
   }
 
@@ -47,14 +50,12 @@ contract SynthetixAdapter is OwnedUpgradeable {
   bytes32 private constant CONTRACT_SYNTHETIX = "ProxySynthetix";
   bytes32 private constant CONTRACT_EXCHANGER = "Exchanger";
   bytes32 private constant CONTRACT_EXCHANGE_RATES = "ExchangeRates";
-  bytes32 private constant CONTRACT_COLLATERAL_SHORT = "CollateralShort";
   bytes32 private constant CONTRACT_DELEGATE_APPROVALS = "DelegateApprovals";
 
   // Cached addresses that can be updated via a public function
   ISynthetix public synthetix;
   IExchanger public exchanger;
   IExchangeRates public exchangeRates;
-  ICollateralShort public collateralShort;
   IDelegateApprovals public delegateApprovals;
 
   // Variables related to calculating premium/fees
@@ -107,7 +108,7 @@ contract SynthetixAdapter is OwnedUpgradeable {
   }
 
   /**
-   * @dev Pauses the contract.
+   * @dev Pauses all market actions for a given market.
    *
    * @param _isPaused Whether getting synthetixAdapter will revert or not.
    */
@@ -116,6 +117,11 @@ contract SynthetixAdapter is OwnedUpgradeable {
     emit MarketPausedSet(_contractAddress, _isPaused);
   }
 
+  /**
+   * @dev Pauses all market actions for all markets.
+   *
+   * @param _isPaused Whether getting synthetixAdapter will revert or not.
+   */
   function setGlobalPaused(bool _isPaused) external onlyOwner {
     isGlobalPaused = _isPaused;
     emit GlobalPausedSet(_isPaused);
@@ -132,10 +138,9 @@ contract SynthetixAdapter is OwnedUpgradeable {
     synthetix = ISynthetix(addressResolver.getAddress(CONTRACT_SYNTHETIX));
     exchanger = IExchanger(addressResolver.getAddress(CONTRACT_EXCHANGER));
     exchangeRates = IExchangeRates(addressResolver.getAddress(CONTRACT_EXCHANGE_RATES));
-    collateralShort = ICollateralShort(addressResolver.getAddress(CONTRACT_COLLATERAL_SHORT));
     delegateApprovals = IDelegateApprovals(addressResolver.getAddress(CONTRACT_DELEGATE_APPROVALS));
 
-    emit SynthetixAddressesUpdated(synthetix, exchanger, exchangeRates, collateralShort, delegateApprovals);
+    emit SynthetixAddressesUpdated(synthetix, exchanger, exchangeRates, delegateApprovals);
   }
 
   /////////////
@@ -146,7 +151,12 @@ contract SynthetixAdapter is OwnedUpgradeable {
    *
    * @param _contractAddress The address of the OptionMarket.
    */
-  function getSpotPriceForMarket(address _contractAddress) public view notPaused(_contractAddress) returns (uint) {
+  function getSpotPriceForMarket(address _contractAddress)
+    public
+    view
+    notPaused(_contractAddress)
+    returns (uint spotPrice)
+  {
     return getSpotPrice(baseKey[_contractAddress]);
   }
 
@@ -158,29 +168,28 @@ contract SynthetixAdapter is OwnedUpgradeable {
    * @param to The key of the synthetic asset.
    */
   function getSpotPrice(bytes32 to) public view returns (uint) {
-    (uint rate, bool invalid) = exchangeRates.rateAndInvalid(to);
-    if (rate == 0 || invalid) {
-      revert RateIsInvalid(address(this), rate, invalid);
+    (uint spotPrice, bool invalid) = exchangeRates.rateAndInvalid(to);
+    if (spotPrice == 0 || invalid) {
+      revert RateIsInvalid(address(this), spotPrice, invalid);
     }
-    return rate;
+    return spotPrice;
   }
 
   /**
    * @notice Returns the ExchangeParams.
    *
-   * @param _contractAddress The address of the OptionMarket.
+   * @param optionMarket The address of the OptionMarket.
    */
-  function getExchangeParams(address _contractAddress)
+  function getExchangeParams(address optionMarket)
     public
     view
-    notPaused(_contractAddress)
+    notPaused(optionMarket)
     returns (ExchangeParams memory exchangeParams)
   {
     exchangeParams = ExchangeParams({
       spotPrice: 0,
-      quoteKey: quoteKey[_contractAddress],
-      baseKey: baseKey[_contractAddress],
-      short: collateralShort,
+      quoteKey: quoteKey[optionMarket],
+      baseKey: baseKey[optionMarket],
       quoteBaseFeeRate: 0,
       baseQuoteFeeRate: 0
     });
@@ -283,6 +292,7 @@ contract SynthetixAdapter is OwnedUpgradeable {
       );
     }
     emit QuoteSwappedForBase(optionMarket, msg.sender, amountQuote, baseReceived);
+    return baseReceived;
   }
 
   /**
@@ -390,6 +400,7 @@ contract SynthetixAdapter is OwnedUpgradeable {
       );
     }
     emit BaseSwappedForQuote(optionMarket, msg.sender, amountBase, quoteReceived);
+    return quoteReceived;
   }
 
   /**
@@ -439,7 +450,6 @@ contract SynthetixAdapter is OwnedUpgradeable {
     ISynthetix synthetix,
     IExchanger exchanger,
     IExchangeRates exchangeRates,
-    ICollateralShort collateralShort,
     IDelegateApprovals delegateApprovals
   );
   /**
@@ -460,18 +470,6 @@ contract SynthetixAdapter is OwnedUpgradeable {
    * @dev Emitted when single market paused.
    */
   event MarketPausedSet(address contractAddress, bool isPaused);
-  /**
-   * @dev Emitted when trading cut-off is set.
-   */
-  event TradingCutoffSet(address indexed contractAddress, uint tradingCutoff);
-  /**
-   * @dev Emitted when quote key is set.
-   */
-  event QuoteKeySet(address indexed contractAddress, bytes32 quoteKey);
-  /**
-   * @dev Emitted when base key is set.
-   */
-  event BaseKeySet(address indexed contractAddress, bytes32 baseKey);
   /**
    * @dev Emitted when an exchange for base to quote occurs.
    * Which base and quote were swapped can be determined by the given marketAddress.

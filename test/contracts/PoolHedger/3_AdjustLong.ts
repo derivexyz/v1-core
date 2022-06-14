@@ -1,17 +1,20 @@
 import { BigNumber } from 'ethers';
 import { beforeEach } from 'mocha';
-import { OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
-import { assertCloseTo, assertCloseToPercentage } from '../../utils/assert';
+import { OptionType, toBN, UNIT, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { assertCloseToPercentage } from '../../utils/assert';
 import {
   closePositionWithOverrides,
   getLiquidity,
   getRequiredHedge,
   getSpotPrice,
+  initiateFullLPWithdrawal,
+  setNegativeExpectedHedge,
   setPositiveExpectedHedge,
 } from '../../utils/contractHelpers';
-import { DEFAULT_POOL_HEDGER_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_POOL_HEDGER_PARAMS, DEFAULT_PRICING_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
+import { seedBalanceAndApprovalFor } from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
 
 // Integration tests using external wrappers
@@ -22,22 +25,42 @@ describe('Adjust Long', async () => {
     beforeEach(async () => {
       await setPositiveExpectedHedge();
     });
-
     it('increases long to desired amount, accounting for fees', async () => {
       await hre.f.c.poolHedger.hedgeDelta();
       await expectFullyAdjustedLong(); // 2.296698
     });
-    it.skip('need distinction between freeLiquidity and pedingDelta');
     it('increases long up to available LP funds', async () => {
-      await setPositiveExpectedHedge();
-      await limitFreeLiquidity();
+      await seedBalanceAndApprovalFor(hre.f.deployer, hre.f.c, toBN('10000000'));
+      await hre.f.c.optionMarketPricer.setPricingParams({
+        ...DEFAULT_PRICING_PARAMS,
+        standardSize: toBN('1000'),
+        skewAdjustmentFactor: toBN('0.01'),
+      });
+      await setPositiveExpectedHedge(toBN('2000'), toBN('10000000'));
+
+      // await limitFreeLiquidity();
       const oldPendingDeltaLiquidity = (await getLiquidity()).pendingDeltaLiquidity;
       await hre.f.c.poolHedger.hedgeDelta();
       await expectPartiallyAdjustedLong(oldPendingDeltaLiquidity);
-      expect((await getLiquidity()).pendingDeltaLiquidity).to.gt(0);
     });
-    it.skip('does not increase long if freeLiquidity is zero');
-    it.skip('will revert if exchange fails');
+    it('increases long: freeLiquidity=0 & pendingDelta=enough', async () => {
+      // fill up free Liquidity with withdrawal
+      await initiateFullLPWithdrawal(hre.f.deployer);
+      await fastForward(WEEK_SEC);
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      await hre.f.c.liquidityPool.processDepositQueue(2);
+
+      // do full hedge
+      await hre.f.c.poolHedger.hedgeDelta();
+      await expectFullyAdjustedLong();
+    });
+    it('will revert if exchange fails', async () => {
+      // set synth exchange failure
+      await hre.f.c.snx.synthetix.setReturnZero(true);
+
+      // fail hedge
+      await expect(hre.f.c.poolHedger.hedgeDelta()).to.be.revertedWith('ReceivedZeroFromExchange');
+    });
   });
 
   describe('Decrease Long', async () => {
@@ -59,16 +82,38 @@ describe('Adjust Long', async () => {
       await hre.f.c.poolHedger.hedgeDelta();
       await expectFullyAdjustedLong();
     });
-    it.skip('will revert if trying to sell more');
-    it.skip('will revert if exchange fails');
+    it('will reduce long even if freeLiquidity=0, pendingLiquidity=0', async () => {
+      await seedBalanceAndApprovalFor(hre.f.deployer, hre.f.c, undefined, toBN('100000'));
+
+      await hre.f.c.optionMarketPricer.setPricingParams({
+        ...DEFAULT_PRICING_PARAMS,
+        standardSize: toBN('1000'),
+        skewAdjustmentFactor: toBN('0.01'),
+      });
+      await setNegativeExpectedHedge(toBN('1700'), toBN('100000'));
+
+      // expect hedge net delta < expected
+      await hre.f.c.poolHedger.hedgeDelta();
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.poolHedger.address)).to.eq(toBN('0'));
+      expect(await hre.f.c.poolHedger.getCurrentHedgedNetDelta()).to.gt(
+        await hre.f.c.poolHedger.getCappedExpectedHedge(),
+      );
+    });
+    it('will revert if exchange fails', async () => {
+      // set synth exchange failure
+      await hre.f.c.snx.synthetix.setReturnZero(true);
+
+      // fail hedge
+      await expect(hre.f.c.poolHedger.hedgeDelta()).to.be.revertedWith('ReceivedZeroFromExchange');
+    });
   });
 });
 
 export async function expectFullyAdjustedLong() {
   const targetLong = await getRequiredHedge();
   const baseBalance = await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.poolHedger.address);
-  assertCloseTo(baseBalance, targetLong, toBN('0.0001'));
-  assertCloseTo(baseBalance, await hre.f.c.optionGreekCache.getGlobalNetDelta(), toBN('0.0001'));
+  assertCloseToPercentage(baseBalance, targetLong, toBN('0.01'));
+  assertCloseToPercentage(baseBalance, await hre.f.c.optionGreekCache.getGlobalNetDelta(), toBN('0.01'));
 }
 
 export async function expectPartiallyAdjustedLong(pendingDeltaLiquidity: BigNumber) {

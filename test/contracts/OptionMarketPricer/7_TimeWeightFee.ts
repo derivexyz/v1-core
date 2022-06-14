@@ -1,4 +1,5 @@
-import { currentTime, DAY_SEC, MONTH_SEC, toBN, WEEK_SEC, YEAR_SEC } from '../../../scripts/util/web3utils';
+import { currentTime, DAY_SEC, HOUR_SEC, MONTH_SEC, toBN, WEEK_SEC, YEAR_SEC } from '../../../scripts/util/web3utils';
+import { assertCloseToPercentage } from '../../utils/assert';
 import { seedFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
 
@@ -50,10 +51,26 @@ describe('getTimeWeightedFee', async () => {
     expect(await hre.f.c.optionMarketPricer.getTimeWeightedFee(longExpiry, pointA, pointB, 0)).to.be.eq('0');
   });
 
-  // test a range of dates from 1 sec to 2 years
-  it.skip('...', async () => {
-    // const pointA = await currentTime();
-    // const pointB = (await currentTime()) + 1;
-    // const expiryTarget = (await currentTime()) + YEAR_SEC;
-  }); // test range of timeToExpiry = [1 sec to 2 years]
+  it('range of dates from 1sec to 2years', async () => {
+    const coefficient = toBN('10');
+    const pointA = DAY_SEC;
+    const pointB = MONTH_SEC;
+    const slope = toBN('10').div(MONTH_SEC - DAY_SEC);
+
+    const dates = [1, HOUR_SEC, DAY_SEC, WEEK_SEC, MONTH_SEC, YEAR_SEC];
+    const expectedFactors = [
+      coefficient,
+      coefficient,
+      coefficient,
+      coefficient.add(slope.mul(WEEK_SEC - DAY_SEC)),
+      coefficient.mul(2),
+      coefficient.add(slope.mul(YEAR_SEC - DAY_SEC)),
+    ];
+
+    for (let i = 0; i < dates.length; i++) {
+      const time = (await currentTime()) + dates[i];
+      const factor = await hre.f.c.optionMarketPricer.getTimeWeightedFee(time, pointA, pointB, coefficient);
+      assertCloseToPercentage(expectedFactors[i], factor, toBN('0.00001'));
+    }
+  });
 });

@@ -2,11 +2,12 @@
 pragma solidity 0.8.9;
 
 import "../synthetix/Owned.sol";
+import "../interfaces/IFeeCounter.sol";
 
 /**
  * @title BasicFeeCounter
  */
-contract BasicFeeCounter is Owned {
+contract BasicFeeCounter is IFeeCounter, Owned {
   mapping(address => bool) public trustedCounter;
   mapping(address => mapping(address => uint)) public totalFeesPerMarket;
 
@@ -16,12 +17,14 @@ contract BasicFeeCounter is Owned {
     trustedCounter[counter] = isTrusted;
   }
 
-  function addFees(
+  function trackFee(
     address market,
     address trader,
-    uint fees
+    uint,
+    uint,
+    uint totalFee
   ) external onlyTrustedCounter {
-    totalFeesPerMarket[market][trader] += fees;
+    totalFeesPerMarket[market][trader] += totalFee;
   }
 
   modifier onlyTrustedCounter() {

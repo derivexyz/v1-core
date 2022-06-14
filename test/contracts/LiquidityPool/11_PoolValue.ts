@@ -113,7 +113,7 @@ describe('Pool Value', async () => {
         hre.f.deployer.address,
         await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
       );
-      await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('1'));
+      await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('5'));
       await fastForward(WEEK_SEC);
       // withdrawing 100% will trigger liquidity CB even though no outstanding options
       let tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
@@ -126,7 +126,7 @@ describe('Pool Value', async () => {
 
       tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       let args = getEventArgs(await tx.wait(), 'WithdrawPartiallyProcessed');
-      expect(args.tokenPrice).eq(toBN('0.9934491864726'));
+      expect(args.tokenPrice).eq(toBN('1.007245932363000000'));
 
       await hre.f.c.liquidityPool.exchangeBase();
       // And a small amount of base won't block the withdrawal due to the fee
@@ -136,14 +136,14 @@ describe('Pool Value', async () => {
       // leading to a higher tokenPrice than would be expected
       tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
-      expect(args.tokenPrice).eq(toBN('24.575974597040110815'));
+      expect(args.tokenPrice).eq(toBN('2.379351078473477253'));
     });
 
     it('sends less quote to last withdrawer if base is not exchanged - no withdrawal fee', async () => {
       const amtTokens = await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address);
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, amtTokens);
       await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, DEFAULT_BASE_PRICE);
-      await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('1'));
+      await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('5'));
       await fastForward(WEEK_SEC);
       // withdrawing 100% will trigger liquidity CB even though no outstanding options
       let tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
@@ -155,15 +155,19 @@ describe('Pool Value', async () => {
         withdrawalFee: 0,
       });
 
+      await fastForward(MONTH_SEC);
+      await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
+
       tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       let args = getEventArgs(await tx.wait(), 'WithdrawPartiallyProcessed');
-      expect(args.tokenPrice).eq(toBN('1'));
+      expect(args.tokenPrice).eq(toBN('1.013936106960000000')); // from the extra base
 
       await hre.f.c.liquidityPool.exchangeBase();
       tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
       // Note the loss due to exchange fee.
-      expect(args.tokenPrice).eq(toBN('0.9975'));
+      expect(args.tokenPrice).eq(toBN('1.006331586157800000'));
+      expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).eq(1);
     });
   });
 

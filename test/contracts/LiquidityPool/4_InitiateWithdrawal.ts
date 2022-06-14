@@ -52,10 +52,10 @@ describe('Initiate Withdraw', async () => {
     await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
     expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('0'));
     expect(oldBeneficiaryBal).to.eq(
-      (await hre.f.c.snx.quoteAsset.balanceOf(await hre.f.deployer.address)).sub(toBN('1000').sub(withdrawalFee)),
+      (await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)).sub(toBN('1000').sub(withdrawalFee)),
     );
   });
 
@@ -75,34 +75,34 @@ describe('Initiate Withdraw', async () => {
 
   it('successfully queues and generates correct withdrawal ticket', async () => {
     const firstWithdrawal = await hre.f.c.liquidityPool.connect(alice).initiateWithdraw(alice.address, toBN('1000'));
-    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0);
-    expect(await hre.f.c.liquidityPool.nextQueuedWithdrawalId()).eq(1);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
+    expect(await hre.f.c.liquidityPool.nextQueuedWithdrawalId()).eq(2);
     expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('1000'));
 
     const secondWithdrawal = await hre.f.c.liquidityPool.connect(alice).initiateWithdraw(alice.address, toBN('3000'));
-    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0);
-    expect(await hre.f.c.liquidityPool.nextQueuedWithdrawalId()).eq(2);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
+    expect(await hre.f.c.liquidityPool.nextQueuedWithdrawalId()).eq(3);
     expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('4000'));
 
     const thirdWithdrawal = await hre.f.c.liquidityPool.connect(alice).initiateWithdraw(alice.address, toBN('6000'));
-    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0);
-    expect(await hre.f.c.liquidityPool.nextQueuedWithdrawalId()).eq(3);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1);
+    expect(await hre.f.c.liquidityPool.nextQueuedWithdrawalId()).eq(4);
     expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('10000'));
 
     expect(await hre.f.c.liquidityTokens.balanceOf(alice.address)).eq(toBN('0'));
     expect(await hre.f.c.snx.quoteAsset.balanceOf(alice.address)).to.eq(toBN('90000'));
     expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('510000'));
 
-    await validateWithdrawalRecord(0, alice.address, toBN('1000'), toBN('0'), await getTxTimestamp(firstWithdrawal));
-    await validateWithdrawalRecord(1, alice.address, toBN('3000'), toBN('0'), await getTxTimestamp(secondWithdrawal));
-    await validateWithdrawalRecord(2, alice.address, toBN('6000'), toBN('0'), await getTxTimestamp(thirdWithdrawal));
+    await validateWithdrawalRecord(1, alice.address, toBN('1000'), toBN('0'), await getTxTimestamp(firstWithdrawal));
+    await validateWithdrawalRecord(2, alice.address, toBN('3000'), toBN('0'), await getTxTimestamp(secondWithdrawal));
+    await validateWithdrawalRecord(3, alice.address, toBN('6000'), toBN('0'), await getTxTimestamp(thirdWithdrawal));
 
     // console.log("") // deal with fantom "AssertionError: Expected "0" to be equal 2" error
   });
   it('token price remains unchanged upon initiated withdrawal', async () => {
     const oldTokenPrice = await hre.f.c.liquidityPool.getTokenPrice();
     await hre.f.c.liquidityPool.connect(alice).initiateWithdraw(alice.address, toBN('10000'));
-    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(0); // make sure not processed
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(1); // make sure not processed
     expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).eq(toBN('10000')); // still queued
     const newtokenPrice = await hre.f.c.liquidityPool.getTokenPrice();
     expect(oldTokenPrice).to.eq(newtokenPrice);

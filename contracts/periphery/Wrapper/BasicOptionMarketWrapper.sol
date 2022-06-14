@@ -97,9 +97,12 @@ contract BasicOptionMarketWrapper is Owned {
     if (!_isLong(optionType)) {
       if (extraCollateral != 0) {
         if (_isBaseCollateral(optionType)) {
-          c.baseAsset.transferFrom(msg.sender, address(this), extraCollateral);
+          require(c.baseAsset.transferFrom(msg.sender, address(this), extraCollateral), "takeExtraCollat: base xfer f");
         } else {
-          c.quoteAsset.transferFrom(msg.sender, address(this), extraCollateral);
+          require(
+            c.quoteAsset.transferFrom(msg.sender, address(this), extraCollateral),
+            "takeExtraCollat: !base xfer f"
+          );
         }
       }
     }
@@ -108,11 +111,11 @@ contract BasicOptionMarketWrapper is Owned {
   function _returnExcessFunds(OptionMarketContracts memory c) internal {
     uint quoteBal = c.quoteAsset.balanceOf(address(this));
     if (quoteBal > 0) {
-      c.quoteAsset.transfer(msg.sender, quoteBal);
+      require(c.quoteAsset.transfer(msg.sender, quoteBal), "_returnExcessFunds: quote xfer f");
     }
     uint baseBal = c.baseAsset.balanceOf(address(this));
     if (baseBal > 0) {
-      c.baseAsset.transfer(msg.sender, baseBal);
+      require(c.baseAsset.transfer(msg.sender, baseBal), "_returnExcessFunds: base xfer f");
     }
   }
 

@@ -1,7 +1,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumberish } from 'ethers';
 import { ethers } from 'hardhat';
-import { currentTime, MONTH_SEC, OptionType, toBN, toBytes32 } from '../../../scripts/util/web3utils';
+import { currentTime, MONTH_SEC, OptionType, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { assertCloseTo } from '../../utils/assert';
 import { openPositionWithOverrides } from '../../utils/contractHelpers';
 import { DEFAULT_BASE_PRICE } from '../../utils/defaultParams';
@@ -136,9 +136,74 @@ describe('optionMarketViewer tests', async () => {
       expect(markets[0].liveBoards[0].strikes[0].shortCallBaseOpenInterest).to.eq(toBN('1'));
       expect(markets[0].liveBoards[0].strikes[0].shortCallQuoteOpenInterest).to.eq(0);
       expect(markets[0].liveBoards[0].strikes[0].shortPutOpenInterest).to.eq(0);
-
       expect(markets[1].marketAddresses.optionMarket).to.eq(btc.optionMarket.address);
       expect(markets[2].marketAddresses.optionMarket).to.eq(link.optionMarket.address);
+    });
+
+    it('get MarketViews', async () => {
+      const markets = await eth.optionMarketViewer.getMarkets([eth.optionMarket.address, btc.optionMarket.address]);
+
+      expect(markets.isPaused).to.eq(false);
+      expect(markets.markets[0].marketAddresses.liquidityPool).to.eq(eth.liquidityPool.address);
+      expect(markets.markets[0].marketAddresses.liquidityTokens).to.eq(eth.liquidityTokens.address);
+      expect(markets.markets[0].marketAddresses.greekCache).to.eq(eth.optionGreekCache.address);
+      expect(markets.markets[0].marketAddresses.optionMarket).to.eq(eth.optionMarket.address);
+      expect(markets.markets[0].marketAddresses.optionMarketPricer).to.eq(eth.optionMarketPricer.address);
+      expect(markets.markets[0].marketAddresses.optionToken).to.eq(eth.optionToken.address);
+      expect(markets.markets[0].marketAddresses.shortCollateral).to.eq(eth.shortCollateral.address);
+
+      expect(markets.markets[1].marketAddresses.liquidityPool).to.eq(btc.liquidityPool.address);
+      expect(markets.markets[1].marketAddresses.liquidityTokens).to.eq(btc.liquidityTokens.address);
+      expect(markets.markets[1].marketAddresses.greekCache).to.eq(btc.optionGreekCache.address);
+      expect(markets.markets[1].marketAddresses.optionMarket).to.eq(btc.optionMarket.address);
+      expect(markets.markets[1].marketAddresses.optionMarketPricer).to.eq(btc.optionMarketPricer.address);
+      expect(markets.markets[1].marketAddresses.optionToken).to.eq(btc.optionToken.address);
+      expect(markets.markets[1].marketAddresses.shortCollateral).to.eq(btc.shortCollateral.address);
+    });
+    it('get MarketViews paused', async () => {
+      await eth.synthetixAdapter.setGlobalPaused(true);
+      const markets = await eth.optionMarketViewer.getMarkets([eth.optionMarket.address, btc.optionMarket.address]);
+
+      expect(markets.isPaused).to.eq(true);
+      expect(markets.markets[0].marketAddresses.liquidityPool).to.eq(eth.liquidityPool.address);
+      expect(markets.markets[0].marketAddresses.liquidityTokens).to.eq(eth.liquidityTokens.address);
+      expect(markets.markets[0].marketAddresses.greekCache).to.eq(eth.optionGreekCache.address);
+      expect(markets.markets[0].marketAddresses.optionMarket).to.eq(eth.optionMarket.address);
+      expect(markets.markets[0].marketAddresses.optionMarketPricer).to.eq(eth.optionMarketPricer.address);
+      expect(markets.markets[0].marketAddresses.optionToken).to.eq(eth.optionToken.address);
+      expect(markets.markets[0].marketAddresses.shortCollateral).to.eq(eth.shortCollateral.address);
+
+      expect(markets.markets[1].marketAddresses.liquidityPool).to.eq(btc.liquidityPool.address);
+      expect(markets.markets[1].marketAddresses.liquidityTokens).to.eq(btc.liquidityTokens.address);
+      expect(markets.markets[1].marketAddresses.greekCache).to.eq(btc.optionGreekCache.address);
+      expect(markets.markets[1].marketAddresses.optionMarket).to.eq(btc.optionMarket.address);
+      expect(markets.markets[1].marketAddresses.optionMarketPricer).to.eq(btc.optionMarketPricer.address);
+      expect(markets.markets[1].marketAddresses.optionToken).to.eq(btc.optionToken.address);
+      expect(markets.markets[1].marketAddresses.shortCollateral).to.eq(btc.shortCollateral.address);
+    });
+
+    it('get market with baseKey', async () => {
+      const ethbasekey = await eth.synthetixAdapter.baseKey(eth.optionMarket.address);
+      const market = await eth.optionMarketViewer.getMarketForBaseKey(ethbasekey);
+      expect(market.marketAddresses.optionMarket).to.eq(eth.optionMarket.address);
+      expect(market.isPaused).to.eq(false);
+      expect(market.exchangeParams.spotPrice).to.eq(toBN('1742.01337'));
+      expect(market.liveBoards[0].market).to.eq(eth.optionMarket.address);
+      expect(market.liveBoards[0].expiry).to.within(expiryTime - 10, expiryTime + 10);
+      expect(market.liveBoards[0].priceAtExpiry).to.eq(0);
+      expect(market.liveBoards[0].isPaused).to.eq(false);
+      expect(market.liveBoards[0].strikes[0].strikePrice).to.eq(toBN('1500'));
+      expect(market.liveBoards[0].strikes[0].strikeId).to.eq(1);
+      expect(market.liveBoards[0].strikes[0].longCallOpenInterest).to.eq(0);
+      expect(market.liveBoards[0].strikes[0].longPutOpenInterest).to.eq(0);
+      expect(market.liveBoards[0].strikes[0].shortCallBaseOpenInterest).to.eq(0);
+      expect(market.liveBoards[0].strikes[0].shortCallQuoteOpenInterest).to.eq(0);
+      expect(market.liveBoards[0].strikes[0].shortPutOpenInterest).to.eq(0);
+    });
+
+    it('revert if no market with baseKey', async () => {
+      const badBasekey = await eth.synthetixAdapter.baseKey(eth.liquidityPool.address);
+      await expect(eth.optionMarketViewer.getMarketForBaseKey(badBasekey)).to.be.revertedWith('No market for base key');
     });
   });
 
@@ -170,6 +235,37 @@ describe('optionMarketViewer tests', async () => {
       const allPositions = await eth.optionMarketViewer.getOwnerPositions(aliceAddr);
       expect(allPositions[0].market).to.eq(eth.optionMarket.address);
       expect(allPositions[0].positions.length).to.eq(3);
+    });
+
+    it('positions in range', async () => {
+      boardId = (await eth.optionMarket.getLiveBoards())[0];
+      listings = await eth.optionMarket.getBoardStrikes(boardId);
+      await openPositionWithOverrides(eth, {
+        strikeId: listings[1],
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('0.01'),
+      });
+      await openPositionWithOverrides(eth, {
+        strikeId: listings[1],
+        optionType: OptionType.LONG_PUT,
+        amount: toBN('0.02'),
+      });
+      await openPositionWithOverrides(eth, {
+        strikeId: listings[1],
+        optionType: OptionType.SHORT_CALL_BASE,
+        setCollateralTo: toBN('0.01'),
+        amount: toBN('0.01'),
+      });
+      const positions = await eth.optionMarketViewer.getOwnerPositionsInRange(
+        eth.optionMarket.address,
+        aliceAddr,
+        0,
+        2,
+      );
+      expect(positions[0].optionType).to.eq(OptionType.LONG_CALL);
+      expect(positions[0].amount).to.eq(toBN('0.01'));
+      expect(positions[1].optionType).to.eq(OptionType.LONG_PUT);
+      expect(positions[1].amount).to.eq(toBN('0.02'));
     });
   });
 
@@ -256,6 +352,90 @@ describe('optionMarketViewer tests', async () => {
       expect(markets[2].liveBoards[0].strikes[0].strikePrice).to.eq(toBN('1500'));
       expect(markets[2].liveBoards[0].strikes[1].strikePrice).to.eq(toBN('1600'));
       expect(markets[2].liveBoards[0].strikes[2].strikePrice).to.eq(toBN('1700'));
+    });
+
+    it('get board with boardId', async () => {
+      const ethBoard = await eth.optionMarketViewer.getBoard(eth.optionMarket.address, 1);
+      const btcBoard = await eth.optionMarketViewer.getBoard(btc.optionMarket.address, 1);
+      expect(ethBoard.boardId).to.eq(1);
+      expect(ethBoard.market).to.eq(eth.optionMarket.address);
+      expect(btcBoard.boardId).to.eq(1);
+      expect(btcBoard.market).to.eq(btc.optionMarket.address);
+
+      await expect(eth.optionMarketViewer.getBoard(eth.optionMarket.address, 2)).to.be.revertedWith(
+        'reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)',
+      );
+      await expect(eth.optionMarketViewer.getBoard(eth.liquidityPool.address, 2)).to.be.revertedWith(
+        'Transaction reverted: function call to a non-contract account',
+      );
+    });
+
+    it('get board with baseKey', async () => {
+      const ethbasekey = await eth.synthetixAdapter.baseKey(eth.optionMarket.address);
+      const btcbasekey = await eth.synthetixAdapter.baseKey(btc.optionMarket.address);
+
+      const ethBoard = await eth.optionMarketViewer.getBoardForBaseKey(ethbasekey, 1);
+      const btcBoard = await eth.optionMarketViewer.getBoardForBaseKey(btcbasekey, 1);
+      expect(ethBoard.boardId).to.eq(1);
+      expect(ethBoard.market).to.eq(eth.optionMarket.address);
+      expect(btcBoard.boardId).to.eq(1);
+      expect(btcBoard.market).to.eq(btc.optionMarket.address);
+
+      await expect(eth.optionMarketViewer.getBoardForBaseKey(ethbasekey, 2)).to.be.revertedWith(
+        'reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)',
+      );
+    });
+
+    it('get board with strikeId', async () => {
+      const ethBoard = await eth.optionMarketViewer.getBoardForStrikeId(eth.optionMarket.address, 1);
+      const btcBoard = await eth.optionMarketViewer.getBoardForStrikeId(btc.optionMarket.address, 1);
+      expect(ethBoard.boardId).to.eq(1);
+      expect(ethBoard.market).to.eq(eth.optionMarket.address);
+      expect(btcBoard.boardId).to.eq(1);
+      expect(btcBoard.market).to.eq(btc.optionMarket.address);
+
+      await expect(eth.optionMarketViewer.getBoardForStrikeId(eth.optionMarket.address, 0)).to.be.revertedWith(
+        'reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)',
+      );
+      await expect(eth.optionMarketViewer.getBoardForStrikeId(eth.liquidityPool.address, 0)).to.be.revertedWith(
+        'Transaction reverted: function call to a non-contract account',
+      );
+    });
+  });
+
+  describe('balance and allowance', async () => {
+    it('liquidity pool', async () => {
+      const res = await eth.optionMarketViewer.getLiquidityBalancesAndAllowances(
+        [eth.optionMarket.address, btc.optionMarket.address],
+        aliceAddr,
+      );
+      expect(res[0].token).to.eq(eth.liquidityPool.address);
+      expect(res[0].balance).to.eq(toBN('500000'));
+      expect(res[0].allowance).to.eq(await eth.snx.quoteAsset.allowance(aliceAddr, eth.liquidityPool.address));
+      expect(res[1].token).to.eq(btc.liquidityPool.address);
+      expect(res[1].balance).to.eq(toBN('500000'));
+      expect(res[1].allowance).to.eq(await btc.snx.quoteAsset.allowance(aliceAddr, btc.liquidityPool.address));
+    });
+  });
+
+  describe('remove market', async () => {
+    it('remove invalid', async () => {
+      await expect(eth.optionMarketViewer.removeMarket(eth.liquidityPool.address)).revertedWith(
+        'RemovingInvalidMarket',
+      );
+    });
+    it('remove valid', async () => {
+      expect((await eth.optionMarketViewer.marketAddresses(eth.optionMarket.address)).optionMarket).to.eq(
+        eth.optionMarket.address,
+      );
+      await eth.optionMarketViewer.removeMarket(eth.optionMarket.address);
+      expect((await eth.optionMarketViewer.marketAddresses(eth.optionMarket.address)).optionMarket).to.eq(ZERO_ADDRESS);
+    });
+  });
+
+  describe('init', async () => {
+    it('revert if already initialized', async () => {
+      await expect(eth.optionMarketViewer.init(eth.synthetixAdapter.address)).to.be.revertedWith('already initialized');
     });
   });
 });

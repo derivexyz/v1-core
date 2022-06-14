@@ -1,5 +1,5 @@
 import { BigNumber } from 'ethers';
-import { HOUR_SEC, MONTH_SEC, toBN } from '../../../scripts/util/web3utils';
+import { HOUR_SEC, MONTH_SEC, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { assertCloseTo, assertCloseToPercentage } from '../../utils/assert';
 import {
   DEFAULT_LONG_PUT,
@@ -54,7 +54,7 @@ describe('Withdrawal Fees', async () => {
     await fastForward(HOUR_SEC * 6 + 1);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(boardId2);
     await hre.f.c.liquidityPool.processWithdrawalQueue(2);
-    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(3);
 
     // settle fees
     await hre.f.c.shortCollateral.settleOptions(positionIds);
@@ -71,9 +71,11 @@ describe('Withdrawal Fees', async () => {
       hre.f.deployer.address,
       await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
     );
-    await fastForward(MONTH_SEC);
+
+    await fastForward(WEEK_SEC * 2);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    await fastForward(WEEK_SEC * 2);
     await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
     expect((await hre.f.c.optionMarket.getLiveBoards()).length).to.eq(0);
     expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.eq(toBN('15000'));
@@ -114,7 +116,7 @@ describe('Withdrawal Fees', async () => {
     // initiate withdrawal and settle board
     await initiateFullLPWithdrawal(hre.f.signers[0]);
     await fastForward(MONTH_SEC + 1);
-    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+
     await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
     await fastForward(BigNumber.from(DEFAULT_LIQUIDITY_POOL_PARAMS.boardSettlementCBTimeout).add(1).toNumber());
 

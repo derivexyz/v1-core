@@ -29,41 +29,34 @@ export async function seedTestSystem(deployer: Signer, testSystem: TestSystemCon
       [toBytes32('SynthsETH')],
       [toBytes32('sETH')],
     );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralShort`)) as Contract).addSynths(
-      [toBytes32('SynthsUSD')],
-      [toBytes32('sUSD')],
-    );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setMaxDebt(
-      '75000000000000000000000000',
-    );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setMaxSkewRate(
-      '200000000000000000',
-    );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setBaseBorrowRate(
-      '158443823',
-    );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).setBaseShortRate(
-      '158443823',
-    );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).addSynths(
-      [toBytes32('SynthsUSD')],
-      [toBytes32('sUSD')],
-    );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).addSynths(
-      [toBytes32('SynthsBTC')],
-      [toBytes32('sBTC')],
-    );
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract).addSynths(
-      [toBytes32('SynthsETH')],
-      [toBytes32('sETH')],
-    );
+
     await (
-      (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralShort`)
+    ).addSynths([toBytes32('SynthsUSD')], [toBytes32('sUSD')]);
+    await (
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)
+    ).setMaxDebt('75000000000000000000000000');
+    await (
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)
+    ).setMaxSkewRate('200000000000000000');
+    await (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)).setBaseBorrowRate('158443823');
+    await (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)).setBaseShortRate('158443823');
+    await (
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)
+    ).addSynths([toBytes32('SynthsUSD')], [toBytes32('sUSD')]);
+    await (
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)
+    ).addSynths([toBytes32('SynthsBTC')], [toBytes32('sBTC')]);
+    await (
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)
+    ).addSynths([toBytes32('SynthsETH')], [toBytes32('sETH')]);
+    await (
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)
     ).addShortableSynths([toBytes32('SynthsBTC')], [toBytes32('sBTC')]);
     await (
-      (await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)) as Contract
+      await getLocalRealSynthetixContract(deployer, 'local', `CollateralManager`)
     ).addShortableSynths([toBytes32('SynthsETH')], [toBytes32('sETH')]);
-    await ((await getLocalRealSynthetixContract(deployer, 'local', `Issuer`)) as Contract).rebuildCache();
+    await (await getLocalRealSynthetixContract(deployer, 'local', `Issuer`)).rebuildCache();
   }
 
   await seedLiquidityPool(deployer, testSystem, overrides.initialPoolDeposit);

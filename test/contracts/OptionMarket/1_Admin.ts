@@ -256,12 +256,14 @@ describe('OptionMarket - Admin', () => {
           securityModule: hre.f.deployer.address,
           feePortionReserved: toBN('1.01'),
           maxBoardExpiry: MONTH_SEC * 12,
+          staticBaseSettlementFee: toBN('0.1'),
         }),
       ).revertedWith('InvalidOptionMarketParams');
       await hre.f.c.optionMarket.setOptionMarketParams({
         securityModule: hre.f.deployer.address,
         feePortionReserved: toBN('1'),
         maxBoardExpiry: MONTH_SEC * 12,
+        staticBaseSettlementFee: toBN('0.1'),
       });
 
       await openDefaultLongCall();
@@ -293,6 +295,10 @@ describe('OptionMarket - Admin', () => {
       await hre.f.c.optionMarket.setBoardFrozen(hre.f.board.boardId, true);
       // Has been settled even though expiry hasn't crossed
       await hre.f.c.optionMarket.forceSettleBoard(hre.f.board.boardId);
+      await hre.f.c.optionMarket.setBoardFrozen(hre.f.board.boardId, false);
+      await expect(openDefaultLongCall()).revertedWith('BoardAlreadySettled');
+
+      await hre.f.c.optionMarket.setBoardFrozen(hre.f.board.boardId, true);
 
       await expect(hre.f.c.optionMarket.forceSettleBoard(hre.f.board.boardId)).revertedWith('BoardAlreadySettled');
       await fastForward(MONTH_SEC);

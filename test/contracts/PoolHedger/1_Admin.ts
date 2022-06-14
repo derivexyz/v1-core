@@ -1,5 +1,5 @@
 import { beforeEach } from 'mocha';
-import { HOUR_SEC, MAX_UINT, toBN } from '../../../scripts/util/web3utils';
+import { HOUR_SEC, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { DEFAULT_POOL_HEDGER_PARAMS } from '../../utils/defaultParams';
 import { seedFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -11,10 +11,11 @@ const modParams = {
 };
 
 async function setParams(overrides?: any) {
-  return await hre.f.c.poolHedger.setPoolHedgerParams({
+  await hre.f.c.poolHedger.setPoolHedgerParams({
     ...DEFAULT_POOL_HEDGER_PARAMS,
     ...(overrides || {}),
   });
+  await hre.f.c.poolHedger.setShortBuffer(modParams.shortBuffer);
 }
 
 describe('Admin', async () => {
@@ -34,12 +35,14 @@ describe('Admin', async () => {
   });
 
   it('updates successfully', async () => {
-    const oldParams = await hre.f.c.poolHedger.poolHedgerParams();
+    const oldParams = await hre.f.c.poolHedger.getPoolHedgerParams();
+    const oldShortBuffer = await hre.f.c.poolHedger.shortBuffer();
     await setParams(modParams);
-    const newParams = await hre.f.c.poolHedger.poolHedgerParams();
+    const newParams = await hre.f.c.poolHedger.getPoolHedgerParams();
+    const newShortBuffer = await hre.f.c.poolHedger.shortBuffer();
 
-    expect(oldParams.shortBuffer).not.eq(newParams.shortBuffer);
-    expect(newParams.shortBuffer).eq(modParams.shortBuffer);
+    expect(oldShortBuffer).not.eq(newShortBuffer);
+    expect(newShortBuffer).eq(modParams.shortBuffer);
 
     expect(oldParams.interactionDelay).not.eq(newParams.interactionDelay);
     expect(newParams.interactionDelay).eq(modParams.interactionDelay);
@@ -49,16 +52,19 @@ describe('Admin', async () => {
   });
 
   it('reverts with invalid parameters', async () => {
-    await expect(setParams({ shortBuffer: toBN('0.9') })).revertedWith('InvalidPoolHedgerParameters');
+    await expect(hre.f.c.poolHedger.setShortBuffer(toBN('0.9'))).revertedWith('InvalidShortBuffer');
   });
 
-  it('reverts with invalid parameters', async () => {
-    await expect(
-      hre.f.c.poolHedger.setPoolHedgerParams({
-        shortBuffer: toBN('0.9'),
-        interactionDelay: 24 * HOUR_SEC,
-        hedgeCap: MAX_UINT,
-      }),
-    ).revertedWith('InvalidPoolHedgerParameters');
+  it('will update collateralShort address', async () => {
+    await hre.f.c.snx.addressResolver.setAddresses([toBytes32('CollateralShort')], [ZERO_ADDRESS]);
+    await hre.f.c.poolHedger.updateCollateralShortAddress();
+    expect(await hre.f.c.poolHedger.collateralShort()).eq(ZERO_ADDRESS);
+    await hre.f.c.snx.addressResolver.setAddresses(
+      [toBytes32('CollateralShort')],
+      [hre.f.c.snx.collateralShort.address],
+    );
+    expect(await hre.f.c.poolHedger.collateralShort()).eq(ZERO_ADDRESS);
+    await hre.f.c.poolHedger.updateCollateralShortAddress();
+    expect(await hre.f.c.poolHedger.collateralShort()).eq(hre.f.c.snx.collateralShort.address);
   });
 });

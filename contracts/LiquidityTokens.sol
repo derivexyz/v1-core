@@ -30,10 +30,10 @@ contract LiquidityTokens is ERC20, Owned, SimpleInitializeable {
   ///////////
 
   /**
-   * @param _name Token collection name
-   * @param _symbol Token collection symbol
+   * @param name_ Token collection name
+   * @param symbol_ Token collection symbol
    */
-  constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) Owned() {}
+  constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) Owned() {}
 
   /**
    * @dev Initialize the contract.
@@ -49,6 +49,7 @@ contract LiquidityTokens is ERC20, Owned, SimpleInitializeable {
 
   function setLiquidityTracker(ILiquidityTracker _liquidityTracker) external onlyOwner {
     liquidityTracker = _liquidityTracker;
+    emit LiquidityTrackerSet(liquidityTracker);
   }
 
   ////////////////////////
@@ -58,15 +59,15 @@ contract LiquidityTokens is ERC20, Owned, SimpleInitializeable {
   /**
    * @dev Mints new tokens and transfers them to `owner`.
    */
-  function mint(address owner, uint tokenAmount) external onlyLiquidityPool {
-    _mint(owner, tokenAmount);
+  function mint(address account, uint tokenAmount) external onlyLiquidityPool {
+    _mint(account, tokenAmount);
   }
 
   /**
    * @dev Burn new tokens and transfers them to `owner`.
    */
-  function burn(address owner, uint tokenAmount) external onlyLiquidityPool {
-    _burn(owner, tokenAmount);
+  function burn(address account, uint tokenAmount) external onlyLiquidityPool {
+    _burn(account, tokenAmount);
   }
 
   //////////
@@ -100,6 +101,11 @@ contract LiquidityTokens is ERC20, Owned, SimpleInitializeable {
     }
     _;
   }
+
+  ////////////
+  // Events //
+  ////////////
+  event LiquidityTrackerSet(ILiquidityTracker liquidityTracker);
 
   ////////////
   // Errors //

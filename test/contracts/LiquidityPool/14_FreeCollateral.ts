@@ -120,14 +120,13 @@ describe('Free Collateral', async () => {
 
     it('frees collateral, liquidates base, and reserves payouts', async () => {
       await fastForward(MONTH_SEC);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
 
       const result = await getBalancesAndSettle();
 
       expect((await hre.f.c.liquidityPool.lockedCollateral()).base).to.be.eq(result.preSettleBase.sub(toBN('10')));
       expect((await hre.f.c.liquidityPool.lockedCollateral()).quote).to.be.eq(toBN('0'));
 
-      const traderCallProfit = (await getSpotPrice()).sub(toBN('1500')).mul(toBN('10')).div(UNIT);
+      const traderCallProfit = (await getSpotPrice()).sub(toBN('1500')).mul(10);
       const quoteFromLiqBase = (await getSpotPrice())
         .mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE))
         .div(UNIT)
@@ -142,9 +141,9 @@ describe('Free Collateral', async () => {
       );
       expect(await hre.f.c.liquidityPool.totalOutstandingSettlements()).to.eq(traderCallProfit);
     }); // just input amountQuoteFreed/Liquidiated and check lockedCollateral
+
     it('increments insolvent amount and does not liquidate base if lpBaseInsolvency', async () => {
       await fastForward(MONTH_SEC);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
 
       await mockPrice('sETH', toBN('4000'));
 
@@ -154,15 +153,11 @@ describe('Free Collateral', async () => {
       expect((await hre.f.c.liquidityPool.lockedCollateral()).base).to.be.eq(result.preSettleBase.sub(toBN('10')));
       expect((await hre.f.c.liquidityPool.lockedCollateral()).quote).to.be.eq(toBN('0'));
 
-      const traderCallProfit = (await getSpotPrice()).sub(toBN('1500')).mul(toBN('10')).div(UNIT);
+      const traderCallProfit = (await getSpotPrice()).sub(toBN('1500')).mul(10);
       const ammRealizedProfit = traderCallProfit.sub(
         expectedInsolventAmount.mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE)).div(UNIT),
       );
-      // .mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE)).div(UNIT);
-      const quoteFromLiqBase = (await getSpotPrice())
-        .mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE))
-        .div(UNIT)
-        .mul(toBN('10').div(UNIT));
+      const quoteFromLiqBase = (await getSpotPrice()).mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE)).div(UNIT).mul(10);
       expect(result.newLPBaseBal).to.eq(toBN('20'));
 
       // amm and trader call profit cancel out but quote stays in LP until position settled
