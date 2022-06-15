@@ -12,6 +12,8 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 - `init(contract OptionMarket _optionMarket, contract LiquidityPool _liquidityPool, contract OptionToken _optionToken, contract SynthetixAdapter _synthetixAdapter, contract ERC20 _quoteAsset, contract ERC20 _baseAsset) (external)`
 
+- `updateDelegateApproval() (external)`
+
 - `sendQuoteCollateral(address recipient, uint256 amount) (external)`
 
 - `sendBaseCollateral(address recipient, uint256 amount) (external)`
@@ -62,9 +64,13 @@ Holds collateral from users who are selling (shorting) options to the OptionMark
 
 Initialize the contract.
 
+### Function `updateDelegateApproval() external`
+
+In case of an update to the synthetix contract that revokes the approval
+
 ### Function `sendQuoteCollateral(address recipient, uint256 amount) external`
 
-Transfers quoteAsset to the recipient. This should only be called by the option market in the following cases:
+Transfers quoteAsset to the recipient. This should only be called by OptionMarket in the following cases:
 
 - A short is closed, in which case the premium for the option is sent to the LP
 
@@ -78,7 +84,7 @@ Transfers quoteAsset to the recipient. This should only be called by the option 
 
 ### Function `sendBaseCollateral(address recipient, uint256 amount) external`
 
-Transfers baseAsset to the recipient. This should only be called by the option market when a user is reducing
+Transfers baseAsset to the recipient. This should only be called by OptionMarket when a user is reducing
 
 their collateral on a base collateralized option.
 
@@ -90,9 +96,29 @@ their collateral on a base collateralized option.
 
 ### Function `routeLiquidationFunds(address trader, address liquidator, enum OptionMarket.OptionType optionType, struct OptionToken.LiquidationFees liquidationFees) external`
 
+Transfers quote/base fees and remaining collateral when `OptionMarket.liquidatePosition()` called
+
+- liquidator: liquidator portion of liquidation fees
+
+- LiquidityPool: premium to close position + LP portion of liquidation fees
+
+- OptionMarket: SM portion of the liquidation fees
+
+- position owner: remaining collateral after all above fees deducted
+
+#### Parameters:
+
+- `trader`: address of position owner
+
+- `liquidator`: address of liquidator
+
+- `optionType`: OptionType
+
+- `liquidationFees`: fee/collateral distribution as determined by OptionToken
+
 ### Function `boardSettlement(uint256 amountBase, uint256 amountQuote) → uint256 lpBaseInsolvency, uint256 lpQuoteInsolvency external`
 
-Transfers quoteAsset and baseAsset to the LiquidityPool.
+Transfers quoteAsset and baseAsset to the LiquidityPool on board settlement.
 
 #### Parameters:
 
@@ -100,17 +126,23 @@ Transfers quoteAsset and baseAsset to the LiquidityPool.
 
 - `amountQuote`: The amount of quoteAsset to transfer.
 
+#### Return Values:
+
+- lpBaseInsolvency total base amount owed to LP but not sent due to large amount of user insolvencies
+
+- lpQuoteInsolvency total quote amount owed to LP but not sent due to large amount of user insolvencies
+
 ### Function `settleOptions(uint256[] positionIds) external`
 
-Settles options for expired and liquidated strikes. Also functions as the way to reclaim capital for options
-
-sold to the market.
+Routes profits or remaining collateral for settled long and short options.
 
 #### Parameters:
 
 - `positionIds`: The ids of the relevant OptionTokens.
 
 ### Function `_reclaimInsolvency(uint256 baseInsolventAmount, uint256 quoteInsolventAmount) internal`
+
+Send quote or base owed to LiquidityPool due to large number of insolvencies
 
 ### Function `_sendLongCallProceeds(address account, uint256 amount, uint256 strikePrice, uint256 priceAtExpiry) → uint256 settlementAmount internal`
 

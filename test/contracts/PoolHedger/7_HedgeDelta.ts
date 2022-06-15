@@ -1,6 +1,6 @@
 import { BigNumber } from 'ethers';
 import { beforeEach } from 'mocha';
-import { MONTH_SEC, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
+import { fromBN, MONTH_SEC, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
 import { assertCloseTo, assertCloseToPercentage } from '../../utils/assert';
 import {
   expectBalance,
@@ -120,9 +120,9 @@ describe('Hedge Delta', async () => {
       await hre.f.c.poolHedger.hedgeDelta();
       expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)).to.be.gt(oldLPBalace);
 
-      await assertCloseToBaseBal(hre.f.c.poolHedger.address, toBN('2.297').sub(toBN('0.77033')));
+      await assertCloseToBaseBal(hre.f.c.poolHedger.address, toBN('1.5259'));
       expect(await getShortAmount()).to.eq(0);
-      assertCloseToPercentage(await hre.f.c.poolHedger.getCurrentHedgedNetDelta(), toBN('2.297').sub(toBN('0.77033')));
+      assertCloseToPercentage(await hre.f.c.poolHedger.getCurrentHedgedNetDelta(), toBN('1.5259'));
     });
     it('expectedHedge = currentHedge', async () => {
       const preBal = await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.poolHedger.address);
@@ -134,7 +134,7 @@ describe('Hedge Delta', async () => {
       await setNegativeExpectedHedge();
       await hre.f.c.poolHedger.hedgeDelta();
       await expectBalance(hre.f.c.snx.baseAsset, toBN('0'), hre.f.c.poolHedger.address);
-      expect(await getShortAmount()).to.eq(toBN('0').sub(await getRequiredHedge()));
+      assertCloseTo(await getShortAmount(), toBN('0').sub(await getRequiredHedge()), toBN('0.000000000001'));
     });
     it('reverts on transfer failing', async () => {
       await fullyClosePosition(positiveHedgePositionId);
@@ -174,10 +174,10 @@ describe('Hedge Delta', async () => {
       await hre.f.c.poolHedger.hedgeDelta();
       expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)).to.be.gt(oldLPBalace);
 
-      await assertCloseToBaseBal(hre.f.c.poolHedger.address, toBN('3.78'));
+      await assertCloseToBaseBal(hre.f.c.poolHedger.address, toBN('3.777'));
       expect(await getShortAmount()).to.eq(0);
       expect(await getShortCollateral()).to.eq(0);
-      assertCloseToPercentage(await hre.f.c.poolHedger.getCurrentHedgedNetDelta(), toBN('3.78'));
+      assertCloseToPercentage(await hre.f.c.poolHedger.getCurrentHedgedNetDelta(), toBN('3.777'));
     });
     it('expectedHedge = negative & < currentHedge', async () => {
       // make expectedHedge less negative
@@ -387,5 +387,6 @@ describe('Hedge Delta', async () => {
 });
 
 async function assertCloseToBaseBal(address: string, balance: BigNumber) {
+  console.log('hi', fromBN(balance));
   await assertCloseToPercentage(await hre.f.c.snx.baseAsset.balanceOf(address), balance);
 }

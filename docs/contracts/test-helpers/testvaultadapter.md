@@ -34,7 +34,11 @@
 
 - `getVegasExt(uint256[] strikeIds) (external)`
 
+- `getPurePremiumExt(uint256 secondsToExpiry, uint256 vol, uint256 spotPrice, uint256 strikePrice) (external)`
+
 - `getPurePremiumForStrikeExt(uint256 strikeId) (external)`
+
+- `getLiquidityExt() (external)`
 
 - `getFreeLiquidityExt() (external)`
 
@@ -72,7 +76,7 @@
 
 ### Function `exchangeToExactBaseExt(uint256 amountBase, uint256 maxQuoteUsed) → uint256 baseReceived external`
 
-### Function `swapStablesExt(address from, address to, uint256 amount, uint256 expected, address receiver) → uint256 amountOut, int256 swapFee external`
+### Function `swapStablesExt(address from, address to, uint256 amount, uint256 expected, address receiver) → uint256 amountOut external`
 
 ### Function `getBoardExt(uint256 boardId) → struct VaultAdapter.Board board external`
 
@@ -84,7 +88,11 @@
 
 ### Function `getVegasExt(uint256[] strikeIds) → uint256[] vegas external`
 
+### Function `getPurePremiumExt(uint256 secondsToExpiry, uint256 vol, uint256 spotPrice, uint256 strikePrice) → uint256 call, uint256 put external`
+
 ### Function `getPurePremiumForStrikeExt(uint256 strikeId) → uint256 call, uint256 put external`
+
+### Function `getLiquidityExt() → struct VaultAdapter.Liquidity liquidity external`
 
 ### Function `getFreeLiquidityExt() → uint256 freeLiquidity external`
 

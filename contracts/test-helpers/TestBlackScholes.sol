@@ -4,8 +4,8 @@ pragma solidity 0.8.9;
 // Libraries
 import "../synthetix/SignedDecimalMath.sol";
 import "../synthetix/DecimalMath.sol";
-import "../lib/BlackScholes.sol";
-import "../lib/FixedPointMathLib.sol";
+import "../libraries/BlackScholes.sol";
+import "../libraries/FixedPointMathLib.sol";
 
 contract TestBlackScholes {
   using DecimalMath for uint;

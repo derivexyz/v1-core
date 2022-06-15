@@ -24,7 +24,10 @@ export async function getRoutedFunds(
     args = getEventArgs(await tx.wait(), 'Trade') as TradeEvent['args'];
   }
 
-  const reservedFee = calculateReservedFee(args, (await hre.f.c.optionMarket.optionMarketParams()).feePortionReserved);
+  const reservedFee = calculateReservedFee(
+    args,
+    (await hre.f.c.optionMarket.getOptionMarketParams()).feePortionReserved,
+  );
   return {
     userDiff: args.trade.totalCost,
     optionMarketDiff: reservedFee,

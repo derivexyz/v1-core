@@ -12,7 +12,7 @@ export async function getLiquidity() {
 
 export async function setFreeLiquidityToZero() {
   // assumes deployer is the only depositor
-  const LPtokens = await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[0].address);
+  const LPtokens = await hre.f.c.liquidityToken.balanceOf(hre.f.signers[0].address);
   await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[0].address, LPtokens);
 }
 
@@ -140,12 +140,12 @@ export async function openShortPutAndGetLiquidity(
 }
 
 export async function initiateFullLPWithdrawal(signer: SignerWithAddress) {
-  const balance = await hre.f.c.liquidityTokens.balanceOf(signer.address);
+  const balance = await hre.f.c.liquidityToken.balanceOf(signer.address);
   await hre.f.c.liquidityPool.connect(signer).initiateWithdraw(signer.address, balance);
 }
 
 export async function initiatePercentLPWithdrawal(signer: SignerWithAddress, percent: BigNumber) {
-  const balance = await hre.f.c.liquidityTokens.balanceOf(signer.address);
+  const balance = await hre.f.c.liquidityToken.balanceOf(signer.address);
   const portion = balance.mul(percent).div(UNIT);
   return await hre.f.c.liquidityPool.connect(signer).initiateWithdraw(signer.address, portion);
 }

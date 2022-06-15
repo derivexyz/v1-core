@@ -55,7 +55,7 @@ describe('Delta Liquidity', () => {
       await expectHedgingLiquidityCloseTo(toBN('4000'), 0);
       await fullyClosePosition(position);
       position = await setNegativeExpectedHedge();
-      await expectHedgingLiquidityCloseTo(toBN('26838'), 0);
+      await expectHedgingLiquidityCloseTo(toBN('26839.99'), 0);
       await fullyClosePosition(position);
       await expectHedgingLiquidityCloseTo(0, 0);
     });
@@ -86,7 +86,7 @@ describe('Delta Liquidity', () => {
 
       // expectedHedge < 0 & over current hedge
       position = await setNegativeExpectedHedge();
-      await expectHedgingLiquidityCloseTo(toBN('2833'), toBN('8001'));
+      await expectHedgingLiquidityCloseTo(toBN('2839.16'), toBN('8001'));
       await expectCurrentDelta(toBN('-5.4'));
 
       // expectedHedge < 0 & under current hedge

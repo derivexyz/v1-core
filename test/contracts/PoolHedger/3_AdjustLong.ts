@@ -127,6 +127,6 @@ export async function expectPartiallyAdjustedLong(pendingDeltaLiquidity: BigNumb
 // limits liquidity approximately to 1000 quote
 export async function limitFreeLiquidity() {
   // TODO: need more precise method to get 1000 quote of freeLiquidity
-  const LPtokens = await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[0].address);
+  const LPtokens = await hre.f.c.liquidityToken.balanceOf(hre.f.signers[0].address);
   await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[0].address, LPtokens.sub(toBN('5000')));
 }

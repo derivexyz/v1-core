@@ -1,12 +1,8 @@
 # `TestSynthetixAdapterV2`
 
-Manages variables across all OptionMarkets, along with managing access to Synthetix.
+Copy of SynthetixAdapter but returns 10x the spot price in getExchangeParams.
 
-Groups access to variables needed during a trade to reduce the gas costs associated with repetitive
-
-inter-contract calls.
-
-The OptionMarket contract address is used as the key to access the variables for the market.
+Used for testing upgradeability.
 
 ## Modifiers:
 
@@ -50,7 +46,7 @@ The OptionMarket contract address is used as the key to access the variables for
 
 - `AddressResolverSet(contract IAddressResolver addressResolver)`
 
-- `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract ICollateralShort collateralShort, contract IDelegateApprovals delegateApprovals)`
+- `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract IDelegateApprovals delegateApprovals)`
 
 - `GlobalPaused(bool isPaused)`
 
@@ -150,7 +146,7 @@ Returns the ExchangeParams.
 
 Emitted when the address resolver is set.
 
-### Event `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract ICollateralShort collateralShort, contract IDelegateApprovals delegateApprovals)`
+### Event `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract IDelegateApprovals delegateApprovals)`
 
 Emitted when synthetix contracts are updated.
 

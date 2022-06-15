@@ -182,9 +182,11 @@ describe('setShortTo', async () => {
       await setNegativeExpectedHedge(toBN('10'), toBN('10000'));
       await testPoolHedger.hedgeDelta();
       await fastForward(Number(DEFAULT_POOL_HEDGER_PARAMS.interactionDelay) + 1);
-      initialShort = toBN('7.703301915886900000');
-      initialCollat = toBN('26838.509861243190415706');
-      await expectShortChange(testPoolHedger, initialShort, initialCollat);
+
+      const result = await testPoolHedger.getShortPosition();
+
+      initialShort = result.shortBalance;
+      initialCollat = result.collateral;
     });
     it('desiredShort is zero: removes all collateral/short', async () => {
       await testPoolHedger.setShortToExt(await getSpotPrice(), 0, initialShort, initialCollat);

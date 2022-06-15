@@ -287,11 +287,11 @@ export async function successfullyProcessDepositAndWithdraw(
 ) {
   await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
   const quoteBal = await hre.f.c.snx.quoteAsset.balanceOf((balanceAccount || hre.f.signers[0]).address);
-  const lpBal = await hre.f.c.liquidityTokens.balanceOf((balanceAccount || hre.f.signers[0]).address);
+  const lpBal = await hre.f.c.liquidityToken.balanceOf((balanceAccount || hre.f.signers[0]).address);
 
   await hre.f.c.liquidityPool.connect(callerAccount || hre.f.signers[0]).processDepositQueue(2);
   await hre.f.c.liquidityPool.connect(callerAccount || hre.f.signers[0]).processWithdrawalQueue(2);
 
   expect(quoteBal).to.not.eq(await hre.f.c.snx.quoteAsset.balanceOf((balanceAccount || hre.f.signers[0]).address));
-  expect(lpBal).to.not.eq(await hre.f.c.liquidityTokens.balanceOf((balanceAccount || hre.f.signers[0]).address));
+  expect(lpBal).to.not.eq(await hre.f.c.liquidityToken.balanceOf((balanceAccount || hre.f.signers[0]).address));
 }

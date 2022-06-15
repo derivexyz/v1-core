@@ -1,19 +1,20 @@
 # Summary
 * contracts
   * [LiquidityPool](docs/contracts/liquiditypool.md)
-  * [LiquidityTokens](docs/contracts/liquiditytokens.md)
+  * [LiquidityToken](docs/contracts/liquiditytoken.md)
   * [OptionGreekCache](docs/contracts/optiongreekcache.md)
   * [OptionMarket](docs/contracts/optionmarket.md)
   * [OptionMarketPricer](docs/contracts/optionmarketpricer.md)
   * [OptionToken](docs/contracts/optiontoken.md)
-  * [PoolHedger](docs/contracts/poolhedger.md)
   * [ShortCollateral](docs/contracts/shortcollateral.md)
+  * [ShortPoolHedger](docs/contracts/shortpoolhedger.md)
   * [SynthetixAdapter](docs/contracts/synthetixadapter.md)
-  * lib
-    * [BlackScholes](docs/contracts/lib/blackscholes.md)
-    * [FixedPointMathLib](docs/contracts/lib/fixedpointmathlib.md)
-    * [GWAV](docs/contracts/lib/gwav.md)
-    * [SimpleInitializeable](docs/contracts/lib/simpleinitializeable.md)
+  * libraries
+    * [BlackScholes](docs/contracts/libraries/blackscholes.md)
+    * [FixedPointMathLib](docs/contracts/libraries/fixedpointmathlib.md)
+    * [GWAV](docs/contracts/libraries/gwav.md)
+    * [PoolHedger](docs/contracts/libraries/poolhedger.md)
+    * [SimpleInitializeable](docs/contracts/libraries/simpleinitializeable.md)
   * periphery
     * [BasicFeeCounter](docs/contracts/periphery/basicfeecounter.md)
     * [BasicLiquidityCounter](docs/contracts/periphery/basicliquiditycounter.md)

@@ -278,7 +278,7 @@ describe('Reclaims insolvent amount from LP', async () => {
 export async function fillLiquidityWithWithdrawal() {
   await hre.f.c.liquidityPool.initiateWithdraw(
     hre.f.deployer.address,
-    await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
+    await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
   );
   expect((await getLiquidity()).freeLiquidity).to.lt(toBN('0.01')); // dust
 }

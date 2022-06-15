@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./lib/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Interfaces
@@ -183,12 +183,12 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   uint internal nextBoardId = 1;
   uint[] internal liveBoards;
 
-  OptionMarketParameters public optionMarketParams;
+  OptionMarketParameters internal optionMarketParams;
 
   mapping(uint => OptionBoard) internal optionBoards;
   mapping(uint => Strike) internal strikes;
   mapping(uint => uint) public boardToPriceAtExpiry;
-  mapping(uint => uint) public strikeToBaseReturnedRatio;
+  mapping(uint => uint) internal strikeToBaseReturnedRatio;
 
   constructor() Owned() {}
 
@@ -344,7 +344,9 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint skew
   ) external onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
-    if (board.id != boardId || board.id == 0) revert InvalidBoardId(address(this), boardId);
+    if (board.id != boardId || board.id == 0) {
+      revert InvalidBoardId(address(this), boardId);
+    }
     Strike memory strike = _addStrikeToBoard(board, strikePrice, skew);
     greekCache.addStrikeToBoard(boardId, strike.id, strikePrice, skew);
   }
@@ -401,17 +403,13 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       revert OnlySecurityModule(address(this), msg.sender, optionMarketParams.securityModule);
     }
     uint quoteBal = quoteAsset.balanceOf(address(this));
-    if (quoteBal > 0) {
-      if (!quoteAsset.transfer(msg.sender, quoteBal)) {
-        revert QuoteTransferFailed(address(this), address(this), msg.sender, quoteBal);
-      }
+    if (quoteBal > 0 && !quoteAsset.transfer(msg.sender, quoteBal)) {
+      revert QuoteTransferFailed(address(this), address(this), msg.sender, quoteBal);
     }
     // While fees cannot accrue in base, this can help reclaim any accidental transfers into this contract
     uint baseBal = baseAsset.balanceOf(address(this));
-    if (baseBal > 0) {
-      if (!baseAsset.transfer(msg.sender, baseBal)) {
-        revert BaseTransferFailed(address(this), address(this), msg.sender, baseBal);
-      }
+    if (baseBal > 0 && !baseAsset.transfer(msg.sender, baseBal)) {
+      revert BaseTransferFailed(address(this), address(this), msg.sender, baseBal);
     }
     emit SMClaimed(msg.sender, quoteBal, baseBal);
   }
@@ -419,6 +417,10 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   ///////////
   // Views //
   ///////////
+
+  function getOptionMarketParams() external view returns (OptionMarketParameters memory) {
+    return optionMarketParams;
+  }
 
   /**
    * @notice Returns the list of live board ids.
@@ -446,8 +448,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    *
    * @param boardId The id of the relevant OptionBoard.
    */
-  function getBoardStrikes(uint boardId) external view returns (uint[] memory) {
-    uint[] memory strikeIds = new uint[](optionBoards[boardId].strikeIds.length);
+  function getBoardStrikes(uint boardId) external view returns (uint[] memory strikeIds) {
+    strikeIds = new uint[](optionBoards[boardId].strikeIds.length);
     for (uint i = 0; i < optionBoards[boardId].strikeIds.length; i++) {
       strikeIds[i] = optionBoards[boardId].strikeIds[i];
     }

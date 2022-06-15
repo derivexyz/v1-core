@@ -24,9 +24,9 @@ ensuring accurate prices are provided to the user.
 
 - `_getMarketParams(struct OptionMarketViewer.OptionMarketAddresses marketC) (internal)`
 
-- `getOwnerPositions(address owner) (external)`
+- `getOwnerPositions(address account) (external)`
 
-- `getOwnerPositionsInRange(contract OptionMarket market, address owner, uint256 start, uint256 limit) (external)`
+- `getOwnerPositionsInRange(contract OptionMarket market, address account, uint256 start, uint256 limit) (external)`
 
 - `getLiveBoards(contract OptionMarket market) (public)`
 
@@ -40,7 +40,7 @@ ensuring accurate prices are provided to the user.
 
 - `_getStrikeViews(struct OptionMarket.Strike[] strikes, struct OptionGreekCache.BoardGreeksView boardGreeksView, uint256[] strikeToBaseReturnedRatios, uint256 priceAtExpiry) (internal)`
 
-- `getLiquidityBalancesAndAllowances(contract OptionMarket[] markets, address owner) (external)`
+- `getLiquidityBalancesAndAllowances(contract OptionMarket[] markets, address account) (external)`
 
 ## Events:
 
@@ -62,7 +62,7 @@ Initializes the contract
 
 ### Function `getMarketAddresses() → struct OptionMarketViewer.OptionMarketAddresses[] external`
 
-### Function `getMarkets(contract OptionMarket[] markets) → struct OptionMarketViewer.MarketsView external`
+### Function `getMarkets(contract OptionMarket[] markets) → struct OptionMarketViewer.MarketsView marketsView external`
 
 ### Function `getMarketForBaseKey(bytes32 baseKey) → struct OptionMarketViewer.MarketViewWithBoards market public`
 
@@ -72,9 +72,9 @@ Initializes the contract
 
 ### Function `_getMarketParams(struct OptionMarketViewer.OptionMarketAddresses marketC) → struct OptionMarketViewer.MarketParameters params internal`
 
-### Function `getOwnerPositions(address owner) → struct OptionMarketViewer.MarketOptionPositions[] external`
+### Function `getOwnerPositions(address account) → struct OptionMarketViewer.MarketOptionPositions[] external`
 
-### Function `getOwnerPositionsInRange(contract OptionMarket market, address owner, uint256 start, uint256 limit) → struct OptionToken.OptionPosition[] external`
+### Function `getOwnerPositionsInRange(contract OptionMarket market, address account, uint256 start, uint256 limit) → struct OptionToken.OptionPosition[] external`
 
 ### Function `getLiveBoards(contract OptionMarket market) → struct OptionMarketViewer.BoardView[] marketBoards public`
 
@@ -88,7 +88,7 @@ Initializes the contract
 
 ### Function `_getStrikeViews(struct OptionMarket.Strike[] strikes, struct OptionGreekCache.BoardGreeksView boardGreeksView, uint256[] strikeToBaseReturnedRatios, uint256 priceAtExpiry) → struct OptionMarketViewer.StrikeView[] strikeViews internal`
 
-### Function `getLiquidityBalancesAndAllowances(contract OptionMarket[] markets, address owner) → struct OptionMarketViewer.LiquidityBalanceAndAllowance[] external`
+### Function `getLiquidityBalancesAndAllowances(contract OptionMarket[] markets, address account) → struct OptionMarketViewer.LiquidityBalanceAndAllowance[] external`
 
 ### Event `MarketAdded(struct OptionMarketViewer.OptionMarketAddresses market)`
 

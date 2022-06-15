@@ -55,7 +55,7 @@ describe('Initiate Deposit', async () => {
     // initiate immediate deposit
     await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.signers[2].address, toBN('1000'));
     expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
-    expect(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address)).eq(toBN('1000'));
+    expect(await hre.f.c.liquidityToken.balanceOf(hre.f.signers[2].address)).eq(toBN('1000'));
     const deposit = await hre.f.c.liquidityPool.queuedDeposits(1);
     expect(deposit.id).eq(0);
   });

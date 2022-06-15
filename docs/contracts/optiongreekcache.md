@@ -38,7 +38,7 @@ Also handles logic for figuring out minimal collateral requirements for shorts.
 
 - `setStrikeSkew(uint256 strikeId, uint256 newSkew) (external)`
 
-- `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 strikeId, uint256 strikePrice, uint256 skew) (internal)`
+- `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 GWAVbaseIv, uint256 strikeId, uint256 strikePrice, uint256 skew) (internal)`
 
 - `updateStrikeExposureAndGetPrice(struct OptionMarket.Strike strike, struct OptionMarket.TradeParameters trade, uint256 iv, uint256 skew, bool isPostCutoff) (external)`
 
@@ -190,7 +190,7 @@ Updates a Strike's skew. Only callable by OptionMarket.
 
 - `newSkew`: The new skew of the given Strike
 
-### Function `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 strikeId, uint256 strikePrice, uint256 skew) internal`
+### Function `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 GWAVbaseIv, uint256 strikeId, uint256 strikePrice, uint256 skew) internal`
 
 Adds a new strike to a given board, initialising the skew GWAV
 
@@ -212,11 +212,29 @@ Updates the exposure of the strike and computes the market black scholes price
 
 ### Function `getPriceForForceClose(struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, uint256 expiry, uint256 newVol, bool isPostCutoff) → uint256 optionPrice, uint256 forceCloseVol public`
 
-Figure out the price paid by the user for the options, given a trade that is a forceClose
+Calculate price paid by the user to forceClose an options position
+
+#### Parameters:
+
+- `trade`: TradeParameter as defined in OptionMarket
+
+- `strike`: strikes details (including total exposure)
+
+- `expiry`: expiry of option
+
+- `newVol`: volatility post slippage as determined in `OptionTokOptionMarketPriceren.ivImpactForTrade()`
+
+- `isPostCutoff`: flag for whether order is closer to expiry than postCutoff param.
+
+#### Return Values:
+
+- optionPrice premium to charge for close order (excluding fees added in OptionMarketPricer)
+
+- forceCloseVol volatility used to calculate optionPrice
 
 ### Function `_getGWAVVolWithOverride(uint256 boardId, uint256 strikeId, uint256 overrideIvPeriod, uint256 overrideSkewPeriod) → uint256 gwavVol internal`
 
-### Function `getMinCollateral(enum OptionMarket.OptionType optionType, uint256 strikePrice, uint256 expiry, uint256 spotPrice, uint256 amount) → uint256 external`
+### Function `getMinCollateral(enum OptionMarket.OptionType optionType, uint256 strikePrice, uint256 expiry, uint256 spotPrice, uint256 amount) → uint256 minCollateral external`
 
 Gets minimum collateral requirement for the specified option
 
@@ -238,21 +256,19 @@ Gets shock vol (Vol used to compute the minimum collateral requirements for shor
 
 ### Function `updateBoardCachedGreeks(uint256 boardId) external`
 
-Updates the cached greeks for an OptionBoardCache.
+Updates the cached greeks for an OptionBoardCache used to calculate:
+
+- trading fees
+
+- aggregate AMM option value
+
+- net delta exposure for proper hedging
 
 #### Parameters:
 
 - `boardId`: The id of the OptionBoardCache.
 
 ### Function `_updateBoardCachedGreeks(uint256 spotPrice, uint256 boardId) internal`
-
-Updates the cached greeks for an OptionBoardCache.
-
-#### Parameters:
-
-- `spotPrice`: The price of baseAsset
-
-- `boardId`: The id of the OptionBoardCache.
 
 ### Function `_updateStrikeCachedGreeks(struct OptionGreekCache.StrikeCache strikeCache, struct OptionGreekCache.OptionBoardCache boardCache, uint256 spotPrice, uint256 navGWAVvol) internal`
 
@@ -284,7 +300,11 @@ updates maxIvVariance across all boards
 
 ### Function `_updateStrikeSkewVariance(struct OptionGreekCache.StrikeCache strikeCache) internal`
 
+updates skewVariance for strike, used to trigger CBs and charge varianceFees
+
 ### Function `_updateBoardIvVariance(struct OptionGreekCache.OptionBoardCache boardCache) internal`
+
+updates ivVariance for board, used to trigger CBs and charge varianceFees
 
 ### Function `_updateMaxSkewVariance(struct OptionGreekCache.OptionBoardCache boardCache) internal`
 
@@ -292,15 +312,19 @@ updates maxSkewVariance for the board and across all strikes
 
 ### Function `isGlobalCacheStale(uint256 spotPrice) → bool external`
 
-returns bool if the global cache is stale based off input spotPrice
+returns `true` if even one board not updated within `staleUpdateDuration` or
+
+        if spot price moves up/down beyond `acceptablePriceMovement`
 
 ### Function `isBoardCacheStale(uint256 boardId) → bool external`
 
-returns bool is the board cache is stale
+returns `true` if board not updated within `staleUpdateDuration` or
+
+        if spot price moves up/down beyond `acceptablePriceMovement`
 
 ### Function `_isPriceMoveAcceptable(uint256 pastPrice, uint256 currentPrice) → bool internal`
 
-Check if the price move of an asset is acceptable given the time to expiry.
+Check if the price move of base asset renders the cache stale.
 
 #### Parameters:
 
@@ -310,7 +334,7 @@ Check if the price move of an asset is acceptable given the time to expiry.
 
 ### Function `_isUpdatedAtTimeStale(uint256 updatedAt) → bool internal`
 
-Checks if `updatedAt` is stale.
+Checks if board updated within `staleUpdateDuration`.
 
 #### Parameters:
 
@@ -318,7 +342,7 @@ Checks if `updatedAt` is stale.
 
 ### Function `getGlobalNetDelta() → int256 external`
 
-Get the current cached global netDelta value.
+Get the current cached global netDelta exposure.
 
 ### Function `getGlobalOptionValue() → int256 external`
 
@@ -342,11 +366,11 @@ Get the global cache
 
 ### Function `getIvGWAV(uint256 boardId, uint256 secondsAgo) → uint256 ivGWAV external`
 
-Returns ivGWAV given for a boardId and time period (seconds ago)
+Returns ivGWAV for a given boardId and GWAV time interval
 
 ### Function `getSkewGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 skewGWAV external`
 
-Returns skewGWAV given for a strikeId and time period (seconds ago)
+Returns skewGWAV for a given strikeId and GWAV time interval
 
 ### Function `getGreekCacheParams() → struct OptionGreekCache.GreekCacheParameters external`
 
@@ -361,6 +385,8 @@ Get the ForceCloseParamters
 Get the MinCollateralParamters
 
 ### Function `_getParity(uint256 strikePrice, uint256 spot, enum OptionMarket.OptionType optionType) → uint256 parity internal`
+
+Calculate option payout on expiry given a strikePrice, spot on expiry and optionType.
 
 ### Function `_timeToMaturitySeconds(uint256 expiry) → uint256 internal`
 

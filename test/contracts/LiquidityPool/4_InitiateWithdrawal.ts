@@ -25,7 +25,7 @@ describe('Initiate Withdraw', async () => {
     await fastForward(WEEK_SEC + 1);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processDepositQueue(1);
-    expect(await hre.f.c.liquidityTokens.balanceOf(alice.address)).eq(toBN('10000'));
+    expect(await hre.f.c.liquidityToken.balanceOf(alice.address)).eq(toBN('10000'));
   });
 
   // general
@@ -89,7 +89,7 @@ describe('Initiate Withdraw', async () => {
     expect(await hre.f.c.liquidityPool.nextQueuedWithdrawalId()).eq(4);
     expect(await hre.f.c.liquidityPool.totalQueuedWithdrawals()).to.eq(toBN('10000'));
 
-    expect(await hre.f.c.liquidityTokens.balanceOf(alice.address)).eq(toBN('0'));
+    expect(await hre.f.c.liquidityToken.balanceOf(alice.address)).eq(toBN('0'));
     expect(await hre.f.c.snx.quoteAsset.balanceOf(alice.address)).to.eq(toBN('90000'));
     expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('510000'));
 

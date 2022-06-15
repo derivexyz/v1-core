@@ -207,7 +207,7 @@ describe('Process Deposit', async () => {
       expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(2);
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('100'));
       assertCloseToPercentage(
-        await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address),
+        await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address),
         toBN('128.98'),
         toBN('0.001'),
       );
@@ -227,7 +227,7 @@ describe('Process Deposit', async () => {
       expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(3);
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
       assertCloseToPercentage(
-        await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address),
+        await hre.f.c.liquidityToken.balanceOf(hre.f.signers[2].address),
         toBN('129.738'),
         toBN('0.001'),
       );
@@ -248,14 +248,14 @@ describe('Process Deposit', async () => {
       // NAV calculation
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       const poolValue = await hre.f.c.liquidityPool.getTotalPoolValueQuote();
-      assertCloseTo(poolValue, toBN('528337.33'), toBN('0.5'));
+      assertCloseTo(poolValue, toBN('528345.64'), toBN('0.5'));
 
       // process both deposits
       await hre.f.c.liquidityPool.processDepositQueue(2);
       expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(3);
       expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(toBN('0'));
-      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address), toBN('94.63'), toBN('0.1'));
-      assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[2].address), toBN('94.63'), toBN('0.1'));
+      assertCloseTo(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address), toBN('94.63'), toBN('0.1'));
+      assertCloseTo(await hre.f.c.liquidityToken.balanceOf(hre.f.signers[2].address), toBN('94.63'), toBN('0.1'));
     });
   });
 });
@@ -268,5 +268,5 @@ export async function expectProcessDeposit(
 ) {
   expect(await hre.f.c.liquidityPool.queuedDepositHead()).eq(head);
   expect(await hre.f.c.liquidityPool.totalQueuedDeposits()).to.eq(queuedDepositVal);
-  assertCloseTo(await hre.f.c.liquidityTokens.balanceOf(beneficiary.address), lpTokenBalance, toBN('0.01'));
+  assertCloseTo(await hre.f.c.liquidityToken.balanceOf(beneficiary.address), lpTokenBalance, toBN('0.01'));
 }

@@ -22,7 +22,7 @@ describe('TokenPriceAndSupply', async () => {
   it('accounts for withdrawal fee during 100% withdrawal', async () => {
     await hre.f.c.liquidityPool.initiateWithdraw(
       hre.f.deployer.address,
-      await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
+      await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
     );
     expect(await hre.f.c.liquidityPool.getTotalTokenSupply()).to.eq(toBN('500000'));
 
@@ -40,7 +40,7 @@ describe('TokenPriceAndSupply', async () => {
     // remove largest deposit and charge fee
     await hre.f.c.liquidityPool.initiateWithdraw(
       hre.f.deployer.address,
-      await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
+      await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
     );
     await fastForward(WEEK_SEC * 2);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
@@ -67,7 +67,7 @@ describe('TokenPriceAndSupply', async () => {
   it('includes queued withdrawals in supply', async () => {
     await hre.f.c.liquidityPool.initiateWithdraw(
       hre.f.deployer.address,
-      await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
+      await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
     );
     expect(await hre.f.c.liquidityPool.getTotalTokenSupply()).to.eq(toBN('500000'));
   });

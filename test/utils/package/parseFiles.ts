@@ -27,7 +27,7 @@ export type LyraMarket = {
   OptionGreekCache: LyraArtifact;
   OptionToken: LyraArtifact;
   LiquidityPool: LyraArtifact;
-  LiquidityTokens: LyraArtifact;
+  LiquidityToken: LyraArtifact;
   ShortCollateral: LyraArtifact;
   BasicLiquidityCounter: LyraArtifact;
   PoolHedger: LyraArtifact;
@@ -132,7 +132,7 @@ export async function getMarketDeploys(network: AllowedNetworks, market: string)
     OptionGreekCache: assignMarketArtifact('OptionGreekCache', lyraDeployment, artifacts, market),
     OptionToken: assignMarketArtifact('OptionToken', lyraDeployment, artifacts, market),
     LiquidityPool: assignMarketArtifact('LiquidityPool', lyraDeployment, artifacts, market),
-    LiquidityTokens: assignMarketArtifact('LiquidityTokens', lyraDeployment, artifacts, market),
+    LiquidityToken: assignMarketArtifact('LiquidityToken', lyraDeployment, artifacts, market),
     ShortCollateral: assignMarketArtifact('ShortCollateral', lyraDeployment, artifacts, market),
     BasicLiquidityCounter: assignMarketArtifact('BasicLiquidityCounter', lyraDeployment, artifacts, market),
     PoolHedger: assignMarketArtifact('ShortPoolHedger', lyraDeployment, artifacts, market),
@@ -269,7 +269,7 @@ export async function exportMarketDeployment(marketSystem: MarketTestSystemContr
     OptionGreekCache: await getContractsWithBlockNumber(marketSystem.optionGreekCache, 'OptionGreekCache'),
     OptionToken: await getContractsWithBlockNumber(marketSystem.optionToken, 'OptionToken'),
     LiquidityPool: await getContractsWithBlockNumber(marketSystem.liquidityPool, 'LiquidityPool'),
-    LiquidityTokens: await getContractsWithBlockNumber(marketSystem.liquidityTokens, 'LiquidityTokens'),
+    LiquidityToken: await getContractsWithBlockNumber(marketSystem.liquidityToken, 'LiquidityToken'),
     ShortCollateral: await getContractsWithBlockNumber(marketSystem.shortCollateral, 'ShortCollateral'),
     PoolHedger: await getContractsWithBlockNumber(marketSystem.poolHedger, 'ShortPoolHedger'),
     GWAVOracle: await getContractsWithBlockNumber(marketSystem.GWAVOracle, 'GWAVOracle'),

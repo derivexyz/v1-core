@@ -7,7 +7,7 @@ export const artifacts = {
   GWAV: getContractArtifact('local', 'GWAV', '../../artifacts/contracts'),
   GWAVOracle: getContractArtifact('local', 'GWAVOracle', '../../artifacts/contracts'),
   LiquidityPool: getContractArtifact('local', 'LiquidityPool', '../../artifacts/contracts'),
-  LiquidityTokens: getContractArtifact('local', 'LiquidityTokens', '../../artifacts/contracts'),
+  LiquidityToken: getContractArtifact('local', 'LiquidityToken', '../../artifacts/contracts'),
   LyraRegistry: getContractArtifact('local', 'LyraRegistry', '../../artifacts/contracts'),
   OptionGreekCache: getContractArtifact('local', 'OptionGreekCache', '../../artifacts/contracts'),
   OptionMarket: getContractArtifact('local', 'OptionMarket', '../../artifacts/contracts'),

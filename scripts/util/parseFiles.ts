@@ -146,7 +146,7 @@ export function getContractArtifact(network: AllowedNetworks, contractName: stri
     return require(path.join(artifactPath, 'test-helpers', contractName + '.sol', contractName + '.json'));
   } catch (e) {}
   try {
-    return require(path.join(artifactPath, 'lib', contractName + '.sol', contractName + '.json'));
+    return require(path.join(artifactPath, 'libraries', contractName + '.sol', contractName + '.json'));
   } catch (e) {}
   throw new Error('Contract ' + contractName + ' not found');
 }

@@ -25,7 +25,7 @@ describe('Withdrawal Fees', async () => {
     await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processDepositQueue(1);
-    expect(await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address)).eq(toBN('10000'));
+    expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('10000'));
   });
 
   // charging fees
@@ -69,7 +69,7 @@ describe('Withdrawal Fees', async () => {
     // remove largest deposit and charge fee
     await hre.f.c.liquidityPool.initiateWithdraw(
       hre.f.deployer.address,
-      await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
+      await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
     );
 
     await fastForward(WEEK_SEC * 2);
@@ -84,7 +84,7 @@ describe('Withdrawal Fees', async () => {
     // final withdrawal acrrues all fees
     await hre.f.c.liquidityPool
       .connect(hre.f.signers[1])
-      .initiateWithdraw(hre.f.signers[1].address, await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[1].address));
+      .initiateWithdraw(hre.f.signers[1].address, await hre.f.c.liquidityToken.balanceOf(hre.f.signers[1].address));
 
     expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[1].address)).to.eq(toBN('105000'));
     expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.eq(toBN('0'));
@@ -126,7 +126,7 @@ describe('Withdrawal Fees', async () => {
 
     // ensure 100% withdrawal complete
     const newQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address);
-    await expectBalance(hre.f.c.liquidityTokens, toBN('0'));
+    await expectBalance(hre.f.c.liquidityToken, toBN('0'));
     assertCloseToPercentage(newQuote.sub(oldQuote), toBN('500000').add(premium)); //snx fees
   });
 });

@@ -7,16 +7,16 @@ import "./synthetix/SignedDecimalMath.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./lib/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./lib/BlackScholes.sol";
+import "./libraries/BlackScholes.sol";
 import "./SynthetixAdapter.sol";
 import "./OptionMarket.sol";
 import "./OptionMarketPricer.sol";
-import "./lib/GWAV.sol";
+import "./libraries/GWAV.sol";
 
 /**
  * @title OptionGreekCache
@@ -330,7 +330,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     liveBoards.push(board.id);
 
     for (uint i = 0; i < strikes.length; i++) {
-      _addNewStrikeToStrikeCache(boardCache, strikes[i].id, strikes[i].strikePrice, strikes[i].skew);
+      _addNewStrikeToStrikeCache(boardCache, board.iv, strikes[i].id, strikes[i].strikePrice, strikes[i].skew);
     }
 
     _updateGlobalLastUpdatedAt();
@@ -378,7 +378,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       );
     }
 
-    _addNewStrikeToStrikeCache(boardCache, strikeId, strikePrice, skew);
+    uint GWAVbaseIv = boardIVGWAV[boardId].getGWAVForPeriod(greekCacheParams.optionValueIvGWAVPeriod, 0);
+    _addNewStrikeToStrikeCache(boardCache, GWAVbaseIv, strikeId, strikePrice, skew);
   }
 
   /// @dev Updates an OptionBoard's baseIv. Only callable by OptionMarket.
@@ -403,6 +404,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   /// @dev Adds a new strike to a given board, initialising the skew GWAV
   function _addNewStrikeToStrikeCache(
     OptionBoardCache storage boardCache,
+    uint GWAVbaseIv,
     uint strikeId,
     uint strikePrice,
     uint skew
@@ -420,6 +422,15 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       _max(_min(skew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
       block.timestamp
     );
+
+    // need to assign option prices/stdVega to properly update stdVega/NAV on opens/deposits
+    _updateStrikeCachedGreeks(
+      strikeCache,
+      boardCache,
+      synthetixAdapter.getSpotPriceForMarket(address(optionMarket)),
+      GWAVbaseIv.multiplyDecimal(skew)
+    );
+
     emit StrikeSkewUpdated(strikeCache.id, skew, globalCache.maxSkewVariance);
 
     boardCache.strikes.push(strikeId);
@@ -791,24 +802,27 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     strikeCache.greeks.putDelta = pricesDeltaStdVega.putDelta;
     strikeCache.greeks.stdVega = pricesDeltaStdVega.stdVega;
 
-    int strikeOptionValue = (strikeCache.callExposure).multiplyDecimal(
-      SafeCast.toInt256(strikeCache.greeks.callPrice)
-    ) + (strikeCache.putExposure).multiplyDecimal(SafeCast.toInt256(strikeCache.greeks.putPrice));
+    // only update board/global if exposure present
+    if (strikeCache.callExposure != 0 || strikeCache.putExposure != 0) {
+      int strikeOptionValue = (strikeCache.callExposure).multiplyDecimal(
+        SafeCast.toInt256(strikeCache.greeks.callPrice)
+      ) + (strikeCache.putExposure).multiplyDecimal(SafeCast.toInt256(strikeCache.greeks.putPrice));
 
-    int strikeNetDelta = strikeCache.callExposure.multiplyDecimal(strikeCache.greeks.callDelta) +
-      strikeCache.putExposure.multiplyDecimal(strikeCache.greeks.putDelta);
+      int strikeNetDelta = strikeCache.callExposure.multiplyDecimal(strikeCache.greeks.callDelta) +
+        strikeCache.putExposure.multiplyDecimal(strikeCache.greeks.putDelta);
 
-    int strikeNetStdVega = (strikeCache.callExposure + strikeCache.putExposure).multiplyDecimal(
-      SafeCast.toInt256(strikeCache.greeks.stdVega)
-    );
+      int strikeNetStdVega = (strikeCache.callExposure + strikeCache.putExposure).multiplyDecimal(
+        SafeCast.toInt256(strikeCache.greeks.stdVega)
+      );
 
-    boardCache.netGreeks.netOptionValue += strikeOptionValue;
-    boardCache.netGreeks.netDelta += strikeNetDelta;
-    boardCache.netGreeks.netStdVega += strikeNetStdVega;
+      boardCache.netGreeks.netOptionValue += strikeOptionValue;
+      boardCache.netGreeks.netDelta += strikeNetDelta;
+      boardCache.netGreeks.netStdVega += strikeNetStdVega;
 
-    globalCache.netGreeks.netOptionValue += strikeOptionValue;
-    globalCache.netGreeks.netDelta += strikeNetDelta;
-    globalCache.netGreeks.netStdVega += strikeNetStdVega;
+      globalCache.netGreeks.netOptionValue += strikeOptionValue;
+      globalCache.netGreeks.netDelta += strikeNetDelta;
+      globalCache.netGreeks.netStdVega += strikeNetStdVega;
+    }
 
     emit StrikeCacheUpdated(strikeCache);
     emit StrikeSkewUpdated(strikeCache.id, strikeCache.skew, globalCache.maxSkewVariance);

@@ -26,7 +26,7 @@ The OptionMarket contract address is used as the key to access the relevant exch
 
 - `getSpotPrice(bytes32 to) (public)`
 
-- `getExchangeParams(address _contractAddress) (public)`
+- `getExchangeParams(address optionMarket) (public)`
 
 - `requireNotGlobalPaused(address optionMarket) (external)`
 
@@ -54,19 +54,13 @@ The OptionMarket contract address is used as the key to access the relevant exch
 
 - `AddressResolverSet(contract IAddressResolver addressResolver)`
 
-- `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract ICollateralShort collateralShort, contract IDelegateApprovals delegateApprovals)`
+- `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract IDelegateApprovals delegateApprovals)`
 
 - `GlobalsSetForContract(address market, bytes32 quoteKey, bytes32 baseKey, address rewardAddress, bytes32 trackingCode)`
 
 - `GlobalPausedSet(bool isPaused)`
 
 - `MarketPausedSet(address contractAddress, bool isPaused)`
-
-- `TradingCutoffSet(address contractAddress, uint256 tradingCutoff)`
-
-- `QuoteKeySet(address contractAddress, bytes32 quoteKey)`
-
-- `BaseKeySet(address contractAddress, bytes32 baseKey)`
 
 - `BaseSwappedForQuote(address marketAddress, address exchanger, uint256 baseSwapped, uint256 quoteReceived)`
 
@@ -98,7 +92,7 @@ Set the synthetixAdapter for a specific OptionMarket.
 
 ### Function `setMarketPaused(address _contractAddress, bool _isPaused) external`
 
-Pauses the contract.
+Pauses all market actions for a given market.
 
 #### Parameters:
 
@@ -106,11 +100,17 @@ Pauses the contract.
 
 ### Function `setGlobalPaused(bool _isPaused) external`
 
+Pauses all market actions for all markets.
+
+#### Parameters:
+
+- `_isPaused`: Whether getting synthetixAdapter will revert or not.
+
 ### Function `updateSynthetixAddresses() public`
 
 Public function to update synthetix addresses Lyra uses. The addresses are cached this way for gas efficiency.
 
-### Function `getSpotPriceForMarket(address _contractAddress) → uint256 public`
+### Function `getSpotPriceForMarket(address _contractAddress) → uint256 spotPrice public`
 
 Returns the price of the baseAsset.
 
@@ -130,13 +130,13 @@ so the price of sUSD is always $1.00, and is never stale.
 
 - `to`: The key of the synthetic asset.
 
-### Function `getExchangeParams(address _contractAddress) → struct SynthetixAdapter.ExchangeParams exchangeParams public`
+### Function `getExchangeParams(address optionMarket) → struct SynthetixAdapter.ExchangeParams exchangeParams public`
 
 Returns the ExchangeParams.
 
 #### Parameters:
 
-- `_contractAddress`: The address of the OptionMarket.
+- `optionMarket`: The address of the OptionMarket.
 
 ### Function `requireNotGlobalPaused(address optionMarket) external`
 
@@ -282,7 +282,7 @@ Returns an estimated amount of base required to swap for the amount of quote
 
 Emitted when the address resolver is set.
 
-### Event `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract ICollateralShort collateralShort, contract IDelegateApprovals delegateApprovals)`
+### Event `SynthetixAddressesUpdated(contract ISynthetix synthetix, contract IExchanger exchanger, contract IExchangeRates exchangeRates, contract IDelegateApprovals delegateApprovals)`
 
 Emitted when synthetix contracts are updated.
 
@@ -297,18 +297,6 @@ Emitted when GlobalPause.
 ### Event `MarketPausedSet(address contractAddress, bool isPaused)`
 
 Emitted when single market paused.
-
-### Event `TradingCutoffSet(address contractAddress, uint256 tradingCutoff)`
-
-Emitted when trading cut-off is set.
-
-### Event `QuoteKeySet(address contractAddress, bytes32 quoteKey)`
-
-Emitted when quote key is set.
-
-### Event `BaseKeySet(address contractAddress, bytes32 baseKey)`
-
-Emitted when base key is set.
 
 ### Event `BaseSwappedForQuote(address marketAddress, address exchanger, uint256 baseSwapped, uint256 quoteReceived)`
 

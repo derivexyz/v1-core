@@ -33,7 +33,7 @@ describe('LyraRegistry tests', () => {
       await hre.f.c.lyraRegistry.addMarket({
         greekCache: hre.f.c.optionGreekCache.address,
         liquidityPool: hre.f.c.liquidityPool.address,
-        liquidityTokens: hre.f.c.liquidityTokens.address,
+        liquidityToken: hre.f.c.liquidityToken.address,
         optionMarket: hre.f.c.optionMarket.address,
         optionMarketPricer: hre.f.c.optionMarketPricer.address,
         optionToken: hre.f.c.optionToken.address,
@@ -46,7 +46,7 @@ describe('LyraRegistry tests', () => {
       let addresses = await hre.f.c.lyraRegistry.marketAddresses(hre.f.c.optionMarket.address);
       expect(addresses.greekCache).eq(hre.f.c.optionGreekCache.address);
       expect(addresses.liquidityPool).eq(hre.f.c.liquidityPool.address);
-      expect(addresses.liquidityTokens).eq(hre.f.c.liquidityTokens.address);
+      expect(addresses.liquidityToken).eq(hre.f.c.liquidityToken.address);
       expect(addresses.optionMarket).eq(hre.f.c.optionMarket.address);
       expect(addresses.optionMarketPricer).eq(hre.f.c.optionMarketPricer.address);
       expect(addresses.optionToken).eq(hre.f.c.optionToken.address);
@@ -59,7 +59,7 @@ describe('LyraRegistry tests', () => {
       addresses = await hre.f.c.lyraRegistry.marketAddresses(hre.f.c.optionMarket.address);
       expect(addresses.greekCache).eq(ZERO_ADDRESS);
       expect(addresses.liquidityPool).eq(ZERO_ADDRESS);
-      expect(addresses.liquidityTokens).eq(ZERO_ADDRESS);
+      expect(addresses.liquidityToken).eq(ZERO_ADDRESS);
       expect(addresses.optionMarket).eq(ZERO_ADDRESS);
       expect(addresses.optionMarketPricer).eq(ZERO_ADDRESS);
       expect(addresses.optionToken).eq(ZERO_ADDRESS);
@@ -83,7 +83,7 @@ describe('LyraRegistry tests', () => {
       await hre.f.c.lyraRegistry.addMarket({
         greekCache: hre.f.c.optionGreekCache.address,
         liquidityPool: hre.f.c.liquidityPool.address,
-        liquidityTokens: hre.f.c.liquidityTokens.address,
+        liquidityToken: hre.f.c.liquidityToken.address,
         optionMarket: optionMarket2.address,
         optionMarketPricer: hre.f.c.optionMarketPricer.address,
         optionToken: hre.f.c.optionToken.address,
@@ -100,7 +100,7 @@ describe('LyraRegistry tests', () => {
       await hre.f.c.lyraRegistry.addMarket({
         greekCache: hre.f.c.optionGreekCache.address,
         liquidityPool: hre.f.c.liquidityPool.address,
-        liquidityTokens: hre.f.c.liquidityTokens.address,
+        liquidityToken: hre.f.c.liquidityToken.address,
         optionMarket: hre.f.c.optionMarket.address,
         optionMarketPricer: hre.f.c.optionMarketPricer.address,
         optionToken: hre.f.c.optionToken.address,
@@ -121,7 +121,7 @@ describe('LyraRegistry tests', () => {
       await hre.f.c.lyraRegistry.addMarket({
         greekCache: hre.f.c.optionGreekCache.address,
         liquidityPool: lp2.address,
-        liquidityTokens: hre.f.c.liquidityTokens.address,
+        liquidityToken: hre.f.c.liquidityToken.address,
         optionMarket: hre.f.c.optionMarket.address,
         optionMarketPricer: hre.f.c.optionMarketPricer.address,
         optionToken: hre.f.c.optionToken.address,

@@ -47,7 +47,7 @@ describe('Misc', async () => {
     await lp.init(
       c.synthetixAdapter.address,
       deployer.address,
-      c.liquidityTokens.address,
+      c.liquidityToken.address,
       c.optionGreekCache.address,
       ZERO_ADDRESS,
       deployer.address,

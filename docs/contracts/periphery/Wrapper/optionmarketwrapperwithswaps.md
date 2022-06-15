@@ -26,6 +26,8 @@ Allows users to open/close positions in any market with multiple stablecoins
 
 - `_getReturnDetails(struct OptionMarketWrapperWithSwaps.OptionPositionParams params, struct OptionMarket.Result result, int256 swapFee) (internal)`
 
+- `getMarketAndErcIds() (public)`
+
 - `getBalancesAndAllowances(address owner) (external)`
 
 - `_returnQuote(contract ERC20 quoteAsset, contract ERC20 inputAsset) (internal)`
@@ -33,8 +35,6 @@ Allows users to open/close positions in any market with multiple stablecoins
 - `_returnBase(contract ERC20 baseAsset, contract OptionToken token, uint256 positionId) (internal)`
 
 - `_isLong(enum OptionMarket.OptionType optionType) (internal)`
-
-- `_isBaseCollateral(enum OptionMarket.OptionType optionType) (internal)`
 
 - `_swapWithCurve(contract ERC20 from, contract ERC20 to, uint256 amount, uint256 expected, address receiver) (internal)`
 
@@ -48,15 +48,11 @@ Allows users to open/close positions in any market with multiple stablecoins
 
 - `_approveAsset(contract ERC20 asset, address approving) (internal)`
 
-- `_abs(int256 val) (internal)`
-
 - `_composeTradeParams(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) (internal)`
 
 - `_emitEvent(struct OptionMarketWrapperWithSwaps.ReturnDetails returnDetails, bool isOpen, bool isLong) (internal)`
 
-- `_incrementTradingRewards(address trader, uint256 amount, uint256 totalCost, uint256 totalFee) (internal)`
-
-- `_getDecimals(contract ERC20 token) (internal)`
+- `_incrementTradingRewards(address market, address trader, uint256 amount, uint256 totalCost, uint256 totalFee) (internal)`
 
 ## Events:
 
@@ -116,7 +112,9 @@ the accepted bounds.
 
 ### Function `_getReturnDetails(struct OptionMarketWrapperWithSwaps.OptionPositionParams params, struct OptionMarket.Result result, int256 swapFee) → struct OptionMarketWrapperWithSwaps.ReturnDetails internal`
 
-### Function `getBalancesAndAllowances(address owner) → struct OptionMarketWrapperWithSwaps.StableAssetView[], struct OptionMarketWrapperWithSwaps.MarketAssetView[] external`
+### Function `getMarketAndErcIds() → uint8[], uint8[] public`
+
+### Function `getBalancesAndAllowances(address owner) → struct OptionMarketWrapperWithSwaps.StableAssetView[], struct OptionMarketWrapperWithSwaps.MarketAssetView[], struct OptionMarketWrapperWithSwaps.LiquidityBalanceAndAllowance[] external`
 
 Returns addresses, balances and allowances of all supported tokens for a list of markets
 
@@ -145,8 +143,6 @@ Returns excess baseAsset back to user
 - `positionId`: Is the positionId
 
 ### Function `_isLong(enum OptionMarket.OptionType optionType) → bool internal`
-
-### Function `_isBaseCollateral(enum OptionMarket.OptionType optionType) → bool internal`
 
 ### Function `_swapWithCurve(contract ERC20 from, contract ERC20 to, uint256 amount, uint256 expected, address receiver) → uint256 amountOut, int256 swapFee internal`
 
@@ -188,21 +184,11 @@ returns amount of toToken after a swap
 
 ### Function `_approveAsset(contract ERC20 asset, address approving) internal`
 
-### Function `_abs(int256 val) → uint256 internal`
-
-Compute the absolute value of `val`.
-
-#### Parameters:
-
-- `val`: The number to absolute value.
-
 ### Function `_composeTradeParams(struct OptionMarketWrapperWithSwaps.OptionPositionParams params) → struct OptionMarket.TradeInputParameters tradeParameters internal`
 
 ### Function `_emitEvent(struct OptionMarketWrapperWithSwaps.ReturnDetails returnDetails, bool isOpen, bool isLong) internal`
 
-### Function `_incrementTradingRewards(address trader, uint256 amount, uint256 totalCost, uint256 totalFee) internal`
-
-### Function `_getDecimals(contract ERC20 token) → uint8 internal`
+### Function `_incrementTradingRewards(address market, address trader, uint256 amount, uint256 totalCost, uint256 totalFee) internal`
 
 ### Event `PositionTraded(bool isOpen, bool isLong, address market, uint256 positionId, address owner, uint256 amount, uint256 totalCost, uint256 totalFee, int256 swapFee, address token)`
 

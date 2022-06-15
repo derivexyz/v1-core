@@ -9,7 +9,7 @@ import {
   GWAVOracle,
   KeeperHelper,
   LiquidityPool,
-  LiquidityTokens,
+  LiquidityToken,
   LyraRegistry,
   MockAggregatorV2V3,
   OptionGreekCache,
@@ -84,7 +84,7 @@ export type MarketTestSystemContracts = {
   optionToken: OptionToken;
   GWAVOracle: GWAVOracle;
   liquidityPool: LiquidityPool;
-  liquidityTokens: LiquidityTokens;
+  liquidityToken: LiquidityToken;
   basicLiquidityCounter: BasicLiquidityCounter;
   shortCollateral: ShortCollateral;
   poolHedger: ShortPoolHedger;
@@ -127,7 +127,7 @@ export type DeployOverrides = {
   optionToken?: string;
   GWAVOracle?: string;
   liquidityPool?: string;
-  liquidityTokens?: string;
+  liquidityToken?: string;
   basicLiquidityCounter?: string;
   shortCollateral?: string;
   poolHedger?: string;
@@ -369,9 +369,9 @@ export async function deployMarketTestContracts(
     .connect(deployer)
     .deploy()) as LiquidityPool;
 
-  const liquidityTokens = (await ((await ethers.getContractFactory('LiquidityTokens')) as ContractFactory)
+  const liquidityToken = (await ((await ethers.getContractFactory('LiquidityToken')) as ContractFactory)
     .connect(deployer)
-    .deploy(`sUSD/${market} Pool Tokens`, 'LyraELPT')) as LiquidityTokens;
+    .deploy(`sUSD/${market} Pool Tokens`, 'LyraELPT')) as LiquidityToken;
 
   const basicLiquidityCounter = (await ((await ethers.getContractFactory('BasicLiquidityCounter')) as ContractFactory)
     .connect(deployer)
@@ -416,7 +416,7 @@ export async function deployMarketTestContracts(
     optionToken,
     GWAVOracle,
     liquidityPool,
-    liquidityTokens,
+    liquidityToken,
     basicLiquidityCounter,
     shortCollateral,
     poolHedger,
@@ -601,7 +601,7 @@ export async function initMarketTestSystem(
     .init(
       overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
       overrides.optionMarket || marketTestSystem.optionMarket.address,
-      overrides.liquidityTokens || marketTestSystem.liquidityTokens.address,
+      overrides.liquidityToken || marketTestSystem.liquidityToken.address,
       overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
       overrides.poolHedger || marketTestSystem.poolHedger.address,
       overrides.shortCollateral || marketTestSystem.shortCollateral.address,
@@ -609,7 +609,7 @@ export async function initMarketTestSystem(
       overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
     );
 
-  await marketTestSystem.liquidityTokens
+  await marketTestSystem.liquidityToken
     .connect(deployer)
     .init(overrides.liquidityPool || marketTestSystem.liquidityPool.address);
 
@@ -662,7 +662,7 @@ export async function initMarketTestSystem(
 
   await existingTestSystem.optionMarketViewer.connect(deployer).addMarket({
     liquidityPool: overrides.liquidityPool || marketTestSystem.liquidityPool.address,
-    liquidityTokens: overrides.liquidityTokens || marketTestSystem.liquidityTokens.address,
+    liquidityToken: overrides.liquidityToken || marketTestSystem.liquidityToken.address,
     greekCache: overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
     optionMarket: overrides.optionMarket || marketTestSystem.optionMarket.address,
     optionMarketPricer: overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
@@ -683,7 +683,7 @@ export async function initMarketTestSystem(
         baseAsset: overrides.baseToken || marketTestSystem.snx.baseAsset.address,
         optionToken: overrides.optionToken || marketTestSystem.optionToken.address,
         liquidityPool: overrides.liquidityPool || marketTestSystem.liquidityPool.address,
-        liquidityTokens: overrides.liquidityTokens || marketTestSystem.liquidityTokens.address,
+        liquidityToken: overrides.liquidityToken || marketTestSystem.liquidityToken.address,
       },
     );
 
@@ -845,7 +845,7 @@ export function newTestSystemForMarket(
     newTestSystem.optionToken = marketTestSystem.optionToken;
     newTestSystem.GWAVOracle = marketTestSystem.GWAVOracle;
     newTestSystem.liquidityPool = marketTestSystem.liquidityPool;
-    newTestSystem.liquidityTokens = marketTestSystem.liquidityTokens;
+    newTestSystem.liquidityToken = marketTestSystem.liquidityToken;
     newTestSystem.basicLiquidityCounter = marketTestSystem.basicLiquidityCounter;
     newTestSystem.shortCollateral = marketTestSystem.shortCollateral;
     newTestSystem.poolHedger = marketTestSystem.poolHedger;
@@ -862,7 +862,7 @@ export async function linkEventTracer(testSystem: TestSystemContractsType) {
   hre.tracer.nameTags[testSystem.optionMarketPricer.address] = 'optionMarketPricer';
   hre.tracer.nameTags[testSystem.optionGreekCache.address] = 'optionGreekCache';
   hre.tracer.nameTags[testSystem.liquidityPool.address] = 'liquidityPool';
-  hre.tracer.nameTags[testSystem.liquidityTokens.address] = 'liquidityTokens';
+  hre.tracer.nameTags[testSystem.liquidityToken.address] = 'liquidityToken';
   hre.tracer.nameTags[testSystem.optionToken.address] = 'optionToken';
   hre.tracer.nameTags[testSystem.shortCollateral.address] = 'shortCollateral';
   hre.tracer.nameTags[testSystem.optionMarketViewer.address] = 'optionMarketViewer';

@@ -24,6 +24,8 @@
 
 - `testForceClose(uint256 id) (external)`
 
+- `_isLoanOpen(uint256 interestIndex) (internal)`
+
 ### Function `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset) external`
 
 ### Function `addBaseAsset(bytes32 ticker, contract ITestERC20 baseAsset, address market) external`
@@ -45,3 +47,5 @@
 ### Function `createTestEmptyLoanForAccount(address account) external`
 
 ### Function `testForceClose(uint256 id) external`
+
+### Function `_isLoanOpen(uint256 interestIndex) internal`

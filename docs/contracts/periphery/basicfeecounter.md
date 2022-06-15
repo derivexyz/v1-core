@@ -8,10 +8,10 @@
 
 - `setTrustedCounter(address counter, bool isTrusted) (external)`
 
-- `addFees(address market, address trader, uint256 fees) (external)`
+- `trackFee(address market, address trader, uint256, uint256, uint256 totalFee) (external)`
 
 ### Modifier `onlyTrustedCounter()`
 
 ### Function `setTrustedCounter(address counter, bool isTrusted) external`
 
-### Function `addFees(address market, address trader, uint256 fees) external`
+### Function `trackFee(address market, address trader, uint256, uint256, uint256 totalFee) external`

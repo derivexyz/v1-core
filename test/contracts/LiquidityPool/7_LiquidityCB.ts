@@ -32,11 +32,11 @@ describe('Liquidity Circuit Breaker', async () => {
 
     // CB blocks deposits/withdrawals
     const quoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address);
-    const lpBal = await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[0].address);
+    const lpBal = await hre.f.c.liquidityToken.balanceOf(hre.f.signers[0].address);
     await hre.f.c.liquidityPool.processDepositQueue(2);
     await hre.f.c.liquidityPool.processWithdrawalQueue(2);
     expect(quoteBal).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address));
-    expect(lpBal).to.eq(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[0].address));
+    expect(lpBal).to.eq(await hre.f.c.liquidityToken.balanceOf(hre.f.signers[0].address));
   });
   it('CBTimestamp increased: post initiate withdrawal, <freeLiquidityPercent', async () => {
     expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(0);
@@ -47,7 +47,7 @@ describe('Liquidity Circuit Breaker', async () => {
     await openDefaultLongCall();
 
     // confirm freeLiquidity < 1% and CB triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.479'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.63'), toBN('0.1'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).to.eq(liquidityCBTimeout + (await currentTime()));
   });
 
@@ -60,7 +60,7 @@ describe('Liquidity Circuit Breaker', async () => {
     await openDefaultLongCall();
 
     // confirm freeLiquidity > 1% and CB not triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('7771.639'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('7771.798'), toBN('0.1'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).to.eq(0);
   });
   it('CBTimestamp keeps increasing if freeLiquidity not available', async () => {
@@ -111,18 +111,18 @@ describe('Liquidity Circuit Breaker', async () => {
 
     // confirm freeLiquidity > 1% and CB stops triggering
     const secondTimestamp = await currentTime();
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('106412.087'), toBN('0.5'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('106403.891'), toBN('0.5'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(liquidityCBTimeout + firstTimestamp);
     expect(await hre.f.c.liquidityPool.CBTimestamp()).lt(liquidityCBTimeout + secondTimestamp);
     expect(await hre.f.c.liquidityPool.CBTimestamp()).gt(secondTimestamp);
 
     // still block withdrawal since CB not expired
     const quoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address);
-    const lpBal = await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[0].address);
+    const lpBal = await hre.f.c.liquidityToken.balanceOf(hre.f.signers[0].address);
     await hre.f.c.liquidityPool.processDepositQueue(2);
     await hre.f.c.liquidityPool.processWithdrawalQueue(2);
     expect(quoteBal).to.eq(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address));
-    expect(lpBal).to.eq(await hre.f.c.liquidityTokens.balanceOf(hre.f.signers[0].address));
+    expect(lpBal).to.eq(await hre.f.c.liquidityToken.balanceOf(hre.f.signers[0].address));
   });
 
   it('CBTimestamp increased: due to withdrawals', async () => {
@@ -135,7 +135,7 @@ describe('Liquidity Circuit Breaker', async () => {
     await initiatePercentLPWithdrawal(hre.f.signers[0], toBN('0.995'));
 
     // confirm freeLiquidity < 1% and CB triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.479'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.638'), toBN('0.1'));
 
     // process withdraw to trigger CB
     await fastForward(WEEK_SEC);

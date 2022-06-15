@@ -2,8 +2,8 @@
 pragma solidity 0.8.9;
 
 // Libraries
-import "../lib/GWAV.sol";
-import "../lib/BlackScholes.sol";
+import "../libraries/GWAV.sol";
+import "../libraries/BlackScholes.sol";
 import "../synthetix/DecimalMath.sol";
 
 // Inherited

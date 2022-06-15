@@ -7,7 +7,7 @@ import "./synthetix/DecimalMath.sol";
 // Inherited
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "./synthetix/Owned.sol";
-import "./lib/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -313,6 +313,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
       );
     }
 
+    _requireStrikeNotExpired(position.strikeId);
+
     position.collateral += amountCollateral;
 
     emit PositionUpdated(
@@ -502,6 +504,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
       revert SplittingUnapprovedPosition(address(this), msg.sender, originalPosition.positionId);
     }
 
+    _requireStrikeNotExpired(originalPosition.strikeId);
+
     // Do not allow splits that result in originalPosition.amount = 0 && newPosition.amount = 0;
     if (newAmount >= originalPosition.amount || newAmount == 0) {
       revert InvalidSplitAmount(address(this), originalPosition.amount, newAmount);
@@ -567,6 +571,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     if (!_isApprovedOrOwner(msg.sender, firstPosition.positionId)) {
       revert MergingUnapprovedPosition(address(this), msg.sender, firstPosition.positionId);
     }
+    _requireStrikeNotExpired(firstPosition.strikeId);
 
     address positionOwner = ownerOf(firstPosition.positionId);
 
@@ -703,6 +708,13 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     return partialCollatParams;
   }
 
+  function _requireStrikeNotExpired(uint strikeId) internal view {
+    (, uint expiry) = optionMarket.getStrikeAndExpiry(strikeId);
+    if (block.timestamp >= expiry) {
+      revert StrikeHasExpired(address(this), strikeId, expiry, block.timestamp);
+    }
+  }
+
   ///////////////
   // Modifiers //
   ///////////////
@@ -814,6 +826,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   );
 
   // Access
+  error StrikeHasExpired(address thrower, uint strikeId, uint expiry, uint currentTime);
   error OnlyOptionMarket(address thrower, address caller, address optionMarket);
   error OnlyShortCollateral(address thrower, address caller, address shortCollateral);
 }

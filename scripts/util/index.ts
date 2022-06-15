@@ -3,7 +3,7 @@ import { ethers } from 'hardhat';
 import {
   LiquidityPool,
   // BlackScholes,
-  LiquidityTokens,
+  LiquidityToken,
   OptionGreekCache,
   OptionMarket,
   OptionMarketPricer,
@@ -23,7 +23,7 @@ export type MarketContracts = {
   optionGreekCache: OptionGreekCache;
   optionToken: OptionToken;
   liquidityPool: LiquidityPool;
-  liquidityTokens: LiquidityTokens;
+  liquidityToken: LiquidityToken;
   optionMarketViewer: OptionMarketViewer;
   shortCollateral: ShortCollateral;
   poolHedger: PoolHedger;

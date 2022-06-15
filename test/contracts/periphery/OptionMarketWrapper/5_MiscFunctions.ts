@@ -79,7 +79,7 @@ describe('OptionMarketWrapper viewer / misc function tests', () => {
       baseAsset: hre.f.c.snx.quoteAsset.address,
       optionToken: hre.f.c.optionToken.address,
       liquidityPool: hre.f.c.liquidityPool.address,
-      liquidityTokens: hre.f.c.liquidityTokens.address,
+      liquidityToken: hre.f.c.liquidityToken.address,
     };
     await expect(
       hre.f.c.optionMarketWrapper.addMarket(hre.f.c.optionMarket.address, 0, omContracts),

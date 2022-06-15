@@ -80,8 +80,8 @@ describe('Liquidity Accounting', async () => {
       const liquidity = await getLiquidity();
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
-      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.175754'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('497782.0899'), toBN('0.01'));
+      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.027'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('497782.24'), toBN('0.01'));
     });
 
     it('uses whole pool for pendingDelta if large long call open', async () => {
@@ -97,8 +97,8 @@ describe('Liquidity Accounting', async () => {
       const liquidity = await getLiquidity();
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
-      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.175754'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('497782.8718'), toBN('0.01'));
+      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.027'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('497783.03'), toBN('0.01'));
     });
     it('uses whole pool for pendingDelta if large long put open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithLongPut();
@@ -113,8 +113,8 @@ describe('Liquidity Accounting', async () => {
       const liquidity = await getLiquidity();
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
-      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('2683.85'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('497021.94'), toBN('0.01'));
+      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('2683.999'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('497021.78'), toBN('0.01'));
     });
     it('uses whole pool for pendingDelta if large short call open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithShortCallBase();
@@ -129,8 +129,8 @@ describe('Liquidity Accounting', async () => {
       const liquidity = await getLiquidity();
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInLongDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
-      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('400.0878'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('499551.2317'), toBN('0.01'));
+      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('400.01'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('499551.30'), toBN('0.01'));
     });
     it('uses whole pool for pendingDelta if large short put open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithShortPut();
@@ -148,7 +148,7 @@ describe('Liquidity Accounting', async () => {
       const postNAV = (await getLiquidity()).NAV;
 
       expect(postNAV).to.be.gt(preNAV);
-      assertCloseTo(postNAV.sub(preNAV), toBN('21883.9889'), toBN('1'));
+      assertCloseTo(postNAV.sub(preNAV), toBN('21890.99'), toBN('1'));
     });
   });
 
@@ -240,10 +240,12 @@ describe('Liquidity Accounting', async () => {
       const quoteToHedgeDiscrepancy = oldLiquidity.pendingDeltaLiquidity.sub(newLiquidity.usedDeltaLiquidity);
 
       // when fully hedged, pending delta should = 0
-      expect(await hre.f.c.poolHedger.getCurrentHedgedNetDelta()).to.eq(
+      assertCloseTo(
+        await hre.f.c.poolHedger.getCurrentHedgedNetDelta(),
         await hre.f.c.poolHedger.getCappedExpectedHedge(),
+        toBN('0.0000000000001'),
       );
-      expect(newLiquidity.pendingDeltaLiquidity).to.eq(0);
+      assertCloseTo(newLiquidity.pendingDeltaLiquidity, toBN('0'), toBN('0.0000000000001'));
 
       // leave some room for snx exchange fees
       assertCloseToPercentage(changeInFreeLiq, quoteToHedgeDiscrepancy, toBN('0.01'));

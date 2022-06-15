@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 import "../OptionMarket.sol";
-import "../lib/BlackScholes.sol";
+import "../libraries/BlackScholes.sol";
 import "../synthetix/DecimalMath.sol";
 import "../OptionToken.sol";
 import "../LiquidityPool.sol";
@@ -22,7 +22,7 @@ import "./OptionMarketViewer.sol";
 contract LyraRegistry is Owned {
   struct OptionMarketAddresses {
     LiquidityPool liquidityPool;
-    LiquidityTokens liquidityTokens;
+    LiquidityToken liquidityToken;
     OptionGreekCache greekCache;
     OptionMarket optionMarket;
     OptionMarketPricer optionMarketPricer;

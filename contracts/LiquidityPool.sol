@@ -7,15 +7,15 @@ import "./synthetix/DecimalMath.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./lib/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./LiquidityTokens.sol";
+import "./LiquidityToken.sol";
 import "./OptionGreekCache.sol";
 import "./OptionMarket.sol";
-import "./lib/PoolHedger.sol";
+import "./libraries/PoolHedger.sol";
 
 /**
  * @title LiquidityPool
@@ -52,20 +52,20 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
 
   struct QueuedDeposit {
     uint id;
-    // Who will receive the LiquidityTokens minted for this deposit after the wait time
+    // Who will receive the LiquidityToken minted for this deposit after the wait time
     address beneficiary;
-    // The amount of quoteAsset deposited to be converted to LiquidityTokens after wait time
+    // The amount of quoteAsset deposited to be converted to LiquidityToken after wait time
     uint amountLiquidity;
-    // The amount of LiquidityTokens minted. Will equal to 0 if not processed
+    // The amount of LiquidityToken minted. Will equal to 0 if not processed
     uint mintedTokens;
     uint depositInitiatedTime;
   }
 
   struct QueuedWithdrawal {
     uint id;
-    // Who will receive the quoteAsset returned after burning the LiquidityTokens
+    // Who will receive the quoteAsset returned after burning the LiquidityToken
     address beneficiary;
-    // The amount of LiquidityTokens being burnt after the wait time
+    // The amount of LiquidityToken being burnt after the wait time
     uint amountTokens;
     // The amount of quote transferred. Will equal to 0 if process not started
     uint quoteSent;
@@ -73,7 +73,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   struct LiquidityPoolParameters {
-    // The minimum amount of quoteAsset for a deposit, or the amount of LiquidityTokens for a withdrawal
+    // The minimum amount of quoteAsset for a deposit, or the amount of LiquidityToken for a withdrawal
     uint minDepositWithdraw;
     // Time between initiating a deposit and when it can be processed
     uint depositDelay;
@@ -105,7 +105,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
 
   SynthetixAdapter internal synthetixAdapter;
   OptionMarket internal optionMarket;
-  LiquidityTokens internal liquidityTokens;
+  LiquidityToken internal liquidityToken;
   ShortCollateral internal shortCollateral;
   OptionGreekCache internal greekCache;
   PoolHedger public poolHedger;
@@ -158,7 +158,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   function init(
     SynthetixAdapter _synthetixAdapter,
     OptionMarket _optionMarket,
-    LiquidityTokens _liquidityTokens,
+    LiquidityToken _liquidityToken,
     OptionGreekCache _greekCache,
     PoolHedger _poolHedger,
     ShortCollateral _shortCollateral,
@@ -167,7 +167,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   ) external onlyOwner initializer {
     synthetixAdapter = _synthetixAdapter;
     optionMarket = _optionMarket;
-    liquidityTokens = _liquidityTokens;
+    liquidityToken = _liquidityToken;
     greekCache = _greekCache;
     shortCollateral = _shortCollateral;
     poolHedger = _poolHedger;
@@ -217,11 +217,11 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   //////////////////////////////
 
   /**
-   * @notice LP will send sUSD into the contract in return for LiquidityTokens (representative of their share of the entire pool)
+   * @notice LP will send sUSD into the contract in return for LiquidityToken (representative of their share of the entire pool)
    *         to be given either instantly (if no live boards) or after the delay period passes (including CBs).
    *         This action is not reversible.
    *
-   * @param beneficiary will receive the LiquidityTokens after the deposit is processed
+   * @param beneficiary will receive the LiquidityToken after the deposit is processed
    * @param amountQuote is the amount of sUSD the LP is depositing
    */
   function initiateDeposit(address beneficiary, uint amountQuote) external nonReentrant {
@@ -234,7 +234,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     if (optionMarket.getNumLiveBoards() == 0) {
       uint tokenPrice = getTokenPrice();
       uint amountTokens = amountQuote.divideDecimal(tokenPrice);
-      liquidityTokens.mint(beneficiary, amountTokens);
+      liquidityToken.mint(beneficiary, amountTokens);
       emit DepositProcessed(msg.sender, beneficiary, 0, amountQuote, tokenPrice, amountTokens, block.timestamp);
     } else {
       QueuedDeposit storage newDeposit = queuedDeposits[nextQueuedDepositId];
@@ -255,31 +255,31 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /**
-   * @notice LP instantly burns LiquidityTokens, signalling they wish to withdraw
+   * @notice LP instantly burns LiquidityToken, signalling they wish to withdraw
    *         their share of the pool in exchange for quote, to be processed instantly (if no live boards)
    *         or after the delay period passes (including CBs).
    *         This action is not reversible.
    *
    *
    * @param beneficiary will receive sUSD after the withdrawal is processed
-   * @param amountLiquidityTokens: is the amount of LiquidityTokens the LP is withdrawing
+   * @param amountLiquidityToken: is the amount of LiquidityToken the LP is withdrawing
    */
-  function initiateWithdraw(address beneficiary, uint amountLiquidityTokens) external nonReentrant {
+  function initiateWithdraw(address beneficiary, uint amountLiquidityToken) external nonReentrant {
     if (beneficiary == address(0)) {
       revert InvalidBeneficiaryAddress(address(this), beneficiary);
     }
-    if (amountLiquidityTokens < lpParams.minDepositWithdraw) {
-      revert MinimumWithdrawNotMet(address(this), amountLiquidityTokens, lpParams.minDepositWithdraw);
+    if (amountLiquidityToken < lpParams.minDepositWithdraw) {
+      revert MinimumWithdrawNotMet(address(this), amountLiquidityToken, lpParams.minDepositWithdraw);
     }
     if (optionMarket.getNumLiveBoards() == 0) {
       uint tokenPrice = getTokenPrice();
-      uint quoteReceived = amountLiquidityTokens.multiplyDecimal(tokenPrice);
+      uint quoteReceived = amountLiquidityToken.multiplyDecimal(tokenPrice);
       _transferQuote(beneficiary, quoteReceived);
       emit WithdrawProcessed(
         msg.sender,
         beneficiary,
         0,
-        amountLiquidityTokens,
+        amountLiquidityToken,
         tokenPrice,
         quoteReceived,
         totalQueuedWithdrawals,
@@ -290,21 +290,21 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
 
       newWithdrawal.id = nextQueuedWithdrawalId++;
       newWithdrawal.beneficiary = beneficiary;
-      newWithdrawal.amountTokens = amountLiquidityTokens;
+      newWithdrawal.amountTokens = amountLiquidityToken;
       newWithdrawal.withdrawInitiatedTime = block.timestamp;
 
-      totalQueuedWithdrawals += amountLiquidityTokens;
+      totalQueuedWithdrawals += amountLiquidityToken;
 
       emit WithdrawQueued(
         msg.sender,
         beneficiary,
         newWithdrawal.id,
-        amountLiquidityTokens,
+        amountLiquidityToken,
         totalQueuedWithdrawals,
         block.timestamp
       );
     }
-    liquidityTokens.burn(msg.sender, amountLiquidityTokens);
+    liquidityToken.burn(msg.sender, amountLiquidityToken);
   }
 
   /// @param limit number of deposit tickets to process in a single transaction to avoid gas limit soft-locks
@@ -318,7 +318,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
       }
 
       uint amountTokens = current.amountLiquidity.divideDecimal(tokenPrice);
-      liquidityTokens.mint(current.beneficiary, amountTokens);
+      liquidityToken.mint(current.beneficiary, amountTokens);
       current.mintedTokens = amountTokens;
       totalQueuedDeposits -= current.amountLiquidity;
 
@@ -754,9 +754,9 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Getting Pool Token Value //
   //////////////////////////////
 
-  /// @dev Get total number of oustanding LiquidityTokens
+  /// @dev Get total number of oustanding LiquidityToken
   function getTotalTokenSupply() public view returns (uint) {
-    return liquidityTokens.totalSupply() + totalQueuedWithdrawals;
+    return liquidityToken.totalSupply() + totalQueuedWithdrawals;
   }
 
   /// @dev Get current pool token price
@@ -1130,7 +1130,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   // Deposits and withdrawals
   error InvalidBeneficiaryAddress(address thrower, address beneficiary);
   error MinimumDepositNotMet(address thrower, uint amountQuote, uint minDeposit);
-  error MinimumWithdrawNotMet(address thrower, uint amountLiquidityTokens, uint minWithdraw);
+  error MinimumWithdrawNotMet(address thrower, uint amountLiquidityToken, uint minWithdraw);
 
   // Liquidity and accounting
   error LockingMoreQuoteThanIsFree(address thrower, uint quoteToLock, uint freeLiquidity, Collateral lockedCollateral);

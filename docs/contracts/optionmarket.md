@@ -30,6 +30,8 @@ short positions.
 
 - `smClaim() (external)`
 
+- `getOptionMarketParams() (external)`
+
 - `getLiveBoards() (external)`
 
 - `getNumLiveBoards() (external)`
@@ -112,25 +114,25 @@ short positions.
 
 Initialize the contract.
 
-### Function `createOptionBoard(uint256 expiry, uint256 baseIV, uint256[] strikePrices, uint256[] skews, bool frozen) → uint256 external`
+### Function `createOptionBoard(uint256 expiry, uint256 baseIV, uint256[] strikePrices, uint256[] skews, bool frozen) → uint256 boardId external`
 
-Creates a new OptionBoard which contains Strikes.
+Creates a new OptionBoard with defined strikePrices and initial skews.
 
 #### Parameters:
 
 - `expiry`: The timestamp when the board expires.
 
-- `baseIV`: The initial value for implied volatility.
+- `baseIV`: The initial value for baseIv (baseIv * skew = strike volatility).
 
 - `strikePrices`: The array of strikePrices offered for this expiry.
 
-- `skews`: The array of skews for each strikePrice.
+- `skews`: The array of initial skews for each strikePrice.
 
 - `frozen`: Whether the board is frozen or not at creation.
 
 ### Function `setBoardFrozen(uint256 boardId, bool frozen) external`
 
-Sets the frozen state of an OptionBoard.
+Sets the frozen state of an OptionBoard, preventing or allowing all trading on board.
 
 #### Parameters:
 
@@ -150,7 +152,7 @@ Sets the baseIv of a frozen OptionBoard.
 
 ### Function `setStrikeSkew(uint256 strikeId, uint256 skew) external`
 
-Sets the skew of an Strike of a frozen OptionBoard.
+Sets the skew of a Strike of a frozen OptionBoard.
 
 #### Parameters:
 
@@ -166,7 +168,7 @@ Add a strike to an existing board in the OptionMarket.
 
 - `boardId`: The id of the board which the strike will be added
 
-- `strikePrice`: Strike of the Strike
+- `strikePrice`: The strike price of the strike being added
 
 - `skew`: Skew of the Strike
 
@@ -176,9 +178,23 @@ Add a strike to an existing board.
 
 ### Function `forceSettleBoard(uint256 boardId) external`
 
+Force settle all open options before expiry.
+
+Only used during emergency situations.
+
+#### Parameters:
+
+- `boardId`: The id of the board to settle
+
 ### Function `setOptionMarketParams(struct OptionMarket.OptionMarketParameters _optionMarketParams) external`
 
+set OptionMarketParams
+
 ### Function `smClaim() external`
+
+claim all reserved option fees
+
+### Function `getOptionMarketParams() → struct OptionMarket.OptionMarketParameters external`
 
 ### Function `getLiveBoards() → uint256[] _liveBoards external`
 
@@ -192,7 +208,7 @@ Returns the number of current live boards
 
 Returns the strike and expiry for a given strikeId
 
-### Function `getBoardStrikes(uint256 boardId) → uint256[] external`
+### Function `getBoardStrikes(uint256 boardId) → uint256[] strikeIds external`
 
 Returns the strike ids for a given `boardId`.
 
@@ -262,7 +278,7 @@ Add collateral of size amountCollateral onto a short position (long or call) spe
 
 #### Parameters:
 
-- `positionId`: addCollateral to this positionId
+- `positionId`: id of OptionToken to add collateral to
 
 - `amountCollateral`: the amount of collateral to be added
 
@@ -288,57 +304,59 @@ Determine the cost of the trade and update the system's iv/skew/exposure paramet
 
 #### Parameters:
 
-- `strike`: The relevant Strike.
+- `strike`: The currently traded Strike.
 
-- `board`: The relevant OptionBoard.
+- `board`: The currently traded OptionBoard.
 
-- `trade`: The trade parameters.
+- `trade`: The trade parameters struct, informing the trade the caller wants to make.
 
 ### Function `liquidatePosition(uint256 positionId, address rewardBeneficiary) external`
 
-Allows you to liquidate an underwater position
+Allows anyone to liquidate an underwater position
 
 #### Parameters:
 
 - `positionId`: the position to be liquidated
 
-- `rewardBeneficiary`: the address to receive quote/base
+- `rewardBeneficiary`: the address to receive the liquidator fee in either quote or base
 
 ### Function `_routeLPFundsOnOpen(struct OptionMarket.TradeParameters trade, uint256 totalCost, uint256 feePortion) internal`
 
+send/receive quote or base to/from LiquidityPool on position open
+
 ### Function `_routeLPFundsOnClose(struct OptionMarket.TradeParameters trade, uint256 totalCost, uint256 reservedFee) internal`
+
+send/receive quote or base to/from LiquidityPool on position close
 
 ### Function `_routeUserCollateral(enum OptionMarket.OptionType optionType, int256 pendingCollateral) internal`
 
-cannot be called with any optionType other than a short with > 0 pendingCollateral
+route collateral to/from msg.sender when short positions are adjusted
 
 ### Function `_updateExposure(uint256 amount, enum OptionMarket.OptionType optionType, struct OptionMarket.Strike strike, bool isOpen) internal`
 
+update all exposures per strike and optionType
+
 ### Function `settleExpiredBoard(uint256 boardId) external`
 
-Settle a board that has passed expiry. This function will not preserve the ordering of liveBoards.
+Settles an expired board.
+
+- Transfers all AMM profits for user shorts from ShortCollateral to LiquidityPool.
+
+- Reserves all user profits for user longs in LiquidityPool.
+
+- Records any profits that AMM did not receive due to user insolvencies
 
 #### Parameters:
 
-- `boardId`: The id of the relevant OptionBoard.
+- `boardId`: The relevant OptionBoard.
 
 ### Function `_clearAndSettleBoard(struct OptionMarket.OptionBoard board) internal`
 
 ### Function `_settleExpiredBoard(struct OptionMarket.OptionBoard board) internal`
 
-Liquidates an expired board.
-
-It will transfer all short collateral for ITM options that the market owns.
-
-It will reserve collateral for users to settle their ITM long options.
-
-#### Parameters:
-
-- `board`: The relevant OptionBoard.
-
 ### Function `getSettlementParameters(uint256 strikeId) → uint256 strikePrice, uint256 priceAtExpiry, uint256 strikeToBaseReturned external`
 
-Returns the strike price, price at expiry, strike to base returned for a given strikeId
+Returns the strike price, price at expiry, and profit ratio for user shorts post expiry
 
 ### Function `_transferFromQuote(address from, address to, uint256 amount) internal`
 

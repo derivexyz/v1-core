@@ -45,7 +45,7 @@ describe('Process withdrawal', async () => {
     await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
     await hre.f.c.liquidityPool.processDepositQueue(1);
-    expect(await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address)).eq(toBN('10000'));
+    expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('10000'));
   });
 
   describe('state tracking', async () => {
@@ -231,11 +231,11 @@ describe('Process withdrawal', async () => {
       // assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('75488.496'), toBN('1'));
 
       expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
-      assertCloseTo(newQuote.sub(oldQuote), toBN('123787.16386'), toBN('5'));
+      assertCloseTo(newQuote.sub(oldQuote), toBN('123776.42'), toBN('5'));
       await validateWithdrawalRecord(
         1,
         hre.f.deployer.address,
-        toBN('75556.3265'),
+        toBN('75567.517'),
         newQuote.sub(oldQuote),
         await getTxTimestamp(firstTx),
       );
@@ -305,11 +305,7 @@ describe('Process withdrawal', async () => {
 
       // process withdrawals
       await hre.f.c.liquidityPool.processDepositQueue(2);
-      assertCloseToPercentage(
-        await hre.f.c.liquidityTokens.balanceOf(hre.f.alice.address),
-        toBN('1592.6'),
-        toBN('0.1'),
-      );
+      assertCloseToPercentage(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address), toBN('1592.6'), toBN('0.1'));
 
       await hre.f.c.liquidityPool.processWithdrawalQueue(2);
       assertCloseToPercentage(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address), toBN('6.5'), toBN('0.1'));
@@ -328,7 +324,7 @@ describe('Process withdrawal', async () => {
       const positionIds: BigNumber[] = await openAllTrades();
 
       // Initiate withdrawal
-      const tokenBalance = await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address);
+      const tokenBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, tokenBalance);
 
       // settle board, 100% liquidity should be able to be withdrawn even with liveBoards > 0
@@ -373,7 +369,7 @@ describe('Process withdrawal', async () => {
     it('allows for settlement after 100% withdrawal', async () => {
       // open various options & initiate withdraw
       const positionIds: BigNumber[] = await openAllTrades();
-      const tokenBalance = await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address);
+      const tokenBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, tokenBalance);
 
       // settle board and process 100% withdrawal

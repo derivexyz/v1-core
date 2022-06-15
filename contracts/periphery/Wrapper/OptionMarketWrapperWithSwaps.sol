@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../../OptionMarket.sol";
 import "../../OptionToken.sol";
 import "../../LiquidityPool.sol";
-import "../../LiquidityTokens.sol";
+import "../../LiquidityToken.sol";
 import "../../interfaces/ICurve.sol";
 import "../../interfaces/IFeeCounter.sol";
 
@@ -33,7 +33,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
     ERC20 baseAsset;
     OptionToken optionToken;
     LiquidityPool liquidityPool;
-    LiquidityTokens liquidityTokens;
+    LiquidityToken liquidityToken;
   }
 
   struct OptionPositionParams {
@@ -425,7 +425,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
         allowance: c.baseAsset.allowance(owner, address(this)),
         isApprovedForAll: c.optionToken.isApprovedForAll(owner, address(this))
       });
-      liquidityTokenBalances[i].balance = c.liquidityTokens.balanceOf(owner);
+      liquidityTokenBalances[i].balance = c.liquidityToken.balanceOf(owner);
       liquidityTokenBalances[i].allowance = c.quoteAsset.allowance(owner, address(c.liquidityPool));
       liquidityTokenBalances[i].token = address(c.liquidityPool);
     }

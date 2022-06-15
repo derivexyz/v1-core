@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./lib/SimpleInitializeable.sol";
-import "./lib/PoolHedger.sol";
+import "./libraries/SimpleInitializeable.sol";
+import "./libraries/PoolHedger.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 // Interfaces
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";

@@ -111,7 +111,7 @@ describe('Pool Value', async () => {
     it('sends less quote to last withdrawer if base is not exchanged', async () => {
       await hre.f.c.liquidityPool.initiateWithdraw(
         hre.f.deployer.address,
-        await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address),
+        await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
       );
       await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('5'));
       await fastForward(WEEK_SEC);
@@ -140,7 +140,7 @@ describe('Pool Value', async () => {
     });
 
     it('sends less quote to last withdrawer if base is not exchanged - no withdrawal fee', async () => {
-      const amtTokens = await hre.f.c.liquidityTokens.balanceOf(hre.f.deployer.address);
+      const amtTokens = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, amtTokens);
       await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, DEFAULT_BASE_PRICE);
       await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('5'));

@@ -7,7 +7,7 @@ export const lyraContractPaths = [
 
   // core
   '@lyrafinance/protocol/contracts/LiquidityPool.sol',
-  '@lyrafinance/protocol/contracts/LiquidityTokens.sol',
+  '@lyrafinance/protocol/contracts/LiquidityToken.sol',
   '@lyrafinance/protocol/contracts/OptionGreekCache.sol',
   '@lyrafinance/protocol/contracts/OptionMarket.sol',
   '@lyrafinance/protocol/contracts/OptionToken.sol',

@@ -2,6 +2,6 @@
 
 ## Functions:
 
-- `trackFee(address trader, uint256 amount, uint256 totalCost, uint256 totalFee, address market) (external)`
+- `trackFee(address market, address trader, uint256 amount, uint256 totalCost, uint256 totalFee) (external)`
 
-### Function `trackFee(address trader, uint256 amount, uint256 totalCost, uint256 totalFee, address market) external`
+### Function `trackFee(address market, address trader, uint256 amount, uint256 totalCost, uint256 totalFee) external`

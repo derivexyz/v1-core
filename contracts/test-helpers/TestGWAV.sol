@@ -5,7 +5,7 @@ import "../interfaces/ISynthetix.sol";
 // Debug
 import "./ITestERC20.sol";
 import "../synthetix/DecimalMath.sol";
-import "../lib/GWAV.sol";
+import "../libraries/GWAV.sol";
 
 contract TestGWAV {
   using GWAV for GWAV.Params;

@@ -145,7 +145,7 @@ describe('optionMarketViewer tests', async () => {
 
       expect(markets.isPaused).to.eq(false);
       expect(markets.markets[0].marketAddresses.liquidityPool).to.eq(eth.liquidityPool.address);
-      expect(markets.markets[0].marketAddresses.liquidityTokens).to.eq(eth.liquidityTokens.address);
+      expect(markets.markets[0].marketAddresses.liquidityToken).to.eq(eth.liquidityToken.address);
       expect(markets.markets[0].marketAddresses.greekCache).to.eq(eth.optionGreekCache.address);
       expect(markets.markets[0].marketAddresses.optionMarket).to.eq(eth.optionMarket.address);
       expect(markets.markets[0].marketAddresses.optionMarketPricer).to.eq(eth.optionMarketPricer.address);
@@ -153,7 +153,7 @@ describe('optionMarketViewer tests', async () => {
       expect(markets.markets[0].marketAddresses.shortCollateral).to.eq(eth.shortCollateral.address);
 
       expect(markets.markets[1].marketAddresses.liquidityPool).to.eq(btc.liquidityPool.address);
-      expect(markets.markets[1].marketAddresses.liquidityTokens).to.eq(btc.liquidityTokens.address);
+      expect(markets.markets[1].marketAddresses.liquidityToken).to.eq(btc.liquidityToken.address);
       expect(markets.markets[1].marketAddresses.greekCache).to.eq(btc.optionGreekCache.address);
       expect(markets.markets[1].marketAddresses.optionMarket).to.eq(btc.optionMarket.address);
       expect(markets.markets[1].marketAddresses.optionMarketPricer).to.eq(btc.optionMarketPricer.address);
@@ -166,7 +166,7 @@ describe('optionMarketViewer tests', async () => {
 
       expect(markets.isPaused).to.eq(true);
       expect(markets.markets[0].marketAddresses.liquidityPool).to.eq(eth.liquidityPool.address);
-      expect(markets.markets[0].marketAddresses.liquidityTokens).to.eq(eth.liquidityTokens.address);
+      expect(markets.markets[0].marketAddresses.liquidityToken).to.eq(eth.liquidityToken.address);
       expect(markets.markets[0].marketAddresses.greekCache).to.eq(eth.optionGreekCache.address);
       expect(markets.markets[0].marketAddresses.optionMarket).to.eq(eth.optionMarket.address);
       expect(markets.markets[0].marketAddresses.optionMarketPricer).to.eq(eth.optionMarketPricer.address);
@@ -174,7 +174,7 @@ describe('optionMarketViewer tests', async () => {
       expect(markets.markets[0].marketAddresses.shortCollateral).to.eq(eth.shortCollateral.address);
 
       expect(markets.markets[1].marketAddresses.liquidityPool).to.eq(btc.liquidityPool.address);
-      expect(markets.markets[1].marketAddresses.liquidityTokens).to.eq(btc.liquidityTokens.address);
+      expect(markets.markets[1].marketAddresses.liquidityToken).to.eq(btc.liquidityToken.address);
       expect(markets.markets[1].marketAddresses.greekCache).to.eq(btc.optionGreekCache.address);
       expect(markets.markets[1].marketAddresses.optionMarket).to.eq(btc.optionMarket.address);
       expect(markets.markets[1].marketAddresses.optionMarketPricer).to.eq(btc.optionMarketPricer.address);

@@ -421,7 +421,7 @@ describe('OptionMarket - SettleBoard', () => {
 
       // AMM profit = (2,000 - 500) * 5 = 7,500
       // original quote - premium paid + AMM profit
-      assertCloseTo(await getQuoteBalance(hre.f.c.liquidityPool.address), toBN('504622.94856'));
+      assertCloseTo(await getQuoteBalance(hre.f.c.liquidityPool.address), toBN('504621.812'));
       expect(await hre.f.c.liquidityPool.insolventSettlementAmount()).to.eq(0);
       expect(await hre.f.c.shortCollateral.LPBaseExcess()).to.eq(0);
       expect(await hre.f.c.shortCollateral.LPQuoteExcess()).to.eq(0);

@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./lib/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializeable.sol";
 
 // Interfaces
 import "./SynthetixAdapter.sol";

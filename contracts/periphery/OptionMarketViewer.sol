@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 import "../OptionMarket.sol";
-import "../lib/BlackScholes.sol";
+import "../libraries/BlackScholes.sol";
 import "../synthetix/DecimalMath.sol";
 import "../OptionToken.sol";
 import "../LiquidityPool.sol";
@@ -52,6 +52,7 @@ contract OptionMarketViewer is Owned {
   }
 
   struct MarketParameters {
+    OptionMarket.OptionMarketParameters optionMarketParams;
     LiquidityPool.LiquidityPoolParameters lpParams;
     OptionGreekCache.GreekCacheParameters greekCacheParams;
     OptionGreekCache.ForceCloseParameters forceCloseParams;
@@ -97,7 +98,7 @@ contract OptionMarketViewer is Owned {
 
   struct OptionMarketAddresses {
     LiquidityPool liquidityPool;
-    LiquidityTokens liquidityTokens;
+    LiquidityToken liquidityToken;
     OptionGreekCache greekCache;
     OptionMarket optionMarket;
     OptionMarketPricer optionMarketPricer;
@@ -273,6 +274,7 @@ contract OptionMarketViewer is Owned {
   {
     return
       MarketParameters({
+        optionMarketParams: marketC.optionMarket.getOptionMarketParams(),
         lpParams: marketC.liquidityPool.getLpParams(),
         greekCacheParams: marketC.greekCache.getGreekCacheParams(),
         forceCloseParams: marketC.greekCache.getForceCloseParams(),
@@ -399,7 +401,7 @@ contract OptionMarketViewer is Owned {
     LiquidityBalanceAndAllowance[] memory balances = new LiquidityBalanceAndAllowance[](markets.length);
     for (uint i = 0; i < markets.length; i++) {
       OptionMarketAddresses memory marketC = marketAddresses[markets[i]];
-      IERC20 liquidityToken = IERC20(marketC.liquidityTokens);
+      IERC20 liquidityToken = IERC20(marketC.liquidityToken);
       balances[i].balance = liquidityToken.balanceOf(account);
       balances[i].allowance = marketC.quoteAsset.allowance(account, address(marketC.liquidityPool));
       balances[i].token = address(marketC.liquidityPool);
