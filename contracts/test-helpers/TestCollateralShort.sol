@@ -2,7 +2,6 @@
 pragma solidity 0.8.9;
 
 import "../synthetix/Owned.sol";
-
 import "./ITestERC20.sol";
 import "../interfaces/ICollateralShort.sol";
 import "../interfaces/IExchangeRates.sol";
@@ -191,8 +190,16 @@ contract TestCollateralShort is ICollateralShort, Owned {
     loans[loan.id] = loan;
   }
 
+  function _recordLoanAsClosed(Loan storage loan) internal {
+    loan.amount = 0;
+    loan.collateral = 0;
+    loan.accruedInterest = 0;
+    loan.interestIndex = 0;
+    loan.lastInteraction = block.timestamp;
+  }
+
   function testForceClose(uint id) external onlyOwner {
-    loans[id].interestIndex = 0;
+    _recordLoanAsClosed(loans[id]);
   }
 
   function _isLoanOpen(uint interestIndex) internal pure {

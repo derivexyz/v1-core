@@ -1,6 +1,7 @@
 import { BigNumber } from 'ethers';
 import { toBN, toBytes32, UNIT } from '../../../scripts/util/web3utils';
 import { ExchangeParamsStructOutput } from '../../../typechain-types/SynthetixAdapter';
+import { setETHExchangerInvalid } from '../../utils/contractHelpers';
 import { expectBalance, expectBalanceCloseTo, setETHFeeRate, setETHPrice } from '../../utils/contractHelpers/synthetix';
 import { seedFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -51,14 +52,15 @@ describe('Exchange', async () => {
   describe('exchangeFromExactBase', async () => {
     it('reverts if not enough base', async () => {
       await expect(
-        hre.f.c.synthetixAdapter.exchangeToExactBase(
-          params,
-          hre.f.c.optionMarket.address,
-          oldBaseBalance.sub(toBN('1')),
-        ),
+        hre.f.c.synthetixAdapter.exchangeFromExactBase(hre.f.c.optionMarket.address, oldBaseBalance.add(toBN('1'))),
       ).revertedWith('ERC20: burn amount exceeds balance');
     });
-    it.skip('reverts if invalid base or quote key');
+    it('reverts if invalid base or quote key', async () => {
+      await setETHExchangerInvalid();
+      await expect(
+        hre.f.c.synthetixAdapter.exchangeFromExactBase(hre.f.c.optionMarket.address, toBN('1')),
+      ).to.revertedWith('RateIsInvalid');
+    });
     it('exchanges correct amount', async () => {
       await hre.f.c.synthetixAdapter.exchangeFromExactBase(hre.f.c.optionMarket.address, toBN('10'));
       await expectBalance(hre.f.c.snx.quoteAsset, toBN('1019880.000000000000000000'));
@@ -72,7 +74,12 @@ describe('Exchange', async () => {
         hre.f.c.synthetixAdapter.exchangeToExactBase(params, hre.f.c.optionMarket.address, oldQuoteBalance.div(1000)),
       ).revertedWith('ERC20: burn amount exceeds balance');
     });
-    it.skip('reverts if invalid base or quote key');
+    it('reverts if invalid base or quote key', async () => {
+      await setETHExchangerInvalid();
+      await expect(
+        hre.f.c.synthetixAdapter.exchangeToExactBase(params, hre.f.c.optionMarket.address, toBN('1')),
+      ).to.revertedWith('RateIsInvalid');
+    });
     it('exchanges correct amount', async () => {
       await hre.f.c.synthetixAdapter.exchangeToExactBase(params, hre.f.c.optionMarket.address, toBN('10'));
       await expectBalance(hre.f.c.snx.quoteAsset, toBN('979939.819458375125376000'));

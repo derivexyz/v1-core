@@ -1,6 +1,6 @@
 import { ContractFactory } from 'ethers/lib/ethers';
 import { ethers } from 'hardhat';
-import { toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
+import { toBytes32 } from '../../../scripts/util/web3utils';
 import { LiquidityPool, OptionMarket } from '../../../typechain-types';
 import { deployFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -10,20 +10,25 @@ describe('LyraRegistry tests', () => {
 
   describe('LyraRegistry', () => {
     it('can register global contracts', async () => {
-      await hre.f.c.lyraRegistry.updateGlobalAddresses([toBytes32('SNX_ADAPTER')], [hre.f.c.synthetixAdapter.address]);
+      await hre.f.c.lyraRegistry.updateGlobalAddresses(
+        [toBytes32('SYNTHETIX_ADAPTER')],
+        [hre.f.c.synthetixAdapter.address],
+      );
       // can only be called by owner
       await expect(
         hre.f.c.lyraRegistry
           .connect(hre.f.alice)
-          .updateGlobalAddresses([toBytes32('SNX_ADAPTER')], [hre.f.c.optionMarket.address]),
+          .updateGlobalAddresses([toBytes32('SYNTHETIX_ADAPTER')], [hre.f.c.optionMarket.address]),
       ).revertedWith('OnlyOwner');
-      expect(await hre.f.c.lyraRegistry.globalAddresses(toBytes32('SNX_ADAPTER'))).eq(hre.f.c.synthetixAdapter.address);
+      expect(await hre.f.c.lyraRegistry.globalAddresses(toBytes32('SYNTHETIX_ADAPTER'))).eq(
+        hre.f.c.synthetixAdapter.address,
+      );
     });
 
     it('update global contracts wrong ', async () => {
       await expect(
         hre.f.c.lyraRegistry.updateGlobalAddresses(
-          [toBytes32('SNX_ADAPTER'), toBytes32('SNX_ADAPTER')],
+          [toBytes32('SYNTHETIX_ADAPTER'), toBytes32('SYNTHETIX_ADAPTER')],
           [hre.f.c.synthetixAdapter.address],
         ),
       ).to.be.revertedWith('length mismatch');
@@ -39,11 +44,12 @@ describe('LyraRegistry tests', () => {
         optionToken: hre.f.c.optionToken.address,
         poolHedger: hre.f.c.poolHedger.address,
         shortCollateral: hre.f.c.shortCollateral.address,
+        gwavOracle: hre.f.c.GWAVOracle.address,
         baseAsset: hre.f.c.snx.baseAsset.address,
         quoteAsset: hre.f.c.snx.quoteAsset.address,
       });
 
-      let addresses = await hre.f.c.lyraRegistry.marketAddresses(hre.f.c.optionMarket.address);
+      const addresses = await hre.f.c.lyraRegistry.getMarketAddresses(hre.f.c.optionMarket.address);
       expect(addresses.greekCache).eq(hre.f.c.optionGreekCache.address);
       expect(addresses.liquidityPool).eq(hre.f.c.liquidityPool.address);
       expect(addresses.liquidityToken).eq(hre.f.c.liquidityToken.address);
@@ -52,24 +58,18 @@ describe('LyraRegistry tests', () => {
       expect(addresses.optionToken).eq(hre.f.c.optionToken.address);
       expect(addresses.poolHedger).eq(hre.f.c.poolHedger.address);
       expect(addresses.shortCollateral).eq(hre.f.c.shortCollateral.address);
+      expect(addresses.gwavOracle).eq(hre.f.c.GWAVOracle.address);
       expect(addresses.baseAsset).eq(hre.f.c.snx.baseAsset.address);
       expect(addresses.quoteAsset).eq(hre.f.c.snx.quoteAsset.address);
 
       await hre.f.c.lyraRegistry.removeMarket(hre.f.c.optionMarket.address);
-      addresses = await hre.f.c.lyraRegistry.marketAddresses(hre.f.c.optionMarket.address);
-      expect(addresses.greekCache).eq(ZERO_ADDRESS);
-      expect(addresses.liquidityPool).eq(ZERO_ADDRESS);
-      expect(addresses.liquidityToken).eq(ZERO_ADDRESS);
-      expect(addresses.optionMarket).eq(ZERO_ADDRESS);
-      expect(addresses.optionMarketPricer).eq(ZERO_ADDRESS);
-      expect(addresses.optionToken).eq(ZERO_ADDRESS);
-      expect(addresses.poolHedger).eq(ZERO_ADDRESS);
-      expect(addresses.shortCollateral).eq(ZERO_ADDRESS);
-      expect(addresses.baseAsset).eq(ZERO_ADDRESS);
-      expect(addresses.quoteAsset).eq(ZERO_ADDRESS);
+      await expect(hre.f.c.lyraRegistry.getMarketAddresses(hre.f.c.optionMarket.address)).to.revertedWith(
+        'NonExistentMarket',
+      );
     });
 
     it('revert for invalid market', async () => {
+      await hre.f.c.lyraRegistry.removeMarket(hre.f.c.optionMarket.address);
       await expect(hre.f.c.lyraRegistry.removeMarket(hre.f.c.optionMarket.address)).to.be.revertedWith(
         'RemovingInvalidMarket',
       );
@@ -89,6 +89,7 @@ describe('LyraRegistry tests', () => {
         optionToken: hre.f.c.optionToken.address,
         poolHedger: hre.f.c.poolHedger.address,
         shortCollateral: hre.f.c.shortCollateral.address,
+        gwavOracle: hre.f.c.GWAVOracle.address,
         baseAsset: hre.f.c.snx.baseAsset.address,
         quoteAsset: hre.f.c.snx.quoteAsset.address,
       });
@@ -106,6 +107,7 @@ describe('LyraRegistry tests', () => {
         optionToken: hre.f.c.optionToken.address,
         poolHedger: hre.f.c.poolHedger.address,
         shortCollateral: hre.f.c.shortCollateral.address,
+        gwavOracle: hre.f.c.GWAVOracle.address,
         baseAsset: hre.f.c.snx.baseAsset.address,
         quoteAsset: hre.f.c.snx.quoteAsset.address,
       });
@@ -127,6 +129,7 @@ describe('LyraRegistry tests', () => {
         optionToken: hre.f.c.optionToken.address,
         poolHedger: hre.f.c.poolHedger.address,
         shortCollateral: hre.f.c.shortCollateral.address,
+        gwavOracle: hre.f.c.GWAVOracle.address,
         baseAsset: hre.f.c.snx.baseAsset.address,
         quoteAsset: hre.f.c.snx.quoteAsset.address,
       });

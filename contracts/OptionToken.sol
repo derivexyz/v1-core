@@ -5,11 +5,11 @@ pragma solidity 0.8.9;
 import "./synthetix/DecimalMath.sol";
 
 // Inherited
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC721/extensions/ERC721Enumerable.sol";
 import "./synthetix/Owned.sol";
 import "./libraries/SimpleInitializeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
+import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
 
 // Interfaces
 import "./OptionMarket.sol";
@@ -709,9 +709,9 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   }
 
   function _requireStrikeNotExpired(uint strikeId) internal view {
-    (, uint expiry) = optionMarket.getStrikeAndExpiry(strikeId);
-    if (block.timestamp >= expiry) {
-      revert StrikeHasExpired(address(this), strikeId, expiry, block.timestamp);
+    (, uint priceAtExpiry, ) = optionMarket.getSettlementParameters(strikeId);
+    if (priceAtExpiry != 0) {
+      revert StrikeIsSettled(address(this), strikeId);
     }
   }
 
@@ -826,7 +826,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   );
 
   // Access
-  error StrikeHasExpired(address thrower, uint strikeId, uint expiry, uint currentTime);
+  error StrikeIsSettled(address thrower, uint strikeId);
   error OnlyOptionMarket(address thrower, address caller, address optionMarket);
   error OnlyShortCollateral(address thrower, address caller, address shortCollateral);
 }

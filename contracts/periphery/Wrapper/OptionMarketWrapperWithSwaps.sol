@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "../../synthetix/DecimalMath.sol";
 
 // Interfaces
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 import "../../OptionMarket.sol";
 import "../../OptionToken.sol";
 import "../../LiquidityPool.sol";

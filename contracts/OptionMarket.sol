@@ -3,15 +3,15 @@ pragma solidity 0.8.9;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
 import "./libraries/SimpleInitializeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 
 // Interfaces
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/IERC20.sol";
 import "./SynthetixAdapter.sol";
 import "./LiquidityPool.sol";
 import "./OptionToken.sol";

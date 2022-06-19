@@ -4,6 +4,8 @@
 
 - `init(contract OptionMarket _optionMarket, contract OptionGreekCache _greekCache, contract SynthetixAdapter _synthetixAdapter) (external)`
 
+- `setLyraAddresses(contract OptionMarket _optionMarket, contract OptionGreekCache _greekCache, contract SynthetixAdapter _synthetixAdapter) (public)`
+
 - `ivGWAV(uint256 boardId, uint256 secondsAgo) (public)`
 
 - `skewGWAV(uint256 strikeId, uint256 secondsAgo) (public)`
@@ -14,7 +16,7 @@
 
 - `vegaGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
 
-- `pricesGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+- `optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
 
 - `_getBsInput(uint256 strikeId) (internal)`
 
@@ -30,6 +32,8 @@ Initializes the contract
 
 - `_synthetixAdapter`: synthetixAdapter address
 
+### Function `setLyraAddresses(contract OptionMarket _optionMarket, contract OptionGreekCache _greekCache, contract SynthetixAdapter _synthetixAdapter) public`
+
 ### Function `ivGWAV(uint256 boardId, uint256 secondsAgo) → uint256 public`
 
 ### Function `skewGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 public`
@@ -40,6 +44,6 @@ Initializes the contract
 
 ### Function `vegaGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 vega external`
 
-### Function `pricesGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 callPrice, uint256 putPrice external`
+### Function `optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 callPrice, uint256 putPrice external`
 
 ### Function `_getBsInput(uint256 strikeId) → struct BlackScholes.BlackScholesInputs bsInput internal`

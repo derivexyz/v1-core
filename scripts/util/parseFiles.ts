@@ -156,8 +156,12 @@ export function addMockedSnxContract(
   name: string,
   contractName: string,
   contract: Contract,
+  filePath?: string,
+  artifactPath?: string,
 ) {
-  const filePath = path.join(__dirname, '../../deployments', deploymentParams.network, 'synthetix.mocked.json');
+  if (filePath === undefined) {
+    filePath = path.join(__dirname, '../../deployments', deploymentParams.network, 'synthetix.mocked.json');
+  }
   let addresses: any;
   try {
     addresses = require(filePath);
@@ -167,18 +171,28 @@ export function addMockedSnxContract(
   addresses.targets[name] = getContractDetails(contract, contractName);
 
   // contract.interface.
-  addresses.sources[contractName] = getContractArtifact(deploymentParams.network, contractName);
+  addresses.sources[contractName] = getContractArtifact(deploymentParams.network, contractName, artifactPath);
   saveFile(deploymentParams.network, filePath, addresses);
   console.log(chalk.grey(`Saved contract ${name} to ${filePath}`));
 }
 
-export function addLyraContract(deploymentParams: DeploymentParams, name: string, contract: Contract, market?: string) {
-  const filePath = path.join(
-    __dirname,
-    '../../deployments',
-    deploymentParams.network,
-    'lyra' + (deploymentParams.mockSnx ? (deploymentParams.realPricing ? '.realPricing' : '.mockSnx') : '') + '.json',
-  );
+export function addLyraContract(
+  deploymentParams: DeploymentParams,
+  name: string,
+  contract: Contract,
+  market?: string,
+  filePath?: string,
+  artifactPath?: string,
+) {
+  if (filePath === undefined) {
+    filePath = path.join(
+      __dirname,
+      '../../deployments',
+      deploymentParams.network,
+      'lyra' + (deploymentParams.mockSnx ? (deploymentParams.realPricing ? '.realPricing' : '.mockSnx') : '') + '.json',
+    );
+  }
+
   let data: any;
   try {
     data = require(filePath);
@@ -196,7 +210,8 @@ export function addLyraContract(deploymentParams: DeploymentParams, name: string
     }
     data.targets.markets[market][name] = getContractDetails(contract, name);
   }
-  data.sources[name] = getContractArtifact(deploymentParams.network, name);
+
+  data.sources[name] = getContractArtifact(deploymentParams.network, name, artifactPath);
   saveFile(deploymentParams.network, filePath, data);
   console.log(chalk.grey(`Saved contract ${name} to ${filePath}`));
 }
@@ -213,13 +228,20 @@ function saveFile(network: string, filePath: string, data: any) {
   fs.writeFileSync(filePath, JSON.stringify(data, undefined, 2));
 }
 
-export function loadLyraContractData(deploymentParams: DeploymentParams, name: string, market?: string) {
-  const filePath = path.join(
-    __dirname,
-    '../../deployments',
-    deploymentParams.network,
-    'lyra' + (deploymentParams.mockSnx ? (deploymentParams.realPricing ? '.realPricing' : '.mockSnx') : '') + '.json',
-  );
+export function loadLyraContractData(
+  deploymentParams: DeploymentParams,
+  name: string,
+  market?: string,
+  filePath?: string,
+) {
+  if (filePath === undefined) {
+    filePath = path.join(
+      __dirname,
+      '../../deployments',
+      deploymentParams.network,
+      'lyra' + (deploymentParams.mockSnx ? (deploymentParams.realPricing ? '.realPricing' : '.mockSnx') : '') + '.json',
+    );
+  }
   const data = require(filePath);
   try {
     if (market) {
@@ -233,17 +255,18 @@ export function loadLyraContractData(deploymentParams: DeploymentParams, name: s
       source: data.sources[data.targets[name].source],
     };
   } catch (e) {
-    console.log({ filePath, name, market, deploymentParams });
+    // console.log({ filePath, name, market, deploymentParams });
     throw e;
   }
 }
 
-export function loadSynthetixContractData(deploymentParams: DeploymentParams, name: string) {
-  let filePath;
-  if (!deploymentParams.mockSnx || (['Exchanger', 'ExchangeRates'].includes(name) && deploymentParams.realPricing)) {
-    filePath = path.join(__dirname, '../../deployments', deploymentParams.network, 'synthetix.json');
-  } else {
-    filePath = path.join(__dirname, '../../deployments', deploymentParams.network, 'synthetix.mocked.json');
+export function loadSynthetixContractData(deploymentParams: DeploymentParams, name: string, filePath?: string) {
+  if (filePath === undefined) {
+    if (!deploymentParams.mockSnx || (['Exchanger', 'ExchangeRates'].includes(name) && deploymentParams.realPricing)) {
+      filePath = path.join(__dirname, '../../deployments', deploymentParams.network, 'synthetix.json');
+    } else {
+      filePath = path.join(__dirname, '../../deployments', deploymentParams.network, 'synthetix.mocked.json');
+    }
   }
   const data = require(filePath);
 
@@ -255,7 +278,7 @@ export function loadSynthetixContractData(deploymentParams: DeploymentParams, na
       source: data.sources[source == 'ProxyERC20' ? 'MultiCollateralSynth' : data.targets[name].source],
     };
   } catch (e) {
-    console.log({ filePath, name, deploymentParams });
+    // console.log({ filePath, name, deploymentParams });
     throw e;
   }
 }

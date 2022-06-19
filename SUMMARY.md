@@ -20,10 +20,10 @@
     * [BasicLiquidityCounter](docs/contracts/periphery/basicliquiditycounter.md)
     * [GWAVOracle](docs/contracts/periphery/gwavoracle.md)
     * [KeeperHelper](docs/contracts/periphery/keeperhelper.md)
+    * [LyraAdapter](docs/contracts/periphery/lyraadapter.md)
     * [LyraRegistry](docs/contracts/periphery/lyraregistry.md)
     * [MultistepSwapper](docs/contracts/periphery/multistepswapper.md)
     * [OptionMarketViewer](docs/contracts/periphery/optionmarketviewer.md)
-    * [VaultAdapter](docs/contracts/periphery/vaultadapter.md)
     * Wrapper
       * [BasicOptionMarketWrapper](docs/contracts/periphery/wrapper/basicoptionmarketwrapper.md)
       * [OptionMarketWrapper](docs/contracts/periphery/wrapper/optionmarketwrapper.md)

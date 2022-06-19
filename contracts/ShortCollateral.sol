@@ -6,9 +6,9 @@ import "./synthetix/DecimalMath.sol";
 // Inherited
 import "./synthetix/Owned.sol";
 import "./libraries/SimpleInitializeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 // Interfaces
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 import "./libraries/PoolHedger.sol";
 import "./SynthetixAdapter.sol";
 import "./LiquidityPool.sol";

@@ -12,6 +12,7 @@ import "../SynthetixAdapter.sol";
 import "../synthetix/Owned.sol";
 import "./Wrapper/OptionMarketWrapper.sol";
 import "./OptionMarketViewer.sol";
+import "./GWAVOracle.sol";
 
 /**
  * @title OptionMarketViewer
@@ -29,6 +30,7 @@ contract LyraRegistry is Owned {
     OptionToken optionToken;
     PoolHedger poolHedger;
     ShortCollateral shortCollateral;
+    GWAVOracle gwavOracle;
     IERC20 quoteAsset;
     IERC20 baseAsset;
   }
@@ -38,6 +40,24 @@ contract LyraRegistry is Owned {
   mapping(bytes32 => address) public globalAddresses;
 
   constructor() Owned() {}
+
+  function getMarketAddresses(OptionMarket optionMarket) external view returns (OptionMarketAddresses memory) {
+    OptionMarketAddresses memory addresses = marketAddresses[optionMarket];
+    if (address(addresses.optionMarket) != address(0)) {
+      return addresses;
+    } else {
+      revert NonExistentMarket(address(optionMarket));
+    }
+  }
+
+  function getGlobalAddress(bytes32 contractName) external view returns (address globalContract) {
+    globalContract = globalAddresses[contractName];
+    if (globalContract != address(0)) {
+      return globalContract;
+    } else {
+      revert NonExistentGlobalContract(contractName);
+    }
+  }
 
   function updateGlobalAddresses(bytes32[] memory names, address[] memory addresses) external onlyOwner {
     require(names.length == addresses.length, "length mismatch");
@@ -98,5 +118,10 @@ contract LyraRegistry is Owned {
   ////////////
   // Errors //
   ////////////
+
   error RemovingInvalidMarket(address thrower, address market);
+
+  error NonExistentMarket(address optionMarket);
+
+  error NonExistentGlobalContract(bytes32 contractName);
 }

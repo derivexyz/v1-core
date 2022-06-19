@@ -1,5 +1,7 @@
 import { BigNumberish } from '@ethersproject/bignumber';
+import { BigNumber } from '@ethersproject/contracts/node_modules/@ethersproject/bignumber';
 import { DAY_SEC, OptionType, toBN, toBytes32, UNIT, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { assertCloseToPercentage } from '../../utils/assert';
 import {
   getSpotPrice,
   openPositionWithOverrides,
@@ -17,10 +19,66 @@ import { createDefaultBoardWithOverrides, mockPrice } from '../../utils/seedTest
 import { expect, hre } from '../../utils/testSetup';
 
 describe('OptionGreekCache - Stale Cache Checks', () => {
+  // const boards = [] as BigNumberish[];
   beforeEach(seedFixture);
 
   describe('getVolVariance', () => {
-    it.skip('returns maxIvVariance/maxSkewVariance');
+    const boards = [] as BigNumberish[];
+    beforeEach(async () => {
+      await seedFixture();
+      boards[0] = hre.f.board.boardId;
+      boards[1] = await createDefaultBoardWithOverrides(hre.f.c);
+      boards[2] = await createDefaultBoardWithOverrides(hre.f.c);
+    });
+    it('updates maxIvVariance', async () => {
+      // before any updates, maxIVVariance should be 0
+      await updateAllBoardsAndGetGWAVs([1, 2, 3], []);
+      expect((await hre.f.c.optionGreekCache.getGlobalCache()).maxIvVariance).to.eq(1); // not sure why not 0
+      expect((await hre.f.c.optionGreekCache.getGlobalCache()).maxSkewVariance).to.eq(1); // not sure why not 0
+
+      // just update one
+      await openPositionWithOverrides(hre.f.c, {
+        strikeId: 3,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('1'),
+      });
+
+      await updateAllBoardsAndGetGWAVs([1, 2, 3], []);
+      assertCloseToPercentage(
+        (await hre.f.c.optionGreekCache.getGlobalCache()).maxIvVariance,
+        toBN('0.002'),
+        toBN('0.01'),
+      );
+      assertCloseToPercentage(
+        (await hre.f.c.optionGreekCache.getGlobalCache()).maxSkewVariance,
+        toBN('0.0015'),
+        toBN('0.01'),
+      );
+
+      // drop variance as time goes on
+      await fastForward(DAY_SEC);
+      await updateAllBoardsAndGetGWAVs([1, 2, 3], []);
+      expect((await hre.f.c.optionGreekCache.getGlobalCache()).maxIvVariance).to.lt(toBN('0.002')); // not sure why not 0
+      expect((await hre.f.c.optionGreekCache.getGlobalCache()).maxSkewVariance).to.lt(toBN('0.0015')); // not sure why not 0
+
+      // open second position, max vol variance should increase
+      await openPositionWithOverrides(hre.f.c, {
+        strikeId: 6,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('50'),
+      });
+      await updateAllBoardsAndGetGWAVs([1, 2, 3], []);
+      assertCloseToPercentage(
+        (await hre.f.c.optionGreekCache.getGlobalCache()).maxIvVariance,
+        toBN('0.1'),
+        toBN('0.01'),
+      );
+      assertCloseToPercentage(
+        (await hre.f.c.optionGreekCache.getGlobalCache()).maxSkewVariance,
+        toBN('0.075'),
+        toBN('0.01'),
+      );
+    });
   });
 
   describe('isGlobalCacheStale', () => {
@@ -128,7 +186,7 @@ describe('OptionGreekCache - Stale Cache Checks', () => {
 
   it('can recompute a stale cache', async () => {
     await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
-    // When boards are added, greeks are computes so they are not stale at time of strike.
+    // When boards are added, greeks are computed so they are not stale at time of strike.
     expect((await hre.f.c.optionGreekCache.getGlobalCache()).netGreeks.netOptionValue).to.eq(0);
 
     await fastForward(WEEK_SEC);
@@ -165,4 +223,23 @@ async function progressivelyUpdateBoards(boards: any) {
   // updated final board
   await hre.f.c.optionGreekCache.updateBoardCachedGreeks(boards[2]);
   expect(await hre.f.c.optionGreekCache.isGlobalCacheStale(await getSpotPrice())).to.be.false;
+}
+
+async function updateAllBoardsAndGetGWAVs(boards: BigNumberish[], strikes: BigNumberish[]) {
+  const boardGWAVIVs: BigNumber[] = [];
+  const boardGWAVSkews: BigNumber[] = [];
+
+  boards.forEach(async boardId => {
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(boardId);
+    boardGWAVIVs.push(
+      await hre.f.c.optionGreekCache.getIvGWAV(boardId, DEFAULT_GREEK_CACHE_PARAMS.varianceIvGWAVPeriod),
+    );
+  });
+
+  strikes.forEach(async strikeId => {
+    boardGWAVSkews.push(
+      await hre.f.c.optionGreekCache.getSkewGWAV(strikeId, DEFAULT_GREEK_CACHE_PARAMS.varianceSkewGWAVPeriod),
+    );
+  });
+  return { boardGWAVIVs, boardGWAVSkews };
 }

@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 // Libraries
 import "./synthetix/DecimalMath.sol";
 // Inherited
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 import "./synthetix/Owned.sol";
 import "./libraries/SimpleInitializeable.sol";
 

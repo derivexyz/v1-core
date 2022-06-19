@@ -12,9 +12,10 @@ import {
   setETHPrice,
   settleBoardAtPrice,
 } from '../../utils/contractHelpers';
+import { DEFAULT_PRICING_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
-import { seedBalanceAndApprovalFor } from '../../utils/seedTestSystem';
+import { createDefaultBoardWithOverrides, seedBalanceAndApprovalFor } from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
 
 async function settleBoard(boardId?: BigNumberish) {
@@ -427,7 +428,42 @@ describe('OptionMarket - SettleBoard', () => {
       expect(await hre.f.c.shortCollateral.LPQuoteExcess()).to.eq(0);
     });
 
-    it.skip('should send full LP profit if unexpired collateral present');
+    it('should send full LP profit if unexpired collateral present', async () => {
+      await hre.f.c.optionMarketPricer.setPricingParams({
+        ...DEFAULT_PRICING_PARAMS,
+        standardSize: toBN('50'),
+      });
+      await setETHPrice(toBN('2000'));
+
+      // open future insolvent position
+      await openPosition({
+        strikeId: 2,
+        optionType: OptionType.SHORT_CALL_QUOTE,
+        amount: toBN('10'),
+        setCollateralTo: toBN('20000'), // partial collateral
+      });
+
+      // open new board & backup collat
+      await createDefaultBoardWithOverrides(hre.f.c, {
+        baseIV: '1',
+        strikePrices: ['2000', '2500', '3000'],
+        skews: ['0.9', '1', '1.1'],
+        expiresIn: 2 * MONTH_SEC,
+      });
+      await openPosition({
+        strikeId: 5,
+        optionType: OptionType.SHORT_PUT_QUOTE,
+        amount: toBN('10'),
+        setCollateralTo: toBN('50000'), // partial collateral
+      });
+
+      // Settle Board
+      // $5000 profit per position, $50,000 total payout with $20,000 collat in existing position
+      await setETHPrice(toBN('6500'));
+      await fastForward(MONTH_SEC);
+      await settleBoard();
+      expect(await hre.f.c.shortCollateral.LPQuoteExcess()).to.eq(0);
+    });
   });
 
   // Trader insolvency larger than solvent collateral in SC

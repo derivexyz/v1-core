@@ -6,6 +6,10 @@ ensuring accurate prices are provided to the user.
 
 ## Functions:
 
+- `getMarketAddresses(contract OptionMarket optionMarket) (external)`
+
+- `getGlobalAddress(bytes32 contractName) (external)`
+
 - `updateGlobalAddresses(bytes32[] names, address[] addresses) (external)`
 
 - `addMarket(struct LyraRegistry.OptionMarketAddresses newMarketAddresses) (external)`
@@ -21,6 +25,10 @@ ensuring accurate prices are provided to the user.
 - `MarketUpdated(contract OptionMarket optionMarket, struct LyraRegistry.OptionMarketAddresses market)`
 
 - `MarketRemoved(contract OptionMarket market)`
+
+### Function `getMarketAddresses(contract OptionMarket optionMarket) → struct LyraRegistry.OptionMarketAddresses external`
+
+### Function `getGlobalAddress(bytes32 contractName) → address globalContract external`
 
 ### Function `updateGlobalAddresses(bytes32[] names, address[] addresses) external`
 

@@ -49,18 +49,19 @@ describe('updateCollateral', async () => {
       await testPoolHedger.updateCollateral();
       expect((await testPoolHedger.getShortPosition()).collateral).to.eq(0);
     });
-    it('reverts if short account closed or liquidated', async () => {
+    it('no change if short account closed or liquidated', async () => {
       await testPoolHedger.openShortAccount();
       await testPoolHedger.hedgeDelta();
 
       // create delta
-      await openDefaultLongCall();
+      await setNegativeExpectedHedge();
       await testPoolHedger.hedgeDelta();
-      await mockPrice(hre.f.c, toBN('3000'), 'sETH');
+      await mockPrice(hre.f.c, toBN('5000'), 'sETH');
 
       // close account and attempt updateCollateral
       await hre.f.c.snx.collateralShort.testForceClose(await testPoolHedger.shortId());
-      await expect(testPoolHedger.updateCollateral()).to.revertedWith('Loan is closed');
+
+      expect((await testPoolHedger.getShortPosition()).collateral).to.be.eq(0);
     });
     it('updates collateral even if interaction delay unexpired', async () => {
       await testPoolHedger.openShortAccount();

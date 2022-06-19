@@ -102,14 +102,14 @@ describe('OptionToken - Merge', () => {
 
     // can merge after expiry
     await expect(hre.f.c.optionToken.merge([hre.f.positionIds[OptionType.LONG_CALL], secondPos])).revertedWith(
-      'StrikeHasExpired',
+      'StrikeIsSettled',
     );
 
     await hre.f.c.shortCollateral.settleOptions([hre.f.positionIds[OptionType.LONG_CALL]]);
 
     // firstPos is burnt, so it reverts in the _burn step
     await expect(hre.f.c.optionToken.merge([thirdPos, hre.f.positionIds[OptionType.LONG_CALL]])).revertedWith(
-      'StrikeHasExpired',
+      'StrikeIsSettled',
     );
 
     await expect(hre.f.c.optionToken.merge([hre.f.positionIds[OptionType.LONG_CALL], thirdPos])).revertedWith(

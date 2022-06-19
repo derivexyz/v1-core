@@ -1,6 +1,6 @@
 import { BigNumber } from 'ethers';
 import { beforeEach } from 'mocha';
-import { fromBN, MONTH_SEC, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
+import { MONTH_SEC, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
 import { assertCloseTo, assertCloseToPercentage } from '../../utils/assert';
 import {
   expectBalance,
@@ -387,6 +387,5 @@ describe('Hedge Delta', async () => {
 });
 
 async function assertCloseToBaseBal(address: string, balance: BigNumber) {
-  console.log('hi', fromBN(balance));
   await assertCloseToPercentage(await hre.f.c.snx.baseAsset.balanceOf(address), balance);
 }

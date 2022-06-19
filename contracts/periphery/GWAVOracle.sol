@@ -43,6 +43,14 @@ contract GWAVOracle is Owned {
     OptionGreekCache _greekCache,
     SynthetixAdapter _synthetixAdapter
   ) external onlyOwner {
+    setLyraAddresses(_optionMarket, _greekCache, _synthetixAdapter);
+  }
+
+  function setLyraAddresses(
+    OptionMarket _optionMarket,
+    OptionGreekCache _greekCache,
+    SynthetixAdapter _synthetixAdapter
+  ) public onlyOwner {
     optionMarket = _optionMarket;
     greekCache = _greekCache;
     synthetixAdapter = _synthetixAdapter;
@@ -77,7 +85,7 @@ contract GWAVOracle is Owned {
     vega = BlackScholes.vega(bsInput);
   }
 
-  function pricesGWAV(uint strikeId, uint secondsAgo) external view returns (uint callPrice, uint putPrice) {
+  function optionPriceGWAV(uint strikeId, uint secondsAgo) external view returns (uint callPrice, uint putPrice) {
     BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeId);
 
     bsInput.volatilityDecimal = volGWAV(strikeId, secondsAgo);

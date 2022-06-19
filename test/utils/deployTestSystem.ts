@@ -1,5 +1,5 @@
 import { BigNumber, Contract, ContractFactory, Signer } from 'ethers';
-import { ethers, upgrades } from 'hardhat';
+import { ethers, tracer, upgrades } from 'hardhat';
 import { toBN, toBytes32, YEAR_SEC } from '../../scripts/util/web3utils';
 import {
   BasicFeeCounter,
@@ -47,7 +47,6 @@ import { DEFAULT_SECURITY_MODULE } from './defaultParams';
 import { mergeDeep } from './package/merge';
 import { exportGlobalDeployment, exportMarketDeployment, getLocalRealSynthetixContract } from './package/parseFiles';
 import { changeRate, compileAndDeployRealSynthetix, mintsUSD, setDebtLimit } from './package/realSynthetixUtils';
-import { hre } from './testSetup';
 
 export type TestSystemContractsType = GlobalTestSystemContracts & MarketTestSystemContracts;
 
@@ -520,6 +519,23 @@ export async function initGlobalTestSystem(
       testSystem.basicFeeCounter.address,
       toBN('0.1'),
     );
+
+  await testSystem.lyraRegistry.updateGlobalAddresses(
+    [
+      toBytes32('SYNTHETIX_ADAPTER'),
+      toBytes32('MARKET_VIEWER'),
+      toBytes32('MARKET_WRAPPER'),
+      toBytes32('GWAV'),
+      toBytes32('BLACK_SCHOLES'),
+    ],
+    [
+      testSystem.synthetixAdapter.address,
+      testSystem.optionMarketViewer.address,
+      testSystem.optionMarketWrapper.address,
+      testSystem.gwav.address,
+      testSystem.blackScholes.address,
+    ],
+  );
 }
 
 export async function initMarketTestSystem(
@@ -673,6 +689,20 @@ export async function initMarketTestSystem(
     quoteAsset: overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
   });
 
+  await existingTestSystem.lyraRegistry.connect(deployer).addMarket({
+    liquidityPool: overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+    liquidityToken: overrides.liquidityToken || marketTestSystem.liquidityToken.address,
+    greekCache: overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+    optionMarket: overrides.optionMarket || marketTestSystem.optionMarket.address,
+    optionMarketPricer: overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
+    optionToken: overrides.optionToken || marketTestSystem.optionToken.address,
+    poolHedger: overrides.poolHedger || marketTestSystem.poolHedger.address,
+    shortCollateral: overrides.shortCollateral || marketTestSystem.shortCollateral.address,
+    gwavOracle: overrides.GWAVOracle || marketTestSystem.GWAVOracle.address,
+    baseAsset: overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+    quoteAsset: overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
+  });
+
   await existingTestSystem.optionMarketWrapper
     .connect(deployer)
     .addMarket(
@@ -690,6 +720,7 @@ export async function initMarketTestSystem(
   await existingTestSystem.keeperHelper
     .connect(deployer)
     .init(existingTestSystem.optionMarket.address, existingTestSystem.shortCollateral.address);
+
   ////////////////////////
   // Lyra Market Params //
   ////////////////////////
@@ -857,23 +888,23 @@ export async function linkEventTracer(testSystem: TestSystemContractsType) {
   // currently only supports default sETH market
 
   // Lyra
-  hre.tracer.nameTags[testSystem.synthetixAdapter.address] = 'synthetixAdapter';
-  hre.tracer.nameTags[testSystem.optionMarket.address] = 'optionMarket';
-  hre.tracer.nameTags[testSystem.optionMarketPricer.address] = 'optionMarketPricer';
-  hre.tracer.nameTags[testSystem.optionGreekCache.address] = 'optionGreekCache';
-  hre.tracer.nameTags[testSystem.liquidityPool.address] = 'liquidityPool';
-  hre.tracer.nameTags[testSystem.liquidityToken.address] = 'liquidityToken';
-  hre.tracer.nameTags[testSystem.optionToken.address] = 'optionToken';
-  hre.tracer.nameTags[testSystem.shortCollateral.address] = 'shortCollateral';
-  hre.tracer.nameTags[testSystem.optionMarketViewer.address] = 'optionMarketViewer';
-  hre.tracer.nameTags[testSystem.poolHedger.address] = 'poolHedger';
+  tracer.nameTags[testSystem.synthetixAdapter.address] = 'synthetixAdapter';
+  tracer.nameTags[testSystem.optionMarket.address] = 'optionMarket';
+  tracer.nameTags[testSystem.optionMarketPricer.address] = 'optionMarketPricer';
+  tracer.nameTags[testSystem.optionGreekCache.address] = 'optionGreekCache';
+  tracer.nameTags[testSystem.liquidityPool.address] = 'liquidityPool';
+  tracer.nameTags[testSystem.liquidityToken.address] = 'liquidityToken';
+  tracer.nameTags[testSystem.optionToken.address] = 'optionToken';
+  tracer.nameTags[testSystem.shortCollateral.address] = 'shortCollateral';
+  tracer.nameTags[testSystem.optionMarketViewer.address] = 'optionMarketViewer';
+  tracer.nameTags[testSystem.poolHedger.address] = 'poolHedger';
 
   // Synthetix
-  hre.tracer.nameTags[testSystem.snx.exchangeRates.address] = 'exchangeRates';
-  hre.tracer.nameTags[testSystem.snx.exchanger.address] = 'exchanger';
-  hre.tracer.nameTags[testSystem.snx.quoteAsset.address] = 'quoteAsset';
-  hre.tracer.nameTags[testSystem.snx.baseAsset.address] = 'baseAsset';
-  hre.tracer.nameTags[testSystem.snx.synthetix.address] = 'synthetix';
-  hre.tracer.nameTags[testSystem.snx.collateralShort.address] = 'collateralShort';
-  hre.tracer.nameTags[testSystem.snx.addressResolver.address] = 'addressResolver';
+  tracer.nameTags[testSystem.snx.exchangeRates.address] = 'exchangeRates';
+  tracer.nameTags[testSystem.snx.exchanger.address] = 'exchanger';
+  tracer.nameTags[testSystem.snx.quoteAsset.address] = 'quoteAsset';
+  tracer.nameTags[testSystem.snx.baseAsset.address] = 'baseAsset';
+  tracer.nameTags[testSystem.snx.synthetix.address] = 'synthetix';
+  tracer.nameTags[testSystem.snx.collateralShort.address] = 'collateralShort';
+  tracer.nameTags[testSystem.snx.addressResolver.address] = 'addressResolver';
 }

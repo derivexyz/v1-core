@@ -14,6 +14,7 @@ import {
   initMarketTestSystem,
   TestSystemContractsType,
 } from '../../utils/deployTestSystem';
+import { restoreSnapshot, takeSnapshot } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { mergeDeep } from '../../utils/package/merge';
 import { expect, hre } from '../../utils/testSetup';
@@ -23,6 +24,7 @@ describe('Misc', async () => {
   let lp: LiquidityPool;
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
+  let snapshot: number;
   before(async () => {
     lp = await (await ethers.getContractFactory('LiquidityPool')).deploy();
     [deployer, alice] = await ethers.getSigners();
@@ -56,6 +58,26 @@ describe('Misc', async () => {
     );
 
     await lp.setLiquidityPoolParameters(DEFAULT_LIQUIDITY_POOL_PARAMS);
+  });
+
+  beforeEach(async () => {
+    snapshot = await takeSnapshot();
+  });
+
+  afterEach(async () => {
+    await restoreSnapshot(snapshot);
+  });
+
+  it('test all modifiers', async () => {
+    await expect(lp.connect(alice).transferQuoteToHedge(toBN('100'), toBN('1'))).to.revertedWith('OnlyPoolHedger');
+
+    await expect(lp.connect(alice).boardSettlement(toBN('1'), toBN('1'), toBN('1'), toBN('1'))).to.revertedWith(
+      'OnlyOptionMarket',
+    );
+
+    await expect(lp.connect(alice).sendSettlementValue(deployer.address, toBN('1'))).to.revertedWith(
+      'OnlyShortCollateral',
+    );
   });
 
   it('reverts in a number of scenarios', async () => {
@@ -101,6 +123,4 @@ describe('Misc', async () => {
     await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, lpQuoteBalance);
     await expect(hre.f.c.liquidityPool.getTotalPoolValueQuote()).revertedWith('OptionValueDebtExceedsTotalAssets');
   });
-
-  it.skip('test all modifiers...');
 });

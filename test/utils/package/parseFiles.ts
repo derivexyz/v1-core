@@ -1,11 +1,15 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import { fetchJson } from '@ethersproject/web';
 import chalk from 'chalk';
-import { Contract, Signer } from 'ethers';
+import { Contract, Signer, Wallet } from 'ethers';
 import fs from 'fs';
 import path, { resolve } from 'path';
-import { AllowedNetworks } from '../../../scripts/util';
-import { getContractsWithBlockNumber } from '../../../scripts/util/parseFiles';
+import { AllowedNetworks, DeploymentParams } from '../../../scripts/util';
+import {
+  addLyraContract,
+  addMockedSnxContract,
+  loadLyraContractData,
+  loadSynthetixContractData,
+} from '../../../scripts/util/parseFiles';
 import { GlobalTestSystemContracts, MarketTestSystemContracts } from '../deployTestSystem';
 import { artifacts } from '../package/index-artifacts';
 
@@ -69,155 +73,168 @@ export type lyraDeployment = {
 };
 
 // loads all of the lyra contracts into a test system dir? ah but not very compatible with ethers vs
-export async function getGlobalDeploys(network: AllowedNetworks): Promise<LyraGlobal> {
-  const lyraDeployment = await getDeployment(network);
-
-  let snxDeployment;
-  let quoteName;
-  if (network == 'local') {
-    snxDeployment = lyraDeployment;
-    quoteName = 'QuoteAsset';
-  } else if (network == 'kovan-ovm') {
-    snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/synthetix.mocked.json');
-    quoteName = `ProxyERC20sUSD`;
-  } else {
-    try {
-      snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/synthetix.json');
-      quoteName = `ProxyERC20sUSD`;
-    } catch (e) {
-      throw new Error('mainnet contracts not deployed yet...');
-    }
-  }
-
-  console.log(chalk.greenBright(`\n=== Loaded global contracts from ${network} ===\n`));
+export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
+  const deploymentParams = {
+    network: network,
+    mockSnx: network == 'mainnet-ovm' ? false : true,
+    realPricing: network == 'kovan-ovm' ? true : false,
+    deployer: {} as Wallet,
+  };
 
   return {
-    TestFaucet: assignGlobalArtifact('TestFaucet', lyraDeployment, artifacts),
-    SynthetixAdapter: assignGlobalArtifact('SynthetixAdapter', lyraDeployment, artifacts),
-    OptionMarketViewer: assignGlobalArtifact('OptionMarketViewer', lyraDeployment, artifacts),
-    OptionMarketWrapper: assignGlobalArtifact('OptionMarketWrapper', lyraDeployment, artifacts),
-    LyraRegistry: assignGlobalArtifact('LyraRegistry', lyraDeployment, artifacts),
-    GWAV: assignGlobalArtifact('GWAV', lyraDeployment, artifacts),
-    BlackScholes: assignGlobalArtifact('BlackScholes', lyraDeployment, artifacts),
-    BasicFeeCounter: assignGlobalArtifact('BasicFeeCounter', lyraDeployment, artifacts),
-    QuoteAsset: assignGlobalArtifact(quoteName, snxDeployment, artifacts, 'TestERC20Fail'),
+    TestFaucet:
+      network != 'local'
+        ? assignGlobalArtifact(network, 'TestFaucet', deploymentParams, artifacts, true)
+        : EMPTY_LYRA_ARTIFACT,
+    SynthetixAdapter: assignGlobalArtifact(network, 'SynthetixAdapter', deploymentParams, artifacts, true),
+    OptionMarketViewer: assignGlobalArtifact(network, 'OptionMarketViewer', deploymentParams, artifacts, true),
+    OptionMarketWrapper: assignGlobalArtifact(network, 'OptionMarketWrapper', deploymentParams, artifacts, true),
+    LyraRegistry: assignGlobalArtifact(network, 'LyraRegistry', deploymentParams, artifacts, true),
+    GWAV: assignGlobalArtifact(network, 'GWAV', deploymentParams, artifacts, true),
+    BlackScholes: assignGlobalArtifact(network, 'BlackScholes', deploymentParams, artifacts, true),
+    BasicFeeCounter: assignGlobalArtifact(network, 'BasicFeeCounter', deploymentParams, artifacts, true),
+    QuoteAsset: assignGlobalArtifact(network, `ProxyERC20sUSD`, deploymentParams, artifacts, false, 'TestERC20Fail'),
   };
 }
 
-export async function getMarketDeploys(network: AllowedNetworks, market: string): Promise<LyraMarket> {
-  const lyraDeployment = await getDeployment(network);
-
-  let snxDeployment;
-  let baseName;
-  if (network == 'local') {
-    snxDeployment = lyraDeployment;
-    baseName = 'BaseAsset';
-  } else if (network == 'kovan-ovm') {
-    snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/synthetix.mocked.json');
-    baseName = `Proxy${market}`;
-  } else {
-    try {
-      snxDeployment = await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/synthetix.json');
-      baseName = `Proxy${market}`;
-    } catch (e) {
-      throw new Error('mainnet contracts not deployed yet...');
-    }
-  }
-
-  console.log(chalk.greenBright(`\n=== Loaded market contracts for ${network} ===\n`));
+export function getMarketDeploys(network: AllowedNetworks, market: string): LyraMarket {
+  const deploymentParams = {
+    network: network,
+    mockSnx: network == 'mainnet-ovm' ? false : true,
+    realPricing: network == 'kovan-ovm' ? true : false,
+    deployer: {} as Wallet,
+  };
 
   return {
-    OptionMarket: assignMarketArtifact('OptionMarket', lyraDeployment, artifacts, market),
-    OptionMarketPricer: assignMarketArtifact('OptionMarketPricer', lyraDeployment, artifacts, market),
-    OptionGreekCache: assignMarketArtifact('OptionGreekCache', lyraDeployment, artifacts, market),
-    OptionToken: assignMarketArtifact('OptionToken', lyraDeployment, artifacts, market),
-    LiquidityPool: assignMarketArtifact('LiquidityPool', lyraDeployment, artifacts, market),
-    LiquidityToken: assignMarketArtifact('LiquidityToken', lyraDeployment, artifacts, market),
-    ShortCollateral: assignMarketArtifact('ShortCollateral', lyraDeployment, artifacts, market),
-    BasicLiquidityCounter: assignMarketArtifact('BasicLiquidityCounter', lyraDeployment, artifacts, market),
-    PoolHedger: assignMarketArtifact('ShortPoolHedger', lyraDeployment, artifacts, market),
-    GWAVOracle: assignMarketArtifact('GWAVOracle', lyraDeployment, artifacts, market),
-    BaseAsset: assignMarketArtifact(baseName, snxDeployment, artifacts, market, 'TestERC20Fail'),
+    OptionMarket: assignMarketArtifact(network, 'OptionMarket', deploymentParams, artifacts, market, true),
+    OptionMarketPricer: assignMarketArtifact(network, 'OptionMarketPricer', deploymentParams, artifacts, market, true),
+    OptionGreekCache: assignMarketArtifact(network, 'OptionGreekCache', deploymentParams, artifacts, market, true),
+    OptionToken: assignMarketArtifact(network, 'OptionToken', deploymentParams, artifacts, market, true),
+    LiquidityPool: assignMarketArtifact(network, 'LiquidityPool', deploymentParams, artifacts, market, true),
+    LiquidityToken: assignMarketArtifact(network, 'LiquidityToken', deploymentParams, artifacts, market, true),
+    ShortCollateral: assignMarketArtifact(network, 'ShortCollateral', deploymentParams, artifacts, market, true),
+    BasicLiquidityCounter: assignMarketArtifact(
+      network,
+      'BasicLiquidityCounter',
+      deploymentParams,
+      artifacts,
+      market,
+      true,
+    ),
+    PoolHedger: assignMarketArtifact(
+      network,
+      'PoolHedger',
+      deploymentParams,
+      artifacts,
+      market,
+      true,
+      'ShortPoolHedger',
+    ),
+    GWAVOracle: assignMarketArtifact(network, 'GWAVOracle', deploymentParams, artifacts, market, true),
+    BaseAsset: assignMarketArtifact(
+      network,
+      `Proxy${market}`,
+      deploymentParams,
+      artifacts,
+      undefined,
+      false,
+      'TestERC20Fail',
+    ),
   };
 }
 
 export function assignGlobalArtifact(
+  network: AllowedNetworks,
   contractName: string,
-  deployment: any,
+  deploymentParams: DeploymentParams,
   artifacts: any,
+  lyra?: boolean,
   source?: string,
 ): LyraArtifact {
-  const target = deployment.globals == undefined ? deployment.targets : deployment.globals;
-
   try {
+    let target;
+    if (lyra === undefined || lyra == false) {
+      target = loadSynthetixContractData(deploymentParams, contractName, getSNXDeploymentDir(network)).target;
+    } else {
+      target = loadLyraContractData(deploymentParams, contractName, undefined, getLyraDeploymentDir(network)).target;
+    }
     return {
       contractName: contractName,
-      address: target[contractName].address,
+      address: target.address,
       abi: artifacts[source || contractName].abi,
       bytecode: artifacts[source || contractName].bytecode,
       linkReferences: artifacts[source || contractName].linkReferences,
-      blockNumber: target[contractName].blockNumber || 0,
-      txn: target[contractName].txn || '',
+      blockNumber: target.blockNumber || 0,
+      txn: target.txn || '',
     };
   } catch (e) {
-    console.log('Could not locate contract: ', contractName);
+    console.log('Artifact ommitted for: ', deploymentParams.network, contractName);
     return { ...EMPTY_LYRA_ARTIFACT };
   }
 }
 
 export function assignMarketArtifact(
+  network: AllowedNetworks,
   contractName: string,
-  deployment: any,
+  deploymentParams: DeploymentParams,
   artifacts: any,
-  market: string,
+  market?: string,
+  lyra?: boolean,
   source?: string,
 ): LyraArtifact {
-  let target;
-  if (deployment.targets == undefined) {
-    // local lyra
-    target = deployment.markets[market];
-  } else if (deployment.targets.markets == undefined) {
-    // real kovan/mainnet snx
-    target = deployment.targets;
-  } else {
-    // kovan/mainnet lyra
-    target = deployment.targets.markets[market];
-  }
-
   try {
+    let target;
+    if (lyra === undefined || lyra == false) {
+      target = loadSynthetixContractData(deploymentParams, contractName, getSNXDeploymentDir(network)).target;
+    } else {
+      target = loadLyraContractData(deploymentParams, contractName, market, getLyraDeploymentDir(network)).target;
+    }
+
     return {
       contractName: contractName,
-      address: target[contractName].address,
+      address: target.address,
       abi: artifacts[source || contractName].abi,
       bytecode: artifacts[source || contractName].bytecode,
       linkReferences: artifacts[source || contractName].linkReferences,
-      blockNumber: target[contractName].blockNumber || 0,
-      txn: target[contractName].txn || '',
+      blockNumber: target.blockNumber || 0,
+      txn: target.txn || '',
     };
   } catch (e) {
-    console.log('Could not locate contract: ', contractName);
+    if (!(network == 'mainnet-ovm' && contractName == 'TestFaucet')) {
+      console.log('Artifact ommitted for: ', deploymentParams.network, contractName);
+    }
     return { ...EMPTY_LYRA_ARTIFACT };
   }
 }
 
-export async function getDeployment(network: AllowedNetworks) {
+export function getLyraDeploymentDir(network: AllowedNetworks) {
   if (network == 'local') {
-    return require(resolve(path.join('.lyra', 'local', 'lyra.json')));
+    return resolve(path.join('.lyra', 'local', 'lyra.json'));
   } else if (network == 'kovan-ovm') {
-    return await fetchJson(PUBLIC_DEPLOYMENTS + '/kovan-ovm/lyra.realPricing.json');
+    return path.join(__dirname, '../../../deployments/', 'kovan-ovm', 'lyra.realPricing.json');
   } else if (network == 'mainnet-ovm') {
     try {
-      return await fetchJson(PUBLIC_DEPLOYMENTS + '/mainnet-ovm/lyra.json');
+      return path.join(__dirname, '../../../deployments/', 'mainnet-ovm', 'lyra.json');
     } catch (e) {
       throw new Error('mainnet contracts not deployed yet...');
     }
-  } else {
-    throw 'Unrecognized network';
   }
 }
 
-// todo: need to append to current market addresses
-// todo: need to add "exportMarketAddress" since this one won't overwrite
+export function getSNXDeploymentDir(network: AllowedNetworks) {
+  if (network == 'local') {
+    return resolve(path.join('.lyra', 'local', 'synthetix.mocked.json'));
+  } else if (network == 'kovan-ovm') {
+    return path.join(__dirname, '../../../deployments/', 'kovan-ovm', 'synthetix.mocked.json');
+  } else if (network == 'mainnet-ovm') {
+    try {
+      return path.join(__dirname, '../../../deployments/', 'mainnet-ovm', 'synthetix.json');
+    } catch (e) {
+      throw new Error('mainnet contracts not deployed yet...');
+    }
+  }
+}
+
 export async function exportGlobalDeployment(globalSystem: GlobalTestSystemContracts) {
   if (!fs.existsSync('.lyra')) {
     fs.mkdirSync('.lyra');
@@ -227,61 +244,74 @@ export async function exportGlobalDeployment(globalSystem: GlobalTestSystemContr
     fs.mkdirSync('.lyra/local');
   }
 
-  const outDir = resolve(path.join('.lyra', 'local', 'lyra.json'));
-  if (fs.existsSync(outDir)) {
-    fs.unlinkSync(outDir);
+  const lyraDir = resolve(path.join('.lyra', 'local', 'lyra.json'));
+  if (fs.existsSync(lyraDir)) {
+    fs.unlinkSync(lyraDir);
   }
 
-  const data = {} as lyraDeployment;
-  data.globals = {
-    TestFaucet: { contractName: 'TestFaucet', source: 'TestFaucet', address: '', txn: '', blockNumber: 0 },
-    SynthetixAdapter: await getContractsWithBlockNumber(globalSystem.synthetixAdapter, 'SynthetixAdapter'),
-    OptionMarketViewer: await getContractsWithBlockNumber(globalSystem.optionMarketViewer, 'OptionMarketViewer'),
-    OptionMarketWrapper: await getContractsWithBlockNumber(globalSystem.optionMarketWrapper, 'OptionMarketWrapper'),
-    LyraRegistry: await getContractsWithBlockNumber(globalSystem.lyraRegistry, 'LyraRegistry'),
-    GWAV: await getContractsWithBlockNumber(globalSystem.gwav, 'GWAV'),
-    BlackScholes: await getContractsWithBlockNumber(globalSystem.blackScholes, 'BlackScholes'),
-    BasicFeeCounter: await getContractsWithBlockNumber(globalSystem.basicFeeCounter, 'BasicFeeCounter'),
-    QuoteAsset: await getContractsWithBlockNumber(globalSystem.snx.quoteAsset, 'QuoteAsset', 'TestERC20Fail'),
+  const snxDir = resolve(path.join('.lyra', 'local', 'synthetix.mocked.json'));
+  if (fs.existsSync(snxDir)) {
+    fs.unlinkSync(snxDir);
+  }
+
+  const deploymentParams = {
+    network: 'local' as AllowedNetworks,
+    mockSnx: true,
+    realPricing: false,
+    deployer: {} as Wallet,
   };
 
-  fs.writeFileSync(outDir, JSON.stringify(data, undefined, 2));
-  console.log(chalk.greenBright(`\n=== Saved global addresses to ${outDir} ===\n`));
+  addLyraContract(deploymentParams, 'SynthetixAdapter', globalSystem.synthetixAdapter, undefined, lyraDir);
+  addLyraContract(deploymentParams, 'OptionMarketViewer', globalSystem.optionMarketViewer, undefined, lyraDir);
+  addLyraContract(deploymentParams, 'OptionMarketWrapper', globalSystem.optionMarketWrapper, undefined, lyraDir);
+  addLyraContract(deploymentParams, 'LyraRegistry', globalSystem.lyraRegistry, undefined, lyraDir);
+  addLyraContract(deploymentParams, 'GWAV', globalSystem.gwav, undefined, lyraDir);
+  addLyraContract(deploymentParams, 'BlackScholes', globalSystem.blackScholes, undefined, lyraDir);
+  addLyraContract(deploymentParams, 'BasicFeeCounter', globalSystem.basicFeeCounter, undefined, lyraDir);
+  addLyraContract(deploymentParams, 'BlackScholes', globalSystem.blackScholes, undefined, lyraDir);
+  addMockedSnxContract(deploymentParams, 'ProxyERC20sUSD', 'TestERC20Fail', globalSystem.snx.quoteAsset, snxDir);
+
+  console.log(chalk.greenBright(`\n=== Saved global lyra addresses to ${lyraDir} ===\n`));
+  console.log(chalk.greenBright(`=== Saved global snx addresses to ${snxDir} ===\n`));
 }
 
 export async function exportMarketDeployment(marketSystem: MarketTestSystemContracts, market: string) {
-  const outDir = resolve(path.join('.lyra', 'local', 'lyra.json'));
+  const lyraDir = resolve(path.join('.lyra', 'local', 'lyra.json'));
+  const snxDir = resolve(path.join('.lyra', 'local', 'synthetix.mocked.json'));
 
-  let data: lyraDeployment;
+  // let data: lyraDeployment;
   try {
-    data = require(outDir);
+    require(lyraDir);
+    require(snxDir);
   } catch (e) {
     throw new Error('must deploy global contracts first');
   }
 
-  if (!data.markets) {
-    data.markets = {};
-  }
-
-  data.markets[market] = {
-    OptionMarket: await getContractsWithBlockNumber(marketSystem.optionMarket, 'OptionMarket'),
-    OptionMarketPricer: await getContractsWithBlockNumber(marketSystem.optionMarketPricer, 'OptionMarketPricer'),
-    OptionGreekCache: await getContractsWithBlockNumber(marketSystem.optionGreekCache, 'OptionGreekCache'),
-    OptionToken: await getContractsWithBlockNumber(marketSystem.optionToken, 'OptionToken'),
-    LiquidityPool: await getContractsWithBlockNumber(marketSystem.liquidityPool, 'LiquidityPool'),
-    LiquidityToken: await getContractsWithBlockNumber(marketSystem.liquidityToken, 'LiquidityToken'),
-    ShortCollateral: await getContractsWithBlockNumber(marketSystem.shortCollateral, 'ShortCollateral'),
-    PoolHedger: await getContractsWithBlockNumber(marketSystem.poolHedger, 'ShortPoolHedger'),
-    GWAVOracle: await getContractsWithBlockNumber(marketSystem.GWAVOracle, 'GWAVOracle'),
-    BasicLiquidityCounter: await getContractsWithBlockNumber(
-      marketSystem.basicLiquidityCounter,
-      'BasicLiquidityCounter',
-    ),
-    BaseAsset: await getContractsWithBlockNumber(marketSystem.snx.baseAsset, 'BaseAsset', 'TestERC20Fail'),
+  const deploymentParams = {
+    network: 'local' as AllowedNetworks,
+    mockSnx: true,
+    realPricing: false,
+    deployer: {} as Wallet,
   };
 
-  fs.writeFileSync(outDir, JSON.stringify(data, undefined, 2));
-  console.log(chalk.greenBright(`\n=== Saved ${market} market to ${outDir} ===\n`));
+  // todo: currently returns blockNumber = 0. Can add later if needed:
+  // while ((await ethers.provider.getTransactionReceipt(contract.deployTransaction.hash)) == null) {
+  //  await sleep(100);
+  // }
+  addLyraContract(deploymentParams, 'OptionMarket', marketSystem.optionMarket, market, lyraDir);
+  addLyraContract(deploymentParams, 'OptionMarketPricer', marketSystem.optionMarketPricer, market, lyraDir);
+  addLyraContract(deploymentParams, 'OptionGreekCache', marketSystem.optionGreekCache, market, lyraDir);
+  addLyraContract(deploymentParams, 'OptionToken', marketSystem.optionToken, market, lyraDir);
+  addLyraContract(deploymentParams, 'LiquidityPool', marketSystem.liquidityPool, market, lyraDir);
+  addLyraContract(deploymentParams, 'LiquidityToken', marketSystem.liquidityToken, market, lyraDir);
+  addLyraContract(deploymentParams, 'ShortCollateral', marketSystem.shortCollateral, market, lyraDir);
+  addLyraContract(deploymentParams, 'PoolHedger', marketSystem.poolHedger, market, lyraDir);
+  addLyraContract(deploymentParams, 'GWAVOracle', marketSystem.GWAVOracle, market, lyraDir);
+  addLyraContract(deploymentParams, 'BasicLiquidityCounter', marketSystem.basicLiquidityCounter, market, lyraDir);
+  addMockedSnxContract(deploymentParams, `Proxy${market}`, 'TestERC20Fail', marketSystem.snx.baseAsset, snxDir);
+
+  console.log(chalk.greenBright(`\n=== Saved ${market} market to ${lyraDir} ===\n`));
+  console.log(chalk.greenBright(`=== Saved ${market} snx asset to ${snxDir} ===\n`));
 }
 
 export function deleteRecursive(path: string) {
@@ -318,7 +348,6 @@ export async function getLocalRealSynthetixContract(
   }
 
   return new Contract(address, abi, deployer);
-  // need to figure out where this is disappearing
 }
 
 export const EMPTY_LYRA_ARTIFACT = {
@@ -330,5 +359,3 @@ export const EMPTY_LYRA_ARTIFACT = {
   blockNumber: 0,
   txn: '',
 };
-
-export const PUBLIC_DEPLOYMENTS = 'https://raw.githubusercontent.com/lyra-finance/lyra-protocol/avalon/deployments';

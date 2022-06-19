@@ -1,9 +1,10 @@
 export const lyraContractPaths = [
   // library
-  '@lyrafinance/protocol/contracts/lib/BlackScholes.sol',
-  '@lyrafinance/protocol/contracts/lib/FixedPointMathLib.sol',
-  '@lyrafinance/protocol/contracts/lib/GWAV.sol',
-  '@lyrafinance/protocol/contracts/lib/SimpleInitializeable.sol',
+  '@lyrafinance/protocol/contracts/libraries/BlackScholes.sol',
+  '@lyrafinance/protocol/contracts/libraries/FixedPointMathLib.sol',
+  '@lyrafinance/protocol/contracts/libraries/GWAV.sol',
+  '@lyrafinance/protocol/contracts/libraries/SimpleInitializeable.sol',
+  '@lyrafinance/protocol/contracts/libraries/PoolHedger.sol',
 
   // core
   '@lyrafinance/protocol/contracts/LiquidityPool.sol',
@@ -11,12 +12,12 @@ export const lyraContractPaths = [
   '@lyrafinance/protocol/contracts/OptionGreekCache.sol',
   '@lyrafinance/protocol/contracts/OptionMarket.sol',
   '@lyrafinance/protocol/contracts/OptionToken.sol',
-  '@lyrafinance/protocol/contracts/PoolHedger.sol',
+  '@lyrafinance/protocol/contracts/ShortPoolHedger.sol',
   '@lyrafinance/protocol/contracts/ShortCollateral.sol',
   '@lyrafinance/protocol/contracts/SynthetixAdapter.sol',
 
   // periphery
-  '@lyrafinance/protocol/contracts/periphery/VaultAdapter.sol',
+  '@lyrafinance/protocol/contracts/periphery/LyraAdapter.sol',
   '@lyrafinance/protocol/contracts/periphery/BasicFeeCounter.sol',
   '@lyrafinance/protocol/contracts/periphery/BasicLiquidityCounter.sol',
   '@lyrafinance/protocol/contracts/periphery/GWAVOracle.sol',
@@ -56,8 +57,9 @@ export const lyraContractPaths = [
   '@lyrafinance/protocol/contracts/test-helpers/TestSynthetixReturnZero.sol',
 
   // @openzeppelin
-  '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol',
-  '@openzeppelin/contracts/token/ERC20/ERC20.sol',
-  '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol',
-  '@openzeppelin/contracts/access/Ownable.sol',
+  'openzeppelin-contracts-upgradeable-4.5.1/access/OwnableUpgradeable.sol',
+  'openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol',
+  'openzeppelin-contracts-4.4.1/token/ERC721/extensions/ERC721Enumerable.sol',
+  'openzeppelin-contracts-4.4.1/access/Ownable.sol',
+  'openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol',
 ];

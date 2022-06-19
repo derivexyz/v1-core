@@ -160,12 +160,11 @@ describe('BlackScholes - values', () => {
 
   // helper functions basic testing
   describe('stdNormal', async () => {
-    const stdNormalTests = [-100, -10, -3, -2, 0, 2, 5, 10, 99];
-    // TODO: unskip
-    it.skip('should provide a correct value for a number of cases', async () => {
+    const stdNormalTests = [-100, -10, -3, -2, 0, 2, 5, 10, 100];
+    it('should provide a correct value for a number of cases', async () => {
       for (const val of stdNormalTests) {
         const expected = stdNormal(val);
-        const result = await testBlackScholes.stdNormalCDF_pub(toBN(val.toString()).mul(1e9));
+        const result = await testBlackScholes.stdNormal_pub(toBN(val.toString()).mul(1e9));
         assertCloseToPercentage(result, toBN(expected.toString()));
       }
     });

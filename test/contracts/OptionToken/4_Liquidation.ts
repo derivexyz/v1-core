@@ -1,6 +1,6 @@
 // integration tests
 import { BigNumber, BigNumberish, ContractReceipt } from 'ethers';
-import { getEventArgs, OptionType, PositionState, toBN, UNIT } from '../../../scripts/util/web3utils';
+import { getEventArgs, MAX_UINT, OptionType, PositionState, toBN, UNIT } from '../../../scripts/util/web3utils';
 import { TradeEvent } from '../../../typechain-types/OptionMarket';
 import { LiquidationFeesStruct } from '../../../typechain-types/OptionToken';
 import { assertCloseToPercentage } from '../../utils/assert';
@@ -14,6 +14,7 @@ import {
   openDefaultShortCallBase,
   openDefaultShortCallQuote,
   openDefaultShortPutQuote,
+  openPosition,
   resetMinCollateralParameters,
 } from '../../utils/contractHelpers';
 import { DEFAULT_BASE_PRICE, DEFAULT_PARTIAL_COLLAT_PARAMS } from '../../utils/defaultParams';
@@ -38,7 +39,63 @@ describe('Liquidation', () => {
     );
   });
 
-  it.skip('force closing insolvent position');
+  it('allow force closing insolvent position if trader has enough balance', async () => {
+    const [, positionId] = await openPosition(
+      {
+        amount: toBN('10'),
+        setCollateralTo: toBN('8000'),
+        optionType: OptionType.SHORT_CALL_QUOTE,
+        strikeId: hre.f.strike.strikeId,
+      },
+      hre.f.deployer,
+    );
+
+    await mockPrice(hre.f.c, toBN('5000'), 'sETH');
+
+    const oldTraderBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+    await hre.f.c.optionMarket.forceClosePosition({
+      amount: toBN('10'),
+      optionType: OptionType.SHORT_CALL_QUOTE,
+      positionId: positionId,
+      strikeId: hre.f.strike.strikeId,
+      setCollateralTo: toBN('0'),
+      iterations: 1,
+      minTotalCost: 0,
+      maxTotalCost: MAX_UINT,
+    });
+    const newTraderBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+    // adding 5% buffer for premium - collat
+    assertCloseToPercentage(newTraderBalance.add(toBN('35000')), oldTraderBalance, toBN('0.05'));
+  });
+
+  it("don't allow force closing insolvent position if trader doesn't have enough balance", async () => {
+    await hre.f.c.snx.quoteAsset.transfer(hre.f.alice.address, toBN('990000'));
+
+    const [, positionId] = await openPosition(
+      {
+        amount: toBN('10'),
+        setCollateralTo: toBN('8000'),
+        optionType: OptionType.SHORT_CALL_QUOTE,
+        strikeId: hre.f.strike.strikeId,
+      },
+      hre.f.deployer,
+    );
+
+    await mockPrice(hre.f.c, toBN('5000'), 'sETH');
+
+    await expect(
+      hre.f.c.optionMarket.forceClosePosition({
+        amount: toBN('10'),
+        optionType: OptionType.SHORT_CALL_QUOTE,
+        positionId: positionId,
+        strikeId: hre.f.strike.strikeId,
+        setCollateralTo: toBN('0'),
+        iterations: 1,
+        minTotalCost: 0,
+        maxTotalCost: MAX_UINT,
+      }),
+    ).to.revertedWith('ERC20: transfer amount exceeds balance');
+  });
 
   describe('liquidatePosition', () => {
     const types = ['SHORT CALL QUOTE', 'SHORT CALL BASE', 'SHORT PUT QUOTE'];

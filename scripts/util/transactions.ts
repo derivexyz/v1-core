@@ -1,6 +1,6 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core';
 import chalk from 'chalk';
-import { BigNumberish, Contract, ContractFactory, ContractTransaction, Signer } from 'ethers';
+import { BigNumberish, Contract, ContractFactory, ContractTransaction, PopulatedTransaction, Signer } from 'ethers';
 import { ethers, upgrades } from 'hardhat';
 import { TradeInputParametersStruct } from '../../typechain-types/OptionMarket';
 import { DeploymentParams } from './index';
@@ -222,6 +222,21 @@ export async function deployContract(
   }
   (global as any).pending.push(etherscanVerification(contract.address, [...args]));
   return contract;
+}
+
+export async function populateLyraFunction(
+  deploymentParams: DeploymentParams,
+  contractName: string,
+  fn: string,
+  args: any[],
+  market?: string,
+  signer?: Signer,
+): Promise<PopulatedTransaction> {
+  let contract = await getLyraContract(deploymentParams, contractName, market);
+  if (signer) {
+    contract = contract.connect(signer);
+  }
+  return contract.populateTransaction[fn](args);
 }
 
 export async function executeLyraFunction(

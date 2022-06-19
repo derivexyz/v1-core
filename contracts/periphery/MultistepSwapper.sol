@@ -3,8 +3,8 @@ pragma solidity 0.8.9;
 
 import "../interfaces/ISwapRouter.sol";
 import "../interfaces/ISynthetix.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 
 /**
  * @title SwapRouter

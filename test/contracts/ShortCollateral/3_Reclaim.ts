@@ -2,7 +2,6 @@ import { BigNumberish } from 'ethers';
 import { getEventArgs, MONTH_SEC, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
 import { assertCloseToPercentage } from '../../utils/assert';
 import {
-  DEFAULT_LONG_CALL,
   estimateCallPayout,
   estimatePutPayout,
   getLiquidity,
@@ -12,8 +11,10 @@ import {
   openPositionWithOverrides,
   setETHPrice,
 } from '../../utils/contractHelpers';
+import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
+import { createDefaultBoardWithOverrides, seedBalanceAndApprovalFor } from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
 
 describe('Reclaims insolvent amount from LP', async () => {
@@ -161,7 +162,7 @@ describe('Reclaims insolvent amount from LP', async () => {
 
     await expectNotEnoughBalance(safeCollateralPos, insolventPos, true);
 
-    // Settle solvent position
+    // Settle insolvent position
     await hre.f.c.shortCollateral.settleOptions([insolventPos]);
     expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.shortCollateral.address)).to.eq(remainingCollatOfSafeShort);
     // 1% lenience for exchange fees
@@ -179,6 +180,7 @@ describe('Reclaims insolvent amount from LP', async () => {
 
   describe('LP no free liquidity', async () => {
     it('reverts base reclamation when no freeLiq, but resumes with donation', async () => {
+      // open positions that will expire
       const [, insolventPos] = await openPositionWithOverrides(hre.f.c, {
         strikeId: hre.f.strike.strikeId,
         optionType: OptionType.SHORT_CALL_BASE,
@@ -196,6 +198,14 @@ describe('Reclaims insolvent amount from LP', async () => {
         hre.f.alice,
       );
 
+      // open new board that attacker can use to clog freeLiq
+      await createDefaultBoardWithOverrides(hre.f.c, {
+        baseIV: '1',
+        strikePrices: ['2000', '2500', '3000'],
+        skews: ['0.9', '1', '1.1'],
+        expiresIn: 2 * MONTH_SEC,
+      });
+
       // settle board
       await fastForward(MONTH_SEC);
       await mockPrice('sETH', toBN('4000'));
@@ -210,14 +220,48 @@ describe('Reclaims insolvent amount from LP', async () => {
       // revert both due to no free liquidity and order of settling
       await revertOnNoLiquidity(insolventPos, fullCollateralPos, false);
 
-      // reclaim when base donated (add 10% extra to account for exchange fees)
+      // freeze boards to make sure liquidity isn't used up
+      await hre.f.c.optionMarket.setBoardFrozen(2, true);
+      await expect(
+        openPosition({
+          strikeId: 5,
+          optionType: OptionType.SHORT_PUT_QUOTE,
+          amount: toBN('10'),
+          setCollateralTo: toBN('50000'), // partial collateral
+        }),
+      ).to.revertedWith('BoardIsFrozen');
+
+      // SM donating base directly will not let settleOption through if 100% of pool is being removed
+      // (so the new donation will be counted as part of withdarwal)
+      const insolventAmountInQuote = insolventAmount.mul(await getSpotPrice()).div(UNIT.sub(toBN('0.1')));
       await hre.f.c.snx.quoteAsset
         .connect(hre.f.deployer)
-        .transfer(hre.f.c.liquidityPool.address, insolventAmount.mul(await getSpotPrice()).div(UNIT.sub(toBN('0.1'))));
-      await hre.f.c.shortCollateral.settleOptions([insolventPos]);
-      expect(await hre.f.c.snx.baseAsset.balanceOf(await hre.f.c.shortCollateral.address)).to.eq(
-        remainingCollatOfSafeShort,
+        .transfer(hre.f.c.liquidityPool.address, insolventAmountInQuote);
+      await expect(hre.f.c.shortCollateral.settleOptions([insolventPos])).to.revertedWith(
+        'QuoteBaseExchangeExceedsLimit',
       );
+
+      // (1) SM guardian deposits insolvent amount (2) Trading is paused (3) settle option
+      await seedBalanceAndApprovalFor(hre.f.alice, hre.f.c);
+      await hre.f.c.liquidityPool.setLiquidityPoolParameters({
+        ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+        guardianDelay: 1,
+        guardianMultisig: hre.f.alice.address,
+      });
+
+      await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, insolventAmountInQuote);
+      await fastForward(1);
+      await hre.f.c.liquidityPool.connect(hre.f.alice).processDepositQueue(2);
+      await hre.f.c.shortCollateral.settleOptions([insolventPos]);
+
+      // ensure safe short can settle
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.shortCollateral.address)).to.eq(remainingCollatOfSafeShort);
+
+      // now withdraw SM funds and see how much they are worth
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(2);
+      await hre.f.c.liquidityPool.connect(hre.f.alice).processWithdrawalQueue(2);
+      assertCloseToPercentage(await hre.f.c.liquidityPool.getTotalPoolValueQuote(), toBN('5620.628'), toBN('0.01'));
+      expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.gt(insolventAmountInQuote); // SM actually earns from this if all LPs runaway
     });
     it('reverts quote reclamation when no freeLiq, but resumes with donation', async () => {
       const [, insolventPos] = await openPositionWithOverrides(hre.f.c, {
@@ -257,21 +301,6 @@ describe('Reclaims insolvent amount from LP', async () => {
         remainingCollatOfSafeShort,
       );
     });
-
-    it.skip('pays less if settle amount > totalOutstandingSettlements due to rounding', async () => {
-      // not hitting the rounding error
-      const [, smallPosition] = await openPosition({ ...DEFAULT_LONG_CALL, strikeId: 2, amount: toBN('0.00000001') });
-      const [, largePosition] = await openPosition({ ...DEFAULT_LONG_CALL, strikeId: 2, amount: toBN('0.00000001') });
-      // const [, largePosition] = await openPosition(
-      //   { ...DEFAULT_LONG_CALL, strikeId: 2, amount: toBN("0.00000009") });
-      await setETHPrice(toBN('2000.0000000006'));
-      await fastForward(MONTH_SEC + 1);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
-      await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
-      await hre.f.c.shortCollateral.settleOptions([smallPosition, largePosition]);
-    });
-
-    it.skip('getting dust on 100% withdrawal...');
   });
 });
 

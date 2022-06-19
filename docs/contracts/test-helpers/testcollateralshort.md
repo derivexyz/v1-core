@@ -22,6 +22,8 @@
 
 - `createTestEmptyLoanForAccount(address account) (external)`
 
+- `_recordLoanAsClosed(struct ICollateralShort.Loan loan) (internal)`
+
 - `testForceClose(uint256 id) (external)`
 
 - `_isLoanOpen(uint256 interestIndex) (internal)`
@@ -45,6 +47,8 @@
 ### Function `getShortAndCollateral(address, uint256 id) → uint256, uint256 external`
 
 ### Function `createTestEmptyLoanForAccount(address account) external`
+
+### Function `_recordLoanAsClosed(struct ICollateralShort.Loan loan) internal`
 
 ### Function `testForceClose(uint256 id) external`
 

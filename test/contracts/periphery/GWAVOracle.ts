@@ -75,13 +75,13 @@ describe('GWAV Oracle', async () => {
   });
 
   it('can get call/put gwav prices', async () => {
-    let [call, put] = await hre.f.c.GWAVOracle.pricesGWAV(1, DAY_SEC);
+    let [call, put] = await hre.f.c.GWAVOracle.optionPriceGWAV(1, DAY_SEC);
     expect(+(+fromBN(call)).toFixed(1)).to.eq(313.6);
     expect(+(+fromBN(put)).toFixed(1)).to.eq(65.9);
 
     await fastForward(WEEK_SEC);
 
-    [call, put] = await hre.f.c.GWAVOracle.pricesGWAV(1, WEEK_SEC);
+    [call, put] = await hre.f.c.GWAVOracle.optionPriceGWAV(1, WEEK_SEC);
     expect(+(+fromBN(call)).toFixed(1)).to.eq(299.4);
     expect(+(+fromBN(put)).toFixed(1)).to.eq(53.1);
   });
