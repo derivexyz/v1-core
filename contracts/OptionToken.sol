@@ -335,7 +335,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
    * @param positionIds array of position ids to settle
    */
   function settlePositions(uint[] memory positionIds) external onlyShortCollateral {
-    for (uint i = 0; i < positionIds.length; i++) {
+    uint positionsLength = positionIds.length;
+    for (uint i = 0; i < positionsLength; ++i) {
       positions[positionIds[i]].state = PositionState.SETTLED;
 
       emit PositionUpdated(
@@ -563,7 +564,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
    * @param positionIds the positionIds to be merged together
    */
   function merge(uint[] memory positionIds) external nonReentrant notGlobalPaused {
-    if (positionIds.length < 2) {
+    uint positionsLen = positionIds.length;
+    if (positionsLen < 2) {
       revert MustMergeTwoOrMorePositions(address(this));
     }
 
@@ -576,7 +578,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     address positionOwner = ownerOf(firstPosition.positionId);
 
     OptionPosition storage nextPosition;
-    for (uint i = 1; i < positionIds.length; i++) {
+    for (uint i = 1; i < positionsLen; ++i) {
       nextPosition = positions[positionIds[i]];
 
       if (!_isApprovedOrOwner(msg.sender, nextPosition.positionId)) {
@@ -657,8 +659,10 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
 
   /// @dev Returns an array of OptionPosition structs given an array of positionIds
   function getOptionPositions(uint[] memory positionIds) external view returns (OptionPosition[] memory) {
-    OptionPosition[] memory result = new OptionPosition[](positionIds.length);
-    for (uint i = 0; i < positionIds.length; i++) {
+    uint positionsLen = positionIds.length;
+
+    OptionPosition[] memory result = new OptionPosition[](positionsLen);
+    for (uint i = 0; i < positionsLen; ++i) {
       result[i] = positions[positionIds[i]];
     }
     return result;
@@ -671,8 +675,10 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
 
   /// @dev Returns an array of PositionWithOwner structs given an array of positionIds
   function getPositionsWithOwner(uint[] memory positionIds) external view returns (PositionWithOwner[] memory) {
-    PositionWithOwner[] memory result = new PositionWithOwner[](positionIds.length);
-    for (uint i = 0; i < positionIds.length; i++) {
+    uint positionsLen = positionIds.length;
+
+    PositionWithOwner[] memory result = new PositionWithOwner[](positionsLen);
+    for (uint i = 0; i < positionsLen; ++i) {
       result[i] = _getPositionWithOwner(positionIds[i]);
     }
     return result;
@@ -683,7 +689,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   function getOwnerPositions(address target) external view returns (OptionPosition[] memory) {
     uint balance = balanceOf(target);
     OptionPosition[] memory result = new OptionPosition[](balance);
-    for (uint i = 0; i < balance; i++) {
+    for (uint i = 0; i < balance; ++i) {
       result[i] = positions[ERC721Enumerable.tokenOfOwnerByIndex(target, i)];
     }
     return result;

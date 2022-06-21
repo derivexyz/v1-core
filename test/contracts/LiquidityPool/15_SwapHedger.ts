@@ -67,7 +67,7 @@ describe('Swap Hedger', async () => {
       await fastForward(Number(DEFAULT_POOL_HEDGER_PARAMS.interactionDelay) + 1);
       await setPositiveExpectedHedge();
       await poolHedgerV2.hedgeDelta();
-      expect((await getLiquidity()).usedDeltaLiquidity).to.eq(toBN('8000.276707265401120523'));
+      assertCloseToPercentage((await getLiquidity()).usedDeltaLiquidity, toBN('8000.2777'));
     });
 
     it('from negative hedge: swaps old hedger with balance', async () => {

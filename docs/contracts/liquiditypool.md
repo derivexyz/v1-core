@@ -72,6 +72,8 @@ Holds funds from LPs, which are used for the following purposes:
 
 - `getTotalTokenSupply() (public)`
 
+- `getTokenPriceWithCheck() (external)`
+
 - `getTokenPrice() (public)`
 
 - `_getTokenPrice(uint256 totalPoolValue, uint256 totalTokenSupply) (internal)`
@@ -368,9 +370,21 @@ The caller must be ShortCollateral.
 
 Get total number of oustanding LiquidityToken
 
+### Function `getTokenPriceWithCheck() → uint256 tokenPrice, bool isStale, uint256 circuitBreakerExpiry external`
+
+Get current pool token price and check if market conditions warrant an accurate token price
+
+#### Return Values:
+
+- tokenPrice price of token
+
+- isStale has global cache not been updated in a long time (if stale, greeks may be inaccurate)
+
+- circuitBreakerExpiry expiry timestamp of the CircuitBreaker (if not expired, greeks may be inaccurate)
+
 ### Function `getTokenPrice() → uint256 public`
 
-Get current pool token price
+Get current pool token price without market condition check
 
 ### Function `_getTokenPrice(uint256 totalPoolValue, uint256 totalTokenSupply) → uint256 internal`
 

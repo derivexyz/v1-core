@@ -12,7 +12,7 @@ contract TestAddressResolver is IAddressResolver, Owned {
   function setAddresses(bytes32[] memory names, address[] memory locations) external {
     require(names.length == locations.length, "length mismatch");
 
-    for (uint i = 0; i < names.length; i++) {
+    for (uint i = 0; i < names.length; ++i) {
       getAddress[names[i]] = locations[i];
     }
   }

@@ -23,7 +23,7 @@ contract TestFaucet {
     require(permitted[msg.sender], "only permitted");
     uint index;
     bool found = false;
-    for (index = 0; index < addresses.length; index++) {
+    for (index = 0; index < addresses.length; ++index) {
       if (addresses[index] == token) {
         found = true;
         break;
@@ -39,7 +39,7 @@ contract TestFaucet {
   function drip() external {
     require(!received[msg.sender], "already received");
 
-    for (uint i = 0; i < addresses.length; i++) {
+    for (uint i = 0; i < addresses.length; ++i) {
       addresses[i].mint(msg.sender, dripAmounts[i]);
       emit Dripped(addresses[i], dripAmounts[i]);
     }

@@ -17,7 +17,7 @@ contract TestGWAV {
   }
 
   function recordMany(uint[] memory vals, uint[] memory timestamps) public {
-    for (uint i = 0; i < vals.length; i++) {
+    for (uint i = 0; i < vals.length; ++i) {
       gwav._write(vals[i], timestamps[i]);
     }
   }

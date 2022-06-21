@@ -167,9 +167,7 @@ export async function createDefaultBoardWithOverrides(
     false,
   );
 
-  const boardId = getEventArgs(await tx.wait(), 'BoardCreated').boardId;
-  await testSystem.optionGreekCache.updateBoardCachedGreeks(boardId);
-  return boardId;
+  return getEventArgs(await tx.wait(), 'BoardCreated').boardId;
 }
 
 export async function mockPrice(testSystem: TestSystemContractsType, price: BigNumber, market: string) {

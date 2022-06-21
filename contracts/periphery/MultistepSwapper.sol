@@ -67,7 +67,7 @@ contract MultistepSwapper is ReentrancyGuard {
     tokenIn.transferFrom(msg.sender, address(this), amountIn);
     amountOut = amountIn;
     bytes memory path = "";
-    for (uint i = 0; i < swaps.length; i++) {
+    for (uint i = 0; i < swaps.length; ++i) {
       require(uint(swaps[i].swapType) <= uint(SwapType.Uniswap), "Invalid swaptype");
       if (swaps[i].swapType == SwapType.Synthetix) {
         amountOut = synthetix.exchange(tokenInCurrencyKey, amountOut, swaps[i].tokenOutCurrencyKey);

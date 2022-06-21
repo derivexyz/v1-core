@@ -30,7 +30,7 @@ contract KeeperHelper {
    */
   function liquidate8(uint batch1) external {
     uint[] memory pids = new uint[](8);
-    for (uint i = 0; i < pids.length; i++) {
+    for (uint i = 0; i < 8; ++i) {
       pids[i] = uint(uint32(batch1 >> (32 * i)));
     }
     _liquidateMany(pids);
@@ -40,14 +40,15 @@ contract KeeperHelper {
    * @dev Allows liquidations of multiple positions in a single call
    */
   function _liquidateMany(uint[] memory positionIds) internal {
-    for (uint i = 0; i < positionIds.length; i++) {
+    uint positionIdsLength = positionIds.length;
+    for (uint i = 0; i < positionIdsLength; ++i) {
       if (positionIds[i] == 0) continue;
       optionMarket.liquidatePosition(positionIds[i], msg.sender);
     }
   }
 
   function liquidateMany(uint[] memory positionIds) external {
-    for (uint i = 0; i < positionIds.length; i++) {
+    for (uint i = 0; i < positionIds.length; ++i) {
       optionMarket.liquidatePosition(positionIds[i], msg.sender);
     }
   }
@@ -59,7 +60,7 @@ contract KeeperHelper {
    */
   function settle8(uint batch1) external {
     uint[] memory pids = new uint[](8);
-    for (uint i = 0; i < 8; i++) {
+    for (uint i = 0; i < 8; ++i) {
       pids[i] = _shiftUint32(batch1, i);
     }
 
@@ -82,7 +83,7 @@ contract KeeperHelper {
    */
   function settle16(uint batch1, uint batch2) external {
     uint[] memory pids = new uint[](16);
-    for (uint i = 0; i < 16; i++) {
+    for (uint i = 0; i < 16; ++i) {
       if (i / 8 == 0) {
         pids[i] = _shiftUint32(batch1, i);
       } else if (i / 8 == 1) {
@@ -114,7 +115,7 @@ contract KeeperHelper {
   ) external {
     uint[] memory pids = new uint[](24);
 
-    for (uint i = 0; i < 24; i++) {
+    for (uint i = 0; i < 24; ++i) {
       if (i / 8 == 0) {
         pids[i] = _shiftUint32(batch1, i);
       } else if (i / 8 == 1) {
@@ -149,7 +150,7 @@ contract KeeperHelper {
   ) external {
     uint[] memory pids = new uint[](32);
 
-    for (uint i = 0; i < 32; i++) {
+    for (uint i = 0; i < 32; ++i) {
       if (i / 8 == 0) {
         pids[i] = _shiftUint32(batch1, i);
       } else if (i / 8 == 1) {
@@ -187,7 +188,7 @@ contract KeeperHelper {
   ) external {
     uint[] memory pids = new uint[](40);
 
-    for (uint i = 0; i < 40; i++) {
+    for (uint i = 0; i < 40; ++i) {
       if (i / 8 == 0) {
         pids[i] = _shiftUint32(batch1, i);
       } else if (i / 8 == 1) {
@@ -232,7 +233,7 @@ contract KeeperHelper {
   ) external {
     uint[] memory pids = new uint[](80);
 
-    for (uint i = 0; i < 80; i++) {
+    for (uint i = 0; i < 80; ++i) {
       if (i / 8 == 0) {
         pids[i] = _shiftUint32(batch1, i);
       } else if (i / 8 == 1) {

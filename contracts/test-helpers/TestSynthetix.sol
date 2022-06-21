@@ -73,7 +73,6 @@ contract TestSynthetix is ISynthetix {
     uint sourceAmount,
     bytes32 destinationCurrencyKey
   ) public returns (uint amountReceived) {
-    // TODO: check deletageApproval
     uint fromRate;
     uint feeRate = 0;
     uint toRate;

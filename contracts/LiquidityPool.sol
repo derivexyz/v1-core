@@ -311,7 +311,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
   function processDepositQueue(uint limit) external nonReentrant {
     (uint tokenPrice, bool stale, ) = _getTokenPriceAndStale();
 
-    for (uint i = 0; i < limit; i++) {
+    for (uint i = 0; i < limit; ++i) {
       QueuedDeposit storage current = queuedDeposits[queuedDepositHead];
       if (!_canProcess(current.depositInitiatedTime, lpParams.depositDelay, stale, queuedDepositHead)) {
         return;
@@ -339,7 +339,7 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
 
   /// @param limit number of withdrawal tickets to process in a single transaction to avoid gas limit soft-locks
   function processWithdrawalQueue(uint limit) external nonReentrant {
-    for (uint i = 0; i < limit; i++) {
+    for (uint i = 0; i < limit; ++i) {
       (uint totalTokensBurnable, uint tokenPriceWithFee, bool stale) = _getTotalBurnableTokens();
 
       QueuedWithdrawal storage current = queuedWithdrawals[queuedWithdrawalHead];
@@ -759,7 +759,34 @@ contract LiquidityPool is Owned, SimpleInitializeable, ReentrancyGuard {
     return liquidityToken.totalSupply() + totalQueuedWithdrawals;
   }
 
-  /// @dev Get current pool token price
+  /**
+   * @notice Get current pool token price and check if market conditions warrant an accurate token price
+   *
+   * @return tokenPrice price of token
+   * @return isStale has global cache not been updated in a long time (if stale, greeks may be inaccurate)
+   * @return circuitBreakerExpiry expiry timestamp of the CircuitBreaker (if not expired, greeks may be inaccurate)
+   */
+  function getTokenPriceWithCheck()
+    external
+    view
+    returns (
+      uint tokenPrice,
+      bool isStale,
+      uint circuitBreakerExpiry
+    )
+  {
+    uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
+    int optionValueDebt = greekCache.getGlobalOptionValue();
+    (, uint usedDelta) = _getPoolHedgerLiquidity(spotPrice);
+    uint totalPoolValue = _getTotalPoolValueQuote(spotPrice, usedDelta, optionValueDebt);
+    uint totalTokenSupply = getTotalTokenSupply();
+
+    tokenPrice = _getTokenPrice(totalPoolValue, totalTokenSupply);
+    isStale = greekCache.isGlobalCacheStale(spotPrice);
+    return (tokenPrice, isStale, CBTimestamp);
+  }
+
+  /// @dev Get current pool token price without market condition check
   function getTokenPrice() public view returns (uint) {
     return _getTokenPrice(getTotalPoolValueQuote(), getTotalTokenSupply());
   }

@@ -138,7 +138,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
    */
   function addCurveStable(ERC20 token, uint8 id) external onlyOwner {
     _approveAsset(token, address(curveSwap));
-    for (uint i = 0; i < ercIds.length; i++) {
+    for (uint i = 0; i < ercIds.length; ++i) {
       if (idToERC[ercIds[i]] == token || ercIds[i] == id) {
         revert DuplicateEntry(address(this), id, address(token));
       }
@@ -153,7 +153,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
   function removeCurveStable(uint8 id) external onlyOwner {
     uint index = 0;
     bool found = false;
-    for (uint i = 0; i < ercIds.length; i++) {
+    for (uint i = 0; i < ercIds.length; ++i) {
       if (ercIds[i] == id) {
         index = i;
         found = true;
@@ -178,7 +178,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
     _approveAsset(marketContracts[optionMarket].quoteAsset, address(optionMarket));
     _approveAsset(marketContracts[optionMarket].baseAsset, address(optionMarket));
 
-    for (uint i = 0; i < marketIds.length; i++) {
+    for (uint i = 0; i < marketIds.length; ++i) {
       if (idToMarket[marketIds[i]] == optionMarket || marketIds[i] == id) {
         revert DuplicateEntry(address(this), id, address(optionMarket));
       }
@@ -194,7 +194,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
   function removeMarket(uint8 id) external onlyOwner {
     uint index = 0;
     bool found = false;
-    for (uint i = 0; i < marketIds.length; i++) {
+    for (uint i = 0; i < marketIds.length; ++i) {
       if (marketIds[i] == id) {
         index = i;
         found = true;
@@ -398,8 +398,9 @@ contract OptionMarketWrapperWithSwaps is Owned {
       LiquidityBalanceAndAllowance[] memory
     )
   {
-    StableAssetView[] memory stableBalances = new StableAssetView[](ercIds.length);
-    for (uint i = 0; i < ercIds.length; i++) {
+    uint ercIdsLength = ercIds.length;
+    StableAssetView[] memory stableBalances = new StableAssetView[](ercIdsLength);
+    for (uint i = 0; i < ercIdsLength; ++i) {
       ERC20 token = idToERC[ercIds[i]];
       stableBalances[i] = StableAssetView({
         id: ercIds[i],
@@ -410,9 +411,10 @@ contract OptionMarketWrapperWithSwaps is Owned {
         allowance: token.allowance(owner, address(this))
       });
     }
-    MarketAssetView[] memory marketBalances = new MarketAssetView[](marketIds.length);
-    LiquidityBalanceAndAllowance[] memory liquidityTokenBalances = new LiquidityBalanceAndAllowance[](marketIds.length);
-    for (uint i = 0; i < marketIds.length; i++) {
+    uint marketIdsLength = marketIds.length;
+    MarketAssetView[] memory marketBalances = new MarketAssetView[](marketIdsLength);
+    LiquidityBalanceAndAllowance[] memory liquidityTokenBalances = new LiquidityBalanceAndAllowance[](marketIdsLength);
+    for (uint i = 0; i < marketIdsLength; ++i) {
       OptionMarket market = idToMarket[marketIds[i]];
       OptionMarketContracts memory c = marketContracts[market];
       marketBalances[i] = MarketAssetView({
@@ -496,7 +498,6 @@ contract OptionMarketWrapperWithSwaps is Owned {
     ERC20 to,
     uint amount,
     uint expected,
-    // TODO: actually return directly to the user in some cases?
     address receiver
   ) internal returns (uint amountOut, int swapFee) {
     _checkValidStable(address(from));
@@ -520,7 +521,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
 
   /// @dev checks if the token is in the stablecoin mapping
   function _checkValidStable(address token) internal view returns (bool) {
-    for (uint i = 0; i < ercIds.length; i++) {
+    for (uint i = 0; i < ercIds.length; ++i) {
       if (address(idToERC[ercIds[i]]) == token) {
         return true;
       }

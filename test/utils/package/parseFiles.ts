@@ -187,7 +187,12 @@ export function assignMarketArtifact(
     if (lyra === undefined || lyra == false) {
       target = loadSynthetixContractData(deploymentParams, contractName, getSNXDeploymentDir(network)).target;
     } else {
-      target = loadLyraContractData(deploymentParams, contractName, market, getLyraDeploymentDir(network)).target;
+      target = loadLyraContractData(
+        deploymentParams,
+        contractName == 'PoolHedger' ? 'ShortPoolHedger' : contractName,
+        market,
+        getLyraDeploymentDir(network),
+      ).target;
     }
 
     return {
@@ -305,7 +310,7 @@ export async function exportMarketDeployment(marketSystem: MarketTestSystemContr
   addLyraContract(deploymentParams, 'LiquidityPool', marketSystem.liquidityPool, market, lyraDir);
   addLyraContract(deploymentParams, 'LiquidityToken', marketSystem.liquidityToken, market, lyraDir);
   addLyraContract(deploymentParams, 'ShortCollateral', marketSystem.shortCollateral, market, lyraDir);
-  addLyraContract(deploymentParams, 'PoolHedger', marketSystem.poolHedger, market, lyraDir);
+  addLyraContract(deploymentParams, 'ShortPoolHedger', marketSystem.poolHedger, market, lyraDir);
   addLyraContract(deploymentParams, 'GWAVOracle', marketSystem.GWAVOracle, market, lyraDir);
   addLyraContract(deploymentParams, 'BasicLiquidityCounter', marketSystem.basicLiquidityCounter, market, lyraDir);
   addMockedSnxContract(deploymentParams, `Proxy${market}`, 'TestERC20Fail', marketSystem.snx.baseAsset, snxDir);

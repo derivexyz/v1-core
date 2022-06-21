@@ -142,7 +142,8 @@ contract OptionMarketViewer is Owned {
     uint index = 0;
     bool found = false;
 
-    for (uint i = 0; i < optionMarkets.length; i++) {
+    uint marketsLength = optionMarkets.length;
+    for (uint i = 0; i < marketsLength; ++i) {
       if (optionMarkets[i] == market) {
         index = i;
         found = true;
@@ -162,16 +163,17 @@ contract OptionMarketViewer is Owned {
   function getMarketAddresses() external view returns (OptionMarketAddresses[] memory) {
     uint marketsLen = optionMarkets.length;
     OptionMarketAddresses[] memory allMarketAddresses = new OptionMarketAddresses[](marketsLen);
-    for (uint i = 0; i < marketsLen; i++) {
+    for (uint i = 0; i < marketsLen; ++i) {
       allMarketAddresses[i] = marketAddresses[optionMarkets[i]];
     }
     return allMarketAddresses;
   }
 
   function getMarkets(OptionMarket[] memory markets) external view returns (MarketsView memory marketsView) {
-    MarketView[] memory marketViews = new MarketView[](markets.length);
+    uint marketsLen = markets.length;
+    MarketView[] memory marketViews = new MarketView[](marketsLen);
     bool isGlobalPaused = synthetixAdapter.isGlobalPaused();
-    for (uint i = 0; i < markets.length; i++) {
+    for (uint i = 0; i < marketsLen; ++i) {
       OptionMarketAddresses memory marketC = marketAddresses[markets[i]];
       marketViews[i] = _getMarket(marketC, isGlobalPaused);
     }
@@ -184,7 +186,8 @@ contract OptionMarketViewer is Owned {
   }
 
   function getMarketForBaseKey(bytes32 baseKey) public view returns (MarketViewWithBoards memory market) {
-    for (uint i = 0; i < optionMarkets.length; i++) {
+    uint marketsLen = optionMarkets.length;
+    for (uint i = 0; i < marketsLen; ++i) {
       OptionMarketAddresses memory marketC = marketAddresses[optionMarkets[i]];
       bytes32 marketBaseKey = synthetixAdapter.baseKey(address(marketC.optionMarket));
       if (marketBaseKey == baseKey) {
@@ -288,8 +291,9 @@ contract OptionMarketViewer is Owned {
   }
 
   function getOwnerPositions(address account) external view returns (MarketOptionPositions[] memory) {
-    MarketOptionPositions[] memory positions = new MarketOptionPositions[](optionMarkets.length);
-    for (uint i = 0; i < optionMarkets.length; i++) {
+    uint optionMarketLen = optionMarkets.length;
+    MarketOptionPositions[] memory positions = new MarketOptionPositions[](optionMarketLen);
+    for (uint i = 0; i < optionMarketLen; ++i) {
       OptionMarketAddresses memory marketC = marketAddresses[optionMarkets[i]];
       positions[i].market = address(marketC.optionMarket);
       positions[i].positions = marketC.optionToken.getOwnerPositions(account);
@@ -307,7 +311,7 @@ contract OptionMarketViewer is Owned {
     uint balance = marketC.optionToken.balanceOf(account);
     uint n = limit > balance - start ? balance - start : limit;
     OptionToken.OptionPosition[] memory result = new OptionToken.OptionPosition[](n);
-    for (uint i = 0; i < n; i++) {
+    for (uint i = 0; i < n; ++i) {
       result[i] = marketC.optionToken.getOptionPosition(marketC.optionToken.tokenOfOwnerByIndex(account, start + i));
     }
     return result;
@@ -317,8 +321,9 @@ contract OptionMarketViewer is Owned {
   function getLiveBoards(OptionMarket market) public view returns (BoardView[] memory marketBoards) {
     OptionMarketAddresses memory marketC = marketAddresses[market];
     uint[] memory liveBoards = marketC.optionMarket.getLiveBoards();
-    marketBoards = new BoardView[](liveBoards.length);
-    for (uint i = 0; i < liveBoards.length; i++) {
+    uint liveBoardsLen = liveBoards.length;
+    marketBoards = new BoardView[](liveBoardsLen);
+    for (uint i = 0; i < liveBoardsLen; ++i) {
       marketBoards[i] = _getBoard(marketC, liveBoards[i]);
     }
   }
@@ -371,9 +376,10 @@ contract OptionMarketViewer is Owned {
     uint[] memory strikeToBaseReturnedRatios,
     uint priceAtExpiry
   ) internal pure returns (StrikeView[] memory strikeViews) {
-    strikeViews = new StrikeView[](strikes.length);
+    uint strikesLen = strikes.length;
 
-    for (uint i = 0; i < strikes.length; i++) {
+    strikeViews = new StrikeView[](strikesLen);
+    for (uint i = 0; i < strikesLen; ++i) {
       strikeViews[i] = StrikeView({
         strikePrice: strikes[i].strikePrice,
         skew: strikes[i].skew,
@@ -398,8 +404,9 @@ contract OptionMarketViewer is Owned {
     view
     returns (LiquidityBalanceAndAllowance[] memory)
   {
-    LiquidityBalanceAndAllowance[] memory balances = new LiquidityBalanceAndAllowance[](markets.length);
-    for (uint i = 0; i < markets.length; i++) {
+    uint marketsLen = markets.length;
+    LiquidityBalanceAndAllowance[] memory balances = new LiquidityBalanceAndAllowance[](marketsLen);
+    for (uint i = 0; i < marketsLen; ++i) {
       OptionMarketAddresses memory marketC = marketAddresses[markets[i]];
       IERC20 liquidityToken = IERC20(marketC.liquidityToken);
       balances[i].balance = liquidityToken.balanceOf(account);

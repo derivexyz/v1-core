@@ -32,7 +32,7 @@ library OldBlackScholesMath {
     int res;
     int next;
 
-    for (uint i = 0; i < 8; i++) {
+    for (uint i = 0; i < 8; ++i) {
       int e = int(exp(res));
 
       next = res + ((int(x) - e) * 2).divideDecimalRound(int(x) + e);

@@ -38,7 +38,7 @@ Also handles logic for figuring out minimal collateral requirements for shorts.
 
 - `setStrikeSkew(uint256 strikeId, uint256 newSkew) (external)`
 
-- `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 GWAVbaseIv, uint256 strikeId, uint256 strikePrice, uint256 skew) (internal)`
+- `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 strikeId, uint256 strikePrice, uint256 skew) (internal)`
 
 - `updateStrikeExposureAndGetPrice(struct OptionMarket.Strike strike, struct OptionMarket.TradeParameters trade, uint256 iv, uint256 skew, bool isPostCutoff) (external)`
 
@@ -52,7 +52,7 @@ Also handles logic for figuring out minimal collateral requirements for shorts.
 
 - `getShockVol(uint256 timeToMaturity) (public)`
 
-- `updateBoardCachedGreeks(uint256 boardId) (external)`
+- `updateBoardCachedGreeks(uint256 boardId) (public)`
 
 - `_updateBoardCachedGreeks(uint256 spotPrice, uint256 boardId) (internal)`
 
@@ -190,7 +190,7 @@ Updates a Strike's skew. Only callable by OptionMarket.
 
 - `newSkew`: The new skew of the given Strike
 
-### Function `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 GWAVbaseIv, uint256 strikeId, uint256 strikePrice, uint256 skew) internal`
+### Function `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 strikeId, uint256 strikePrice, uint256 skew) internal`
 
 Adds a new strike to a given board, initialising the skew GWAV
 
@@ -254,7 +254,7 @@ Gets minimum collateral requirement for the specified option
 
 Gets shock vol (Vol used to compute the minimum collateral requirements for short positions)
 
-### Function `updateBoardCachedGreeks(uint256 boardId) external`
+### Function `updateBoardCachedGreeks(uint256 boardId) public`
 
 Updates the cached greeks for an OptionBoardCache used to calculate:
 

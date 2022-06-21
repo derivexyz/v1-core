@@ -235,9 +235,10 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint[] memory skews,
     bool frozen
   ) external onlyOwner returns (uint boardId) {
+    uint strikePricesLength = strikePrices.length;
     // strikePrice and skew length must match and must have at least 1
-    if (strikePrices.length != skews.length || strikePrices.length == 0) {
-      revert StrikeSkewLengthMismatch(address(this), strikePrices.length, skews.length);
+    if (strikePricesLength != skews.length || strikePricesLength == 0) {
+      revert StrikeSkewLengthMismatch(address(this), strikePricesLength, skews.length);
     }
 
     if (expiry <= block.timestamp || expiry > block.timestamp + optionMarketParams.maxBoardExpiry) {
@@ -259,8 +260,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     emit BoardCreated(boardId, expiry, baseIV, frozen);
 
-    Strike[] memory newStrikes = new Strike[](strikePrices.length);
-    for (uint i = 0; i < strikePrices.length; i++) {
+    Strike[] memory newStrikes = new Strike[](strikePricesLength);
+    for (uint i = 0; i < strikePricesLength; ++i) {
       newStrikes[i] = _addStrikeToBoard(board, strikePrices[i], skews[i]);
     }
 
@@ -426,8 +427,9 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    * @notice Returns the list of live board ids.
    */
   function getLiveBoards() external view returns (uint[] memory _liveBoards) {
-    _liveBoards = new uint[](liveBoards.length);
-    for (uint i = 0; i < liveBoards.length; i++) {
+    uint liveBoardsLen = liveBoards.length;
+    _liveBoards = new uint[](liveBoardsLen);
+    for (uint i = 0; i < liveBoardsLen; ++i) {
       _liveBoards[i] = liveBoards[i];
     }
     return _liveBoards;
@@ -449,8 +451,9 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param boardId The id of the relevant OptionBoard.
    */
   function getBoardStrikes(uint boardId) external view returns (uint[] memory strikeIds) {
-    strikeIds = new uint[](optionBoards[boardId].strikeIds.length);
-    for (uint i = 0; i < optionBoards[boardId].strikeIds.length; i++) {
+    uint strikeIdsLen = optionBoards[boardId].strikeIds.length;
+    strikeIds = new uint[](strikeIdsLen);
+    for (uint i = 0; i < strikeIdsLen; ++i) {
       strikeIds[i] = optionBoards[boardId].strikeIds[i];
     }
     return strikeIds;
@@ -491,9 +494,11 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     )
   {
     OptionBoard memory board = optionBoards[boardId];
-    Strike[] memory boardStrikes = new Strike[](board.strikeIds.length);
-    uint[] memory strikeToBaseReturnedRatios = new uint[](board.strikeIds.length);
-    for (uint i = 0; i < board.strikeIds.length; i++) {
+
+    uint strikesLen = board.strikeIds.length;
+    Strike[] memory boardStrikes = new Strike[](strikesLen);
+    uint[] memory strikeToBaseReturnedRatios = new uint[](strikesLen);
+    for (uint i = 0; i < strikesLen; ++i) {
       boardStrikes[i] = strikes[board.strikeIds[i]];
       strikeToBaseReturnedRatios[i] = strikeToBaseReturnedRatio[board.strikeIds[i]];
     }
@@ -783,7 +788,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     tradeResults = new OptionMarketPricer.TradeResult[](iterations);
 
-    for (uint i = 0; i < iterations; i++) {
+    for (uint i = 0; i < iterations; ++i) {
       if (i == iterations - 1) {
         trade.amount = expectedAmount - totalAmount;
       }
@@ -1016,10 +1021,12 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
   function _clearAndSettleBoard(OptionBoard memory board) internal {
     bool popped = false;
+    uint liveBoardsLen = liveBoards.length;
+
     // Find and remove the board from the list of live boards
-    for (uint i = 0; i < liveBoards.length; i++) {
+    for (uint i = 0; i < liveBoardsLen; ++i) {
       if (liveBoards[i] == board.id) {
-        liveBoards[i] = liveBoards[liveBoards.length - 1];
+        liveBoards[i] = liveBoards[liveBoardsLen - 1];
         liveBoards.pop();
         popped = true;
         break;
@@ -1046,8 +1053,9 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     // Store the price now for when users come to settle their options
     boardToPriceAtExpiry[board.id] = spotPrice;
+    uint strikesLen = board.strikeIds.length;
 
-    for (uint i = 0; i < board.strikeIds.length; i++) {
+    for (uint i = 0; i < strikesLen; ++i) {
       Strike memory strike = strikes[board.strikeIds[i]];
 
       totalBoardLongCallCollateral += strike.longCall;

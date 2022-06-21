@@ -399,8 +399,9 @@ contract LyraAdapter is Ownable {
   function _getPositions(uint[] memory positionIds) internal view returns (OptionPosition[] memory) {
     OptionToken.OptionPosition[] memory positions = optionToken.getOptionPositions(positionIds);
 
-    OptionPosition[] memory convertedPositions = new OptionPosition[](positions.length);
-    for (uint i = 0; i < positions.length; i++) {
+    uint positionsLen = positions.length;
+    OptionPosition[] memory convertedPositions = new OptionPosition[](positionsLen);
+    for (uint i = 0; i < positionsLen; ++i) {
       convertedPositions[i] = OptionPosition({
         positionId: positions[i].positionId,
         strikeId: positions[i].strikeId,
@@ -462,9 +463,10 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns all Strike structs for a list of strikeIds
   function _getStrikes(uint[] memory strikeIds) internal view returns (Strike[] memory allStrikes) {
-    allStrikes = new Strike[](strikeIds.length);
+    uint strikesLen = strikeIds.length;
 
-    for (uint i = 0; i < strikeIds.length; i++) {
+    allStrikes = new Strike[](strikesLen);
+    for (uint i = 0; i < strikesLen; ++i) {
       (OptionMarket.Strike memory strike, OptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
         strikeIds[i]
       );
@@ -482,9 +484,10 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns current spot volatilities for given strikeIds (boardIv * skew)
   function _getVols(uint[] memory strikeIds) internal view returns (uint[] memory vols) {
-    vols = new uint[](strikeIds.length);
+    uint strikesLen = strikeIds.length;
 
-    for (uint i = 0; i < strikeIds.length; i++) {
+    vols = new uint[](strikesLen);
+    for (uint i = 0; i < strikesLen; ++i) {
       (OptionMarket.Strike memory strike, OptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
         strikeIds[i]
       );
@@ -496,8 +499,10 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns current spot deltas for given strikeIds (using BlackScholes and spot volatilities)
   function _getDeltas(uint[] memory strikeIds) internal view returns (int[] memory callDeltas) {
-    callDeltas = new int[](strikeIds.length);
-    for (uint i = 0; i < strikeIds.length; i++) {
+    uint strikesLen = strikeIds.length;
+
+    callDeltas = new int[](strikesLen);
+    for (uint i = 0; i < strikesLen; ++i) {
       BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeIds[i]);
       (callDeltas[i], ) = BlackScholes.delta(bsInput);
     }
@@ -505,8 +510,10 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns current spot vegas for given strikeIds (using BlackScholes and spot volatilities)
   function _getVegas(uint[] memory strikeIds) internal view returns (uint[] memory vegas) {
-    vegas = new uint[](strikeIds.length);
-    for (uint i = 0; i < strikeIds.length; i++) {
+    uint strikesLen = strikeIds.length;
+
+    vegas = new uint[](strikesLen);
+    for (uint i = 0; i < strikesLen; ++i) {
       BlackScholes.BlackScholesInputs memory bsInput = _getBsInput(strikeIds[i]);
       vegas[i] = BlackScholes.vega(bsInput);
     }

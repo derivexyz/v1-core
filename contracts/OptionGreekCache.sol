@@ -314,8 +314,9 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     external
     onlyOptionMarket
   {
-    if (strikes.length > greekCacheParams.maxStrikesPerBoard) {
-      revert BoardStrikeLimitExceeded(address(this), board.id, strikes.length, greekCacheParams.maxStrikesPerBoard);
+    uint strikesLength = strikes.length;
+    if (strikesLength > greekCacheParams.maxStrikesPerBoard) {
+      revert BoardStrikeLimitExceeded(address(this), board.id, strikesLength, greekCacheParams.maxStrikesPerBoard);
     }
 
     OptionBoardCache storage boardCache = boardCaches[board.id];
@@ -329,11 +330,11 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
 
     liveBoards.push(board.id);
 
-    for (uint i = 0; i < strikes.length; i++) {
-      _addNewStrikeToStrikeCache(boardCache, board.iv, strikes[i].id, strikes[i].strikePrice, strikes[i].skew);
+    for (uint i = 0; i < strikesLength; ++i) {
+      _addNewStrikeToStrikeCache(boardCache, strikes[i].id, strikes[i].strikePrice, strikes[i].skew);
     }
 
-    _updateGlobalLastUpdatedAt();
+    updateBoardCachedGreeks(board.id);
   }
 
   /// @dev After board settlement, remove an OptionBoardCache. Called by OptionMarket
@@ -345,13 +346,15 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     globalCache.netGreeks.netOptionValue -= boardCache.netGreeks.netOptionValue;
 
     // Clean up, cache isn't necessary for settle logic
-    for (uint i = 0; i < boardCache.strikes.length; i++) {
+    uint boardStrikesLength = boardCache.strikes.length;
+    for (uint i = 0; i < boardStrikesLength; ++i) {
       emit StrikeCacheRemoved(boardCache.strikes[i]);
       delete strikeCaches[boardCache.strikes[i]];
     }
-    for (uint i = 0; i < liveBoards.length; i++) {
+    uint liveBoardsLength = liveBoards.length;
+    for (uint i = 0; i < liveBoardsLength; ++i) {
       if (liveBoards[i] == boardId) {
-        liveBoards[i] = liveBoards[liveBoards.length - 1];
+        liveBoards[i] = liveBoards[liveBoardsLength - 1];
         liveBoards.pop();
         break;
       }
@@ -378,8 +381,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       );
     }
 
-    uint GWAVbaseIv = boardIVGWAV[boardId].getGWAVForPeriod(greekCacheParams.optionValueIvGWAVPeriod, 0);
-    _addNewStrikeToStrikeCache(boardCache, GWAVbaseIv, strikeId, strikePrice, skew);
+    _addNewStrikeToStrikeCache(boardCache, strikeId, strikePrice, skew);
+    updateBoardCachedGreeks(boardId);
   }
 
   /// @dev Updates an OptionBoard's baseIv. Only callable by OptionMarket.
@@ -404,7 +407,6 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   /// @dev Adds a new strike to a given board, initialising the skew GWAV
   function _addNewStrikeToStrikeCache(
     OptionBoardCache storage boardCache,
-    uint GWAVbaseIv,
     uint strikeId,
     uint strikePrice,
     uint skew
@@ -421,14 +423,6 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     strikeSkewGWAV[strikeId]._initialize(
       _max(_min(skew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
       block.timestamp
-    );
-
-    // need to assign option prices/stdVega to properly update stdVega/NAV on opens/deposits
-    _updateStrikeCachedGreeks(
-      strikeCache,
-      boardCache,
-      synthetixAdapter.getSpotPriceForMarket(address(optionMarket)),
-      GWAVbaseIv.multiplyDecimal(skew)
     );
 
     emit StrikeSkewUpdated(strikeCache.id, skew, globalCache.maxSkewVariance);
@@ -720,7 +714,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
    *
    * @param boardId The id of the OptionBoardCache.
    */
-  function updateBoardCachedGreeks(uint boardId) external nonReentrant {
+  function updateBoardCachedGreeks(uint boardId) public nonReentrant {
     _updateBoardCachedGreeks(synthetixAdapter.getSpotPriceForMarket(address(optionMarket)), boardId);
   }
 
@@ -746,7 +740,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     _updateBoardIvVariance(boardCache);
     uint navGWAVbaseIv = boardIVGWAV[boardId].getGWAVForPeriod(greekCacheParams.optionValueIvGWAVPeriod, 0);
 
-    for (uint i = 0; i < boardCache.strikes.length; i++) {
+    uint strikesLen = boardCache.strikes.length;
+    for (uint i = 0; i < strikesLen; ++i) {
       StrikeCache storage strikeCache = strikeCaches[boardCache.strikes[i]];
       _updateStrikeSkewVariance(strikeCache);
 
@@ -837,7 +832,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     uint maxSkewVariance = boardCache.maxSkewVariance;
     uint maxIvVariance = boardCache.ivVariance;
 
-    for (uint i = 1; i < liveBoards.length; i++) {
+    uint liveBoardsLen = liveBoards.length;
+    for (uint i = 1; i < liveBoardsLen; ++i) {
       boardCache = boardCaches[liveBoards[i]];
       if (boardCache.updatedAt < minUpdatedAt) {
         minUpdatedAt = boardCache.updatedAt;
@@ -899,7 +895,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   /// @dev updates maxIvVariance across all boards
   function _updateMaxIvVariance() internal {
     uint maxIvVariance = boardCaches[liveBoards[0]].ivVariance;
-    for (uint i = 1; i < liveBoards.length; i++) {
+    uint liveBoardsLen = liveBoards.length;
+    for (uint i = 1; i < liveBoardsLen; ++i) {
       if (boardCaches[liveBoards[i]].ivVariance > maxIvVariance) {
         maxIvVariance = boardCaches[liveBoards[i]].ivVariance;
       }
@@ -935,8 +932,8 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   /// @dev updates maxSkewVariance for the board and across all strikes
   function _updateMaxSkewVariance(OptionBoardCache storage boardCache) internal {
     uint maxBoardSkewVariance = strikeCaches[boardCache.strikes[0]].skewVariance;
-
-    for (uint i = 1; i < boardCache.strikes.length; i++) {
+    uint strikesLen = boardCache.strikes.length;
+    for (uint i = 1; i < strikesLen; ++i) {
       if (strikeCaches[boardCache.strikes[i]].skewVariance > maxBoardSkewVariance) {
         maxBoardSkewVariance = strikeCaches[boardCache.strikes[i]].skewVariance;
       }
@@ -944,8 +941,9 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     boardCache.maxSkewVariance = maxBoardSkewVariance;
 
     uint maxSkewVariance = boardCaches[liveBoards[0]].maxSkewVariance;
+    uint liveBoardsLen = liveBoards.length;
 
-    for (uint i = 1; i < liveBoards.length; i++) {
+    for (uint i = 1; i < liveBoardsLen; ++i) {
       if (boardCaches[liveBoards[i]].maxSkewVariance > maxSkewVariance) {
         maxSkewVariance = boardCaches[liveBoards[i]].maxSkewVariance;
       }
@@ -1027,10 +1025,11 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
 
   /// @notice Returns the BoardGreeksView struct given a specific boardId
   function getBoardGreeksView(uint boardId) external view returns (BoardGreeksView memory) {
-    StrikeGreeks[] memory strikeGreeks = new StrikeGreeks[](boardCaches[boardId].strikes.length);
-    uint[] memory skewGWAVs = new uint[](boardCaches[boardId].strikes.length);
+    uint strikesLen = boardCaches[boardId].strikes.length;
 
-    for (uint i = 0; i < boardCaches[boardId].strikes.length; i++) {
+    StrikeGreeks[] memory strikeGreeks = new StrikeGreeks[](strikesLen);
+    uint[] memory skewGWAVs = new uint[](strikesLen);
+    for (uint i = 0; i < strikesLen; ++i) {
       strikeGreeks[i] = strikeCaches[boardCaches[boardId].strikes[i]].greeks;
       skewGWAVs[i] = strikeSkewGWAV[boardCaches[boardId].strikes[i]].getGWAVForPeriod(
         forceCloseParams.skewGWAVPeriod,

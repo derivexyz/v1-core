@@ -16,13 +16,14 @@ describe('OptionGreekCache - SyncBoards', () => {
 
   // ~14.6mln gas
   it('Adding board with 25 strikes', async () => {
-    await hre.f.c.optionMarket.createOptionBoard(
+    const tx = await hre.f.c.optionMarket.createOptionBoard(
       (await currentTime()) + WEEK_SEC,
       toBN('1'),
       new Array(25).fill('1000').map(toBN),
       new Array(25).fill('1').map(toBN),
       false,
     );
+    console.log((await tx.wait()).gasUsed.toString());
   });
 
   // about 10.4mln to 17.4mln

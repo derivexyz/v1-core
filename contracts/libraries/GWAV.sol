@@ -131,9 +131,10 @@ library GWAV {
     uint currentBlockTimestamp,
     uint[] memory secondsAgos
   ) public view returns (int[] memory qCumulatives, uint[] memory timestamps) {
-    qCumulatives = new int[](secondsAgos.length);
-    timestamps = new uint[](secondsAgos.length);
-    for (uint i = 0; i < secondsAgos.length; i++) {
+    uint secondsAgosLength = secondsAgos.length;
+    qCumulatives = new int[](secondsAgosLength);
+    timestamps = new uint[](secondsAgosLength);
+    for (uint i = 0; i < secondsAgosLength; ++i) {
       (qCumulatives[i], timestamps[i]) = queryFirstBefore(self, currentBlockTimestamp, secondsAgos[i]);
     }
   }

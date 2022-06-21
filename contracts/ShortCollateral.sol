@@ -193,7 +193,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
 
     OptionToken.PositionWithOwner[] memory optionPositions = optionToken.getPositionsWithOwner(positionIds);
 
-    for (uint i = 0; i < optionPositions.length; i++) {
+    uint positionsLength = optionPositions.length;
+    for (uint i = 0; i < positionsLength; ++i) {
       OptionToken.PositionWithOwner memory position = optionPositions[i];
       uint settlementAmount;
       uint insolventAmount;

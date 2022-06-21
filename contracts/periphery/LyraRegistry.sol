@@ -60,8 +60,9 @@ contract LyraRegistry is Owned {
   }
 
   function updateGlobalAddresses(bytes32[] memory names, address[] memory addresses) external onlyOwner {
-    require(names.length == addresses.length, "length mismatch");
-    for (uint i = 0; i < names.length; i++) {
+    uint namesLength = names.length;
+    require(namesLength == addresses.length, "length mismatch");
+    for (uint i = 0; i < namesLength; ++i) {
       globalAddresses[names[i]] = addresses[i];
       emit GlobalAddressUpdated(names[i], addresses[i]);
     }
@@ -80,10 +81,10 @@ contract LyraRegistry is Owned {
   }
 
   function _removeMarket(OptionMarket market) internal {
-    // do something with marketAddresses ?
+    uint optionMarketsLength = optionMarkets.length;
     uint index = 0;
     bool found = false;
-    for (uint i = 0; i < optionMarkets.length; i++) {
+    for (uint i = 0; i < optionMarketsLength; ++i) {
       if (optionMarkets[i] == market) {
         index = i;
         found = true;
@@ -93,7 +94,7 @@ contract LyraRegistry is Owned {
     if (!found) {
       revert RemovingInvalidMarket(address(this), address(market));
     }
-    optionMarkets[index] = optionMarkets[optionMarkets.length - 1];
+    optionMarkets[index] = optionMarkets[optionMarketsLength - 1];
     optionMarkets.pop();
 
     emit MarketRemoved(market);
