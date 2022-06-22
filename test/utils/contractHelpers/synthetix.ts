@@ -1,5 +1,8 @@
+import { ContractFactory } from '@ethersproject/contracts';
 import { BigNumber, BigNumberish, Contract } from 'ethers';
+import { ethers } from 'hardhat';
 import { toBN, toBytes32, UNIT, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
+import { TestDelegateApprovals } from '../../../typechain-types';
 import { assertCloseToPercentage } from '../assert';
 import { DEFAULT_FEE_RATE_FOR_BASE, DEFAULT_FEE_RATE_FOR_QUOTE, DEFAULT_SECURITY_MODULE } from '../defaultParams';
 import { expect, hre } from '../testSetup';
@@ -69,4 +72,26 @@ export async function estimateExchange(quote: BigNumber, toBase: boolean) {
   const params = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
   const feeRate = toBase ? DEFAULT_FEE_RATE_FOR_QUOTE : DEFAULT_FEE_RATE_FOR_BASE;
   return quote.mul(params.spotPrice).div(UNIT).mul(UNIT.sub(feeRate));
+}
+
+export async function changeDelegateApprovalAddress() {
+  const newDelegateApprovals = (await ((await ethers.getContractFactory('TestDelegateApprovals')) as ContractFactory)
+    .connect(hre.f.deployer)
+    .deploy()) as TestDelegateApprovals;
+  const names = [
+    toBytes32('ProxySynthetix'),
+    toBytes32('Exchanger'),
+    toBytes32('ExchangeRates'),
+    toBytes32('CollateralShort'),
+    toBytes32('DelegateApprovals'),
+  ];
+  const addresses = [
+    hre.f.c.snx.synthetix.address,
+    hre.f.c.snx.exchanger.address,
+    hre.f.c.snx.exchangeRates.address,
+    hre.f.c.snx.collateralShort.address,
+    newDelegateApprovals.address,
+  ];
+  await hre.f.c.snx.addressResolver.connect(hre.f.deployer).setAddresses(names, addresses);
+  await hre.f.c.synthetixAdapter.updateSynthetixAddresses();
 }

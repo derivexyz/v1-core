@@ -1,6 +1,6 @@
 import { currentTime, DAY_SEC, MONTH_SEC, OptionType, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { assertCloseToPercentage } from '../../utils/assert';
-import { createBoard, openPositionWithOverrides, setETHPrice } from '../../utils/contractHelpers';
+import { createBoard, openDefaultLongCall, openPositionWithOverrides, setETHPrice } from '../../utils/contractHelpers';
 import { DEFAULT_BASE_PRICE } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
@@ -110,5 +110,21 @@ describe('OptionGreekCache - Update Cache', () => {
     expect((await hre.f.c.optionGreekCache.getGlobalCache()).netGreeks.netStdVega).to.not.eq(0);
     expect((await hre.f.c.optionGreekCache.getGlobalCache()).netGreeks.netDelta).to.not.eq(0);
     expect((await hre.f.c.optionGreekCache.getStrikeCache(hre.f.strike.strikeId)).callExposure).to.eq(toBN('1'));
+  });
+
+  it('cannot update expired board', async () => {
+    await fastForward(2 * MONTH_SEC);
+    await expect(hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId)).to.revertedWith(
+      'CannotUpdateExpiredBoard',
+    );
+  });
+
+  it('cannot update forceSettled board', async () => {
+    await openDefaultLongCall();
+    await hre.f.c.optionMarket.setBoardFrozen(hre.f.board.boardId, true);
+    await hre.f.c.optionMarket.forceSettleBoard(hre.f.board.boardId);
+    await expect(hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId)).to.revertedWith(
+      'InvalidBoardId',
+    );
   });
 });

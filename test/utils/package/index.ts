@@ -41,9 +41,14 @@ import {
   seedTestSystem,
 } from '../seedTestSystem';
 
+// all .sol paths relevant to deploys/testing
+// testSystem type used to define lyra mock markets when integration testing
 export { TestSystemContractsType } from '../deployTestSystem';
+export { lyraContractPaths } from './index-paths';
+// getting deploy addresses/abis for all lyra contracts
 export { getGlobalDeploys, getMarketDeploys } from './parseFiles';
 
+// helper for integration testing on hardhat/local
 export const TestSystem = {
   deploy: deployTestSystem,
   seed: seedTestSystem,
@@ -57,6 +62,7 @@ export const TestSystem = {
   TradeDirection,
 };
 
+// default market params for manual control when integration testing
 export const lyraDefaultParams = {
   OPTION_MARKET: DEFAULT_OPTION_MARKET_PARAMS,
   LIQUIDITY_POOL_PARAMS: DEFAULT_LIQUIDITY_POOL_PARAMS,
@@ -73,6 +79,7 @@ export const lyraDefaultParams = {
   BOARD_PARAMS: DEFAULT_BOARD_PARAMS,
 };
 
+// helpful constants
 export const lyraConstants = {
   ZERO_ADDRESS,
   HOUR_SEC,
@@ -84,6 +91,7 @@ export const lyraConstants = {
   UNIT,
 };
 
+// helpers
 export const lyraUtils = {
   toBN,
   fromBN,

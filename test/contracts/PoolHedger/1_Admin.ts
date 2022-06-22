@@ -1,5 +1,6 @@
 import { beforeEach } from 'mocha';
 import { HOUR_SEC, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
+import { changeDelegateApprovalAddress, openDefaultShortPutQuote } from '../../utils/contractHelpers';
 import { DEFAULT_POOL_HEDGER_PARAMS } from '../../utils/defaultParams';
 import { seedFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -66,5 +67,23 @@ describe('Admin', async () => {
     expect(await hre.f.c.poolHedger.collateralShort()).eq(ZERO_ADDRESS);
     await hre.f.c.poolHedger.updateCollateralShortAddress();
     expect(await hre.f.c.poolHedger.collateralShort()).eq(hre.f.c.snx.collateralShort.address);
+  });
+
+  it('updateDelegateApproval', async () => {
+    await changeDelegateApprovalAddress();
+    await hre.f.c.liquidityPool.updateDelegateApproval();
+    await openDefaultShortPutQuote();
+    expect(await hre.f.c.poolHedger.getCappedExpectedHedge()).to.be.gt(toBN('0'));
+
+    await expect(hre.f.c.poolHedger.hedgeDelta()).to.revertedWith('Not approved to act on behalf');
+    await hre.f.c.poolHedger.updateDelegateApproval();
+    await hre.f.c.poolHedger.hedgeDelta();
+  });
+
+  it('gets corret poolHedger settings', async () => {
+    const result = await hre.f.c.poolHedger.getPoolHedgerSettings();
+    expect(result[0].interactionDelay).to.eq(DEFAULT_POOL_HEDGER_PARAMS.interactionDelay);
+    expect(result[0].hedgeCap).to.eq(DEFAULT_POOL_HEDGER_PARAMS.hedgeCap);
+    expect(result[1]).to.eq(await hre.f.c.poolHedger.shortBuffer());
   });
 });

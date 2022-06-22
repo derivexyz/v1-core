@@ -1,4 +1,6 @@
-import { toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { currentTime, DAY_SEC, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { assertCloseToPercentage } from '../../utils/assert';
+import { getLiquidity, openDefaultLongCall } from '../../utils/contractHelpers';
 import { DEFAULT_POOL_DEPOSIT } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { deployFixture, seedFixture } from '../../utils/fixture';
@@ -70,5 +72,19 @@ describe('TokenPriceAndSupply', async () => {
       await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
     );
     expect(await hre.f.c.liquidityPool.getTotalTokenSupply()).to.eq(toBN('500000'));
+  });
+
+  it('getTokenPriceWithCheck returns CBtimestamp', async () => {
+    await openDefaultLongCall();
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('500000'));
+    await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    console.log('liquidity', (await getLiquidity()).freeLiquidity.toString());
+
+    expect(await hre.f.c.liquidityPool.CBTimestamp()).to.be.gt(await currentTime());
+    await fastForward(DAY_SEC);
+    const result = await hre.f.c.liquidityPool.getTokenPriceWithCheck();
+    assertCloseToPercentage(result[0], toBN('1'), toBN('0.01'));
+    expect(result[1]).to.eq(true);
+    expect(result[2]).to.eq(await hre.f.c.liquidityPool.CBTimestamp());
   });
 });

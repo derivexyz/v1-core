@@ -2,7 +2,7 @@
 
 ## Functions:
 
-- `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset, contract IAddressResolver _addressResolver) (external)`
 
 - `addBaseAsset(bytes32 ticker, contract ITestERC20 baseAsset, address market) (external)`
 
@@ -16,7 +16,7 @@
 
 - `Exchange(address exchangeForAddress, bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey)`
 
-### Function `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset) external`
+### Function `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset, contract IAddressResolver _addressResolver) external`
 
 ### Function `addBaseAsset(bytes32 ticker, contract ITestERC20 baseAsset, address market) external`
 

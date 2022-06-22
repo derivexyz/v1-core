@@ -214,9 +214,9 @@ adjusts the result down to the hedgeCap param if needed.
 
 Sends all quote asset deposited in this contract to the `LiquidityPool`.
 
-### Function `getPoolHedgerSettings() → struct PoolHedger.PoolHedgerParameters, uint256 _shortBuffer external`
+### Function `getPoolHedgerSettings() → struct PoolHedger.PoolHedgerParameters _poolHedgerParams, uint256 _shortBuffer external`
 
-Returns PoolHedgerParameters struct
+Returns the poolHedgerParams and shortBuffer in a single call
 
 ### Function `_abs(int256 val) → uint256 internal`
 

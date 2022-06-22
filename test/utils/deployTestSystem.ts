@@ -468,6 +468,7 @@ export async function initGlobalTestSystem(
       .init(
         overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
         overrides.quoteAsset || testSystem.snx.quoteAsset.address,
+        overrides.addressResolver || testSystem.snx.addressResolver.address,
       );
 
     await testSystem.snx.collateralShort

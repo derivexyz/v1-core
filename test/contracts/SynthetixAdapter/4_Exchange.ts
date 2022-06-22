@@ -14,6 +14,7 @@ describe('Exchange', async () => {
 
   beforeEach(async () => {
     await seedFixture();
+    await hre.f.c.snx.delegateApprovals.approveExchangeOnBehalf(hre.f.c.synthetixAdapter.address);
     oldBaseBalance = await hre.f.c.snx.baseAsset.balanceOf(hre.f.signers[0].address);
     oldQuoteBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[0].address);
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.9;
 
+// Slightly modified version of:
+// - https://github.com/recmo/experiment-solexp/blob/605738f3ed72d6c67a414e992be58262fbc9bb80/src/FixedPointMathLib.sol
 library FixedPointMathLib {
   /// @dev Computes ln(x) for a 1e27 fixed point. Loses 9 last significant digits of precision.
   function lnPrecise(int x) internal pure returns (int r) {

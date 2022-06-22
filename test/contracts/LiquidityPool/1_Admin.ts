@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { DAY_SEC, HOUR_SEC, MONTH_SEC, toBN, WEEK_SEC, YEAR_SEC } from '../../../scripts/util/web3utils';
 import { LiquidityPoolParametersStruct } from '../../../typechain-types/LiquidityPool';
+import { changeDelegateApprovalAddress, openDefaultLongCall } from '../../utils/contractHelpers';
 import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { seedFixture } from '../../utils/fixture';
 import { hre } from '../../utils/testSetup';
@@ -120,5 +121,13 @@ describe('LiquidityPool - Admin', async () => {
     await expectInvalidParams({ skewVarianceCBTimeout: YEAR_SEC * 2 });
     await expectInvalidParams({ guardianDelay: YEAR_SEC * 2 });
     await expectInvalidParams({ boardSettlementCBTimeout: YEAR_SEC * 2 });
+  });
+
+  it('updateDelegateApproval for SNX', async () => {
+    await changeDelegateApprovalAddress();
+
+    await expect(openDefaultLongCall()).to.revertedWith('Not approved to act on behalf');
+    await hre.f.c.liquidityPool.updateDelegateApproval();
+    await openDefaultLongCall();
   });
 });

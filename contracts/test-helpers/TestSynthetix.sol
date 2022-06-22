@@ -2,6 +2,9 @@
 pragma solidity 0.8.9;
 
 import "../interfaces/ISynthetix.sol";
+import "../interfaces/IAddressResolver.sol";
+import "../interfaces/IDelegateApprovals.sol";
+
 // Debug
 import "./ITestERC20.sol";
 import "../synthetix/DecimalMath.sol";
@@ -12,7 +15,10 @@ contract TestSynthetix is ISynthetix {
   using DecimalMath for uint;
 
   SynthetixAdapter internal synthetixAdapter;
+  IAddressResolver public addressResolver;
   ITestERC20 internal quoteAsset;
+
+  bytes32 private constant CONTRACT_DELEGATE_APPROVALS = "DelegateApprovals";
 
   mapping(bytes32 => ITestERC20) public baseAssets;
   mapping(bytes32 => address) public markets;
@@ -28,10 +34,15 @@ contract TestSynthetix is ISynthetix {
 
   constructor() {}
 
-  function init(SynthetixAdapter _synthetixAdapter, ITestERC20 _quoteAsset) external {
+  function init(
+    SynthetixAdapter _synthetixAdapter,
+    ITestERC20 _quoteAsset,
+    IAddressResolver _addressResolver
+  ) external {
     require(!initialized, "Already initialized");
     synthetixAdapter = _synthetixAdapter;
     quoteAsset = _quoteAsset;
+    addressResolver = _addressResolver;
     initialized = true;
   }
 
@@ -63,6 +74,14 @@ contract TestSynthetix is ISynthetix {
     address,
     bytes32
   ) public virtual override returns (uint amountReceived) {
+    require(
+      IDelegateApprovals(addressResolver.getAddress(CONTRACT_DELEGATE_APPROVALS)).canExchangeOnBehalf(
+        msg.sender,
+        exchangeForAddress
+      ),
+      "Not approved to act on behalf"
+    );
+
     emit Exchange(msg.sender, sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
     return exchangeOnBehalf(exchangeForAddress, sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
   }
@@ -76,6 +95,14 @@ contract TestSynthetix is ISynthetix {
     uint fromRate;
     uint feeRate = 0;
     uint toRate;
+    require(
+      IDelegateApprovals(addressResolver.getAddress(CONTRACT_DELEGATE_APPROVALS)).canExchangeOnBehalf(
+        msg.sender,
+        exchangeForAddress
+      ),
+      "Not approved to act on behalf"
+    );
+
     if (sourceCurrencyKey == "sUSD") {
       fromRate = 1e18;
       quoteAsset.burn(exchangeForAddress, sourceAmount);

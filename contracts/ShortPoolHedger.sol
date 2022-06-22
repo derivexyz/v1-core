@@ -463,9 +463,15 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
     emit QuoteReturnedToLP(quoteBal);
   }
 
-  /// @dev Returns PoolHedgerParameters struct
-  function getPoolHedgerSettings() external view returns (PoolHedgerParameters memory, uint _shortBuffer) {
-    return (poolHedgerParams, _shortBuffer);
+  /**
+   * @dev Returns the poolHedgerParams and shortBuffer in a single call
+   */
+  function getPoolHedgerSettings()
+    external
+    view
+    returns (PoolHedgerParameters memory _poolHedgerParams, uint _shortBuffer)
+  {
+    return (poolHedgerParams, shortBuffer);
   }
 
   /**
@@ -480,7 +486,9 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
   ////////////
   // Events //
   ////////////
-  /// @dev Emitted when the collateralShort address is updated
+  /**
+   * @dev Emitted when the collateralShort address is updated
+   */
   event ShortCollateralSet(ICollateralShort collateralShort);
   /**
    * @dev Emitted when pool hedger parameters are updated.
