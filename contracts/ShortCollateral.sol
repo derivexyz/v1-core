@@ -192,6 +192,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     uint quoteInsolventAmount;
 
     OptionToken.PositionWithOwner[] memory optionPositions = optionToken.getPositionsWithOwner(positionIds);
+    optionToken.settlePositions(positionIds);
 
     uint positionsLength = optionPositions.length;
     for (uint i = 0; i < positionsLength; ++i) {
@@ -253,7 +254,6 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     }
 
     _reclaimInsolvency(baseInsolventAmount, quoteInsolventAmount);
-    optionToken.settlePositions(positionIds);
   }
 
   /// @dev Send quote or base owed to LiquidityPool due to large number of insolvencies

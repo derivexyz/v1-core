@@ -6,7 +6,7 @@ import { assertCloseTo } from '../../utils/assert';
 import { openPositionWithOverrides } from '../../utils/contractHelpers';
 import { DEFAULT_BASE_PRICE } from '../../utils/defaultParams';
 import { addNewMarketSystem, deployTestSystem, TestSystemContractsType } from '../../utils/deployTestSystem';
-import { restoreSnapshot, takeSnapshot } from '../../utils/evm';
+import { fastForward, restoreSnapshot, takeSnapshot } from '../../utils/evm';
 import { createDefaultBoardWithOverrides, seedNewMarketSystem } from '../../utils/seedTestSystem';
 import { expect } from '../../utils/testSetup';
 
@@ -355,7 +355,7 @@ describe('optionMarketViewer tests', async () => {
     });
 
     it('get board with boardId', async () => {
-      const ethBoard = await eth.optionMarketViewer.getBoard(eth.optionMarket.address, 1);
+      let ethBoard = await eth.optionMarketViewer.getBoard(eth.optionMarket.address, 1);
       const btcBoard = await eth.optionMarketViewer.getBoard(btc.optionMarket.address, 1);
       expect(ethBoard.boardId).to.eq(1);
       expect(ethBoard.market).to.eq(eth.optionMarket.address);
@@ -368,6 +368,12 @@ describe('optionMarketViewer tests', async () => {
       await expect(eth.optionMarketViewer.getBoard(eth.liquidityPool.address, 2)).to.be.revertedWith(
         'Transaction reverted: function call to a non-contract account',
       );
+
+      expect(ethBoard.forceCloseGwavIV).not.eq(0);
+      await fastForward(MONTH_SEC);
+      await eth.optionMarket.settleExpiredBoard(1);
+      ethBoard = await eth.optionMarketViewer.getBoard(eth.optionMarket.address, 1);
+      expect(ethBoard.forceCloseGwavIV).eq(0);
     });
 
     it('get board with baseKey', async () => {

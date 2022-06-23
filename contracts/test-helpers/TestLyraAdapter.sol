@@ -27,6 +27,10 @@ contract TestLyraAdapter is LyraAdapter {
     result = _forceClosePosition(params);
   }
 
+  function closeOrForceClosePosition(TradeInputParameters memory params) external returns (TradeResult memory result) {
+    result = _closeOrForceClosePosition(params);
+  }
+
   function splitPositionExt(
     uint positionId,
     uint newAmount,
@@ -143,5 +147,35 @@ contract TestLyraAdapter is LyraAdapter {
 
   function getLiveBoardsExt() external view returns (uint[] memory liveBoards) {
     liveBoards = _getLiveBoards();
+  }
+
+  /// @notice the `baseIv` GWAV for a given `boardId` with GWAV interval `secondsAgo`
+  function ivGWAV(uint boardId, uint secondsAgo) external view returns (uint) {
+    return _ivGWAV(boardId, secondsAgo);
+  }
+
+  /// @notice the volatility `skew` GWAV for a given `strikeId` with GWAV interval `secondsAgo`
+  function skewGWAV(uint strikeId, uint secondsAgo) external view returns (uint) {
+    return _skewGWAV(strikeId, secondsAgo);
+  }
+
+  /// @notice the resultant volatility =`skew` * 'baseIv' for a given `strikeId` with GWAV interval `secondsAgo`
+  function volGWAV(uint strikeId, uint secondsAgo) external view returns (uint) {
+    return _volGWAV(strikeId, secondsAgo);
+  }
+
+  /// @notice the delta GWAV for a given `strikeId` with GWAV interval `secondsAgo`
+  function deltaGWAV(uint strikeId, uint secondsAgo) external view returns (int callDelta) {
+    return _deltaGWAV(strikeId, secondsAgo);
+  }
+
+  /// @notice the non-normalized vega GWAV for a given `strikeId` with GWAV interval `secondsAgo`
+  function vegaGWAV(uint strikeId, uint secondsAgo) external view returns (uint) {
+    return _vegaGWAV(strikeId, secondsAgo);
+  }
+
+  /// @notice the option price GWAV for a given `strikeId` with GWAV interval `secondsAgo`
+  function optionPriceGWAV(uint strikeId, uint secondsAgo) external view returns (uint callPrice, uint putPrice) {
+    return _optionPriceGWAV(strikeId, secondsAgo);
   }
 }

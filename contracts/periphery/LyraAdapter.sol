@@ -669,8 +669,7 @@ contract LyraAdapter is Ownable {
     return gwavOracle.skewGWAV(strikeId, secondsAgo);
   }
 
-  /// @notice the resultant volatility =`skew` * 'baseIv'
-  ///         for a given `strikeId` with GWAV interval `secondsAgo`
+  /// @notice the resultant volatility =`skew` * 'baseIv' for a given `strikeId` with GWAV interval `secondsAgo`
   function _volGWAV(uint strikeId, uint secondsAgo) internal view returns (uint) {
     return gwavOracle.volGWAV(strikeId, secondsAgo);
   }
@@ -686,7 +685,7 @@ contract LyraAdapter is Ownable {
   }
 
   /// @notice the option price GWAV for a given `strikeId` with GWAV interval `secondsAgo`
-  function _optionPriceGWAV(uint strikeId, uint secondsAgo) external view returns (uint callPrice, uint putPrice) {
+  function _optionPriceGWAV(uint strikeId, uint secondsAgo) internal view returns (uint callPrice, uint putPrice) {
     return gwavOracle.optionPriceGWAV(strikeId, secondsAgo);
   }
 

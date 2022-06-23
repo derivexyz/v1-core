@@ -21,6 +21,7 @@ contract KeeperHelper {
 
     optionMarket = _optionMarket;
     shortCollateral = _shortCollateral;
+    initialized = true;
   }
 
   /**

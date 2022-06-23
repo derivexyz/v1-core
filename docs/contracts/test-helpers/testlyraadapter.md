@@ -10,6 +10,8 @@
 
 - `forceClosePositionExt(struct LyraAdapter.TradeInputParameters params) (external)`
 
+- `closeOrForceClosePosition(struct LyraAdapter.TradeInputParameters params) (external)`
+
 - `splitPositionExt(uint256 positionId, uint256 newAmount, uint256 newCollateral, address recipient) (external)`
 
 - `mergePositionsExt(uint256[] positionIds) (external)`
@@ -56,6 +58,18 @@
 
 - `getLiveBoardsExt() (external)`
 
+- `ivGWAV(uint256 boardId, uint256 secondsAgo) (external)`
+
+- `skewGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+
+- `volGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+
+- `deltaGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+
+- `vegaGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+
+- `optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+
 ### Function `setLyraAddressesExt(address _lyraRegistry, address _optionMarket, address _curveSwap, address _feeCounter) external`
 
 ### Function `openPositionExt(struct LyraAdapter.TradeInputParameters params) → struct LyraAdapter.TradeResult result external`
@@ -63,6 +77,8 @@
 ### Function `closePositionExt(struct LyraAdapter.TradeInputParameters params) → struct LyraAdapter.TradeResult result external`
 
 ### Function `forceClosePositionExt(struct LyraAdapter.TradeInputParameters params) → struct LyraAdapter.TradeResult result external`
+
+### Function `closeOrForceClosePosition(struct LyraAdapter.TradeInputParameters params) → struct LyraAdapter.TradeResult result external`
 
 ### Function `splitPositionExt(uint256 positionId, uint256 newAmount, uint256 newCollateral, address recipient) → uint256 newPositionId external`
 
@@ -109,3 +125,27 @@
 ### Function `getPositionsExt(uint256[] positionIds) → struct LyraAdapter.OptionPosition[] allPositions external`
 
 ### Function `getLiveBoardsExt() → uint256[] liveBoards external`
+
+### Function `ivGWAV(uint256 boardId, uint256 secondsAgo) → uint256 external`
+
+the `baseIv` GWAV for a given `boardId` with GWAV interval `secondsAgo`
+
+### Function `skewGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 external`
+
+the volatility `skew` GWAV for a given `strikeId` with GWAV interval `secondsAgo`
+
+### Function `volGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 external`
+
+the resultant volatility =`skew` * 'baseIv' for a given `strikeId` with GWAV interval `secondsAgo`
+
+### Function `deltaGWAV(uint256 strikeId, uint256 secondsAgo) → int256 callDelta external`
+
+the delta GWAV for a given `strikeId` with GWAV interval `secondsAgo`
+
+### Function `vegaGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 external`
+
+the non-normalized vega GWAV for a given `strikeId` with GWAV interval `secondsAgo`
+
+### Function `optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 callPrice, uint256 putPrice external`
+
+the option price GWAV for a given `strikeId` with GWAV interval `secondsAgo`

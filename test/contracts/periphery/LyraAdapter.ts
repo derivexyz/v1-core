@@ -1,12 +1,24 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber, ContractFactory } from 'ethers';
 import { ethers } from 'hardhat';
-import { DAY_SEC, fromBN, MAX_UINT, MONTH_SEC, OptionType, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
+import {
+  DAY_SEC,
+  fromBN,
+  HOUR_SEC,
+  MAX_UINT,
+  MONTH_SEC,
+  OptionType,
+  toBN,
+  UNIT,
+  WEEK_SEC,
+  ZERO_ADDRESS,
+} from '../../../scripts/util/web3utils';
 import { OptionMarket, TestERC20Fail, TestERC20SetDecimals, TestLyraAdapter } from '../../../typechain-types';
-import { assertCloseTo } from '../../utils/assert';
+import { assertCloseTo, assertCloseToPercentage } from '../../utils/assert';
 import { openPositionWithOverrides } from '../../utils/contractHelpers';
+import { DEFAULT_BOARD_PARAMS } from '../../utils/defaultParams';
 import { deployTestSystem, TestSystemContractsType } from '../../utils/deployTestSystem';
-import { restoreSnapshot, takeSnapshot } from '../../utils/evm';
+import { fastForward, restoreSnapshot, takeSnapshot } from '../../utils/evm';
 import { createDefaultBoardWithOverrides, seedTestSystem } from '../../utils/seedTestSystem';
 import { expect } from '../../utils/testSetup';
 
@@ -14,7 +26,7 @@ describe('LyraAdapter tests', () => {
   let account: SignerWithAddress;
   let accountAddr: string;
   let boardId: BigNumber;
-  let listingIds: BigNumber[];
+  let strikeIds: BigNumber[];
 
   let testLyraAdapter: TestLyraAdapter;
   let c: TestSystemContractsType;
@@ -58,7 +70,7 @@ describe('LyraAdapter tests', () => {
     await c.snx.baseAsset.mint(testLyraAdapter.address, toBN('100000'));
 
     boardId = (await c.optionMarket.getLiveBoards())[0];
-    listingIds = await c.optionMarket.getBoardStrikes(boardId);
+    strikeIds = await c.optionMarket.getBoardStrikes(boardId);
 
     await createDefaultBoardWithOverrides(c, {
       expiresIn: DAY_SEC,
@@ -108,6 +120,10 @@ describe('LyraAdapter tests', () => {
   afterEach(async () => {
     await restoreSnapshot(snap);
     snap = await takeSnapshot();
+  });
+
+  it('misc actions', async () => {
+    await testLyraAdapter.updateDelegateApproval();
   });
 
   describe('can set addresses', async () => {
@@ -298,7 +314,7 @@ describe('LyraAdapter tests', () => {
 
     it('getMinCollateralForPosition', async () => {
       const [, pos] = await openPositionWithOverrides(c, {
-        strikeId: listingIds[1],
+        strikeId: strikeIds[1],
         optionType: OptionType.SHORT_CALL_BASE,
         setCollateralTo: toBN('1'),
         amount: toBN('1'),
@@ -309,7 +325,7 @@ describe('LyraAdapter tests', () => {
 
     it('getMinCollateralForPosition for LONG', async () => {
       const [, pos] = await openPositionWithOverrides(c, {
-        strikeId: listingIds[1],
+        strikeId: strikeIds[1],
         optionType: OptionType.LONG_CALL,
         setCollateralTo: toBN('1'),
         amount: toBN('1'),
@@ -330,17 +346,17 @@ describe('LyraAdapter tests', () => {
 
     it('getPositions', async () => {
       const [, pos1] = await openPositionWithOverrides(c, {
-        strikeId: listingIds[1],
+        strikeId: strikeIds[1],
         optionType: OptionType.LONG_CALL,
         amount: toBN('0.01'),
       });
       const [, pos2] = await openPositionWithOverrides(c, {
-        strikeId: listingIds[1],
+        strikeId: strikeIds[1],
         optionType: OptionType.LONG_PUT,
         amount: toBN('0.02'),
       });
       const [, pos3] = await openPositionWithOverrides(c, {
-        strikeId: listingIds[1],
+        strikeId: strikeIds[1],
         optionType: OptionType.SHORT_CALL_BASE,
         setCollateralTo: toBN('0.01'),
         amount: toBN('0.01'),
@@ -358,7 +374,7 @@ describe('LyraAdapter tests', () => {
   describe('Position functions', async () => {
     it('can open position', async () => {
       const params = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 0,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
@@ -383,7 +399,7 @@ describe('LyraAdapter tests', () => {
 
     it('can open position with rewards', async () => {
       const params = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 0,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
@@ -398,6 +414,7 @@ describe('LyraAdapter tests', () => {
 
       // Set adapter as trusted address
       await c.basicFeeCounter.setTrustedCounter(testLyraAdapter.address, true);
+      await testLyraAdapter.openPositionExt({ ...params, rewardRecipient: ZERO_ADDRESS });
       await testLyraAdapter.openPositionExt(params);
 
       const result1 = await c.optionToken.getPositionWithOwner(1);
@@ -412,7 +429,7 @@ describe('LyraAdapter tests', () => {
 
     it('can close position', async () => {
       const params = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 0,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
@@ -424,13 +441,13 @@ describe('LyraAdapter tests', () => {
       };
 
       const closeParams = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 1,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
-        amount: toBN('1'),
+        amount: toBN('0.5'),
         setCollateralTo: 0,
-        minTotalCost: toBN('200'),
+        minTotalCost: 0,
         maxTotalCost: toBN('300'),
         rewardRecipient: accountAddr,
       };
@@ -443,13 +460,14 @@ describe('LyraAdapter tests', () => {
 
       // Set adapter as trusted address
       await c.basicFeeCounter.setTrustedCounter(testLyraAdapter.address, true);
+      await testLyraAdapter.closePositionExt({ ...closeParams, rewardRecipient: ZERO_ADDRESS });
       await testLyraAdapter.closePositionExt(closeParams);
       await expect(c.optionToken.getPositionWithOwner(1)).revertedWith('ERC721: owner query for nonexistent token');
     });
 
     it('can force close position', async () => {
       const params = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 0,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
@@ -461,13 +479,13 @@ describe('LyraAdapter tests', () => {
       };
 
       const closeParams = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 1,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
-        amount: toBN('1'),
+        amount: toBN('0.5'),
         setCollateralTo: 0,
-        minTotalCost: toBN('200'),
+        minTotalCost: 0,
         maxTotalCost: toBN('300'),
         rewardRecipient: accountAddr,
       };
@@ -480,13 +498,53 @@ describe('LyraAdapter tests', () => {
 
       // Set adapter as trusted address
       await c.basicFeeCounter.setTrustedCounter(testLyraAdapter.address, true);
+      await testLyraAdapter.forceClosePositionExt({ ...closeParams, rewardRecipient: ZERO_ADDRESS });
       await testLyraAdapter.forceClosePositionExt(closeParams);
+      await expect(c.optionToken.getPositionWithOwner(1)).revertedWith('ERC721: owner query for nonexistent token');
+    });
+
+    it('will close or force close', async () => {
+      const params = {
+        strikeId: strikeIds[0],
+        positionId: 0,
+        iterations: 1,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('1'),
+        setCollateralTo: 0,
+        minTotalCost: toBN('200'),
+        maxTotalCost: toBN('400'),
+        rewardRecipient: accountAddr,
+      };
+
+      const closeParams = {
+        strikeId: strikeIds[0],
+        positionId: 1,
+        iterations: 1,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('0.5'),
+        setCollateralTo: 0,
+        minTotalCost: 0,
+        maxTotalCost: toBN('300'),
+        rewardRecipient: accountAddr,
+      };
+
+      await c.basicFeeCounter.setTrustedCounter(testLyraAdapter.address, true);
+      await testLyraAdapter.openPositionExt(params);
+      await c.basicFeeCounter.setTrustedCounter(testLyraAdapter.address, false);
+
+      await expect(testLyraAdapter.closeOrForceClosePosition(closeParams)).to.be.revertedWith('not trusted counter');
+
+      // Set adapter as trusted address
+      await c.basicFeeCounter.setTrustedCounter(testLyraAdapter.address, true);
+      await testLyraAdapter.closeOrForceClosePosition(closeParams);
+      await fastForward(DEFAULT_BOARD_PARAMS.expiresIn - HOUR_SEC);
+      await testLyraAdapter.closeOrForceClosePosition(closeParams);
       await expect(c.optionToken.getPositionWithOwner(1)).revertedWith('ERC721: owner query for nonexistent token');
     });
 
     it('can split position', async () => {
       const params = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 0,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
@@ -509,7 +567,7 @@ describe('LyraAdapter tests', () => {
 
     it('can merge positions', async () => {
       const params = {
-        strikeId: listingIds[0],
+        strikeId: strikeIds[0],
         positionId: 0,
         iterations: 1,
         optionType: OptionType.LONG_CALL,
@@ -679,5 +737,18 @@ describe('LyraAdapter tests', () => {
       expect(quoteBalBefore - quoteBalAfter).to.eq(1000);
       expect(usdcBalAfter - usdcBalBefore).to.eq(1011011011); // 1011 e6
     });
+  });
+
+  it('gwav functions', async () => {
+    const baseIv = toBN(DEFAULT_BOARD_PARAMS.baseIV);
+    const skew = toBN(DEFAULT_BOARD_PARAMS.skews[0]);
+    assertCloseToPercentage(await testLyraAdapter.ivGWAV(strikeIds[0], DAY_SEC), baseIv);
+    assertCloseToPercentage(await testLyraAdapter.skewGWAV(strikeIds[0], DAY_SEC), skew);
+    assertCloseToPercentage(await testLyraAdapter.volGWAV(strikeIds[0], DAY_SEC), baseIv.mul(skew).div(UNIT));
+    assertCloseToPercentage(await testLyraAdapter.deltaGWAV(strikeIds[0], DAY_SEC), toBN('0.77037'));
+    assertCloseToPercentage(await testLyraAdapter.vegaGWAV(strikeIds[0], DAY_SEC), toBN('146.37'));
+    const [callPrice, putPrice] = await testLyraAdapter.optionPriceGWAV(strikeIds[0], DAY_SEC);
+    assertCloseToPercentage(callPrice, toBN('313.6'));
+    assertCloseToPercentage(putPrice, toBN('65.87'));
   });
 });

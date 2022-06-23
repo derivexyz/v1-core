@@ -1,6 +1,6 @@
 import { ContractFactory } from 'ethers/lib/ethers';
 import { ethers } from 'hardhat';
-import { toBytes32 } from '../../../scripts/util/web3utils';
+import { toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { LiquidityPool, OptionMarket } from '../../../typechain-types';
 import { deployFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -25,13 +25,19 @@ describe('LyraRegistry tests', () => {
       );
     });
 
-    it('update global contracts wrong ', async () => {
+    it('update global contracts wrong', async () => {
       await expect(
         hre.f.c.lyraRegistry.updateGlobalAddresses(
           [toBytes32('SYNTHETIX_ADAPTER'), toBytes32('SYNTHETIX_ADAPTER')],
           [hre.f.c.synthetixAdapter.address],
         ),
       ).to.be.revertedWith('length mismatch');
+    });
+
+    it('reverts if global name wrong', async () => {
+      await expect(hre.f.c.lyraRegistry.getGlobalAddress(toBytes32('SNX_ADAPTER'))).to.be.revertedWith(
+        'NonExistentGlobalContract',
+      );
     });
 
     it('can add and remove an option market', async () => {
@@ -61,6 +67,8 @@ describe('LyraRegistry tests', () => {
       expect(addresses.gwavOracle).eq(hre.f.c.GWAVOracle.address);
       expect(addresses.baseAsset).eq(hre.f.c.snx.baseAsset.address);
       expect(addresses.quoteAsset).eq(hre.f.c.snx.quoteAsset.address);
+
+      await expect(hre.f.c.lyraRegistry.removeMarket(ZERO_ADDRESS)).revertedWith('RemovingInvalidMarket');
 
       await hre.f.c.lyraRegistry.removeMarket(hre.f.c.optionMarket.address);
       await expect(hre.f.c.lyraRegistry.getMarketAddresses(hre.f.c.optionMarket.address)).to.revertedWith(

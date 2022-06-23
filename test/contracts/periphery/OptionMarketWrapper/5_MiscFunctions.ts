@@ -1,6 +1,8 @@
 import { getEventArgs, toBN, ZERO_ADDRESS } from '../../../../scripts/util/web3utils';
 import { OptionMarketContractsStruct } from '../../../../typechain-types/OptionMarketWrapper';
 import { assertCloseToPercentage } from '../../../utils/assert';
+import { STABLE_IDS, wrapperOpenLong } from '../../../utils/contractHelpers/wrapper';
+import { addNewMarketSystem, TestSystemContractsType } from '../../../utils/deployTestSystem';
 import { allCurrenciesFixture } from '../../../utils/fixture';
 import { expect, hre } from '../../../utils/testSetup';
 
@@ -71,6 +73,35 @@ describe('OptionMarketWrapper viewer / misc function tests', () => {
     await expect(hre.f.c.optionMarketWrapper.addCurveStable(hre.f.c.snx.quoteAsset.address, 0)).to.be.revertedWith(
       'DuplicateEntry',
     );
+  });
+
+  it('revert add if stable not approved', async () => {
+    await hre.f.c.snx.quoteAsset.setForceFail(true);
+    await expect(hre.f.c.optionMarketWrapper.addCurveStable(hre.f.c.snx.quoteAsset.address, 0)).to.be.revertedWith(
+      'ApprovalFailure',
+    );
+
+    await hre.f.c.snx.quoteAsset.setForceFail(false);
+    await hre.f.c.snx.quoteAsset.setMaxApprovalFail(true);
+    await expect(hre.f.c.optionMarketWrapper.addCurveStable(hre.f.c.snx.quoteAsset.address, 0)).to.be.revertedWith(
+      'ApprovalFailure',
+    );
+  });
+
+  it('getMarketAndErcIds', async () => {
+    const [markets, ercs] = await hre.f.c.optionMarketWrapper.getMarketAndErcIds();
+    expect(await hre.f.c.optionMarketWrapper.idToMarket(markets[0])).to.eq(hre.f.c.optionMarket.address);
+    expect(await hre.f.c.optionMarketWrapper.idToERC(ercs[0])).to.eq(hre.f.c.snx.quoteAsset.address);
+    expect(await hre.f.c.optionMarketWrapper.idToERC(ercs[1])).to.eq(hre.f.DAI.address);
+    expect(await hre.f.c.optionMarketWrapper.idToERC(ercs[2])).to.eq(hre.f.USDC.address);
+  });
+
+  it('adds new market', async () => {
+    const linkMarket: TestSystemContractsType = await addNewMarketSystem(hre.f.deployer, hre.f.c, 'sLINK', false, {
+      marketId: '1',
+    });
+    const [markets] = await hre.f.c.optionMarketWrapper.getMarketAndErcIds();
+    expect(await hre.f.c.optionMarketWrapper.idToMarket(markets[1])).to.eq(linkMarket.optionMarket.address);
   });
 
   it('add duplicate market', async () => {
@@ -288,5 +319,18 @@ describe('OptionMarketWrapper viewer / misc function tests', () => {
 
       expect(openFees).to.eq(0);
     });
+  });
+
+  it('reverts if transfer failed', async () => {
+    await hre.f.c.snx.quoteAsset.setForceFail(true);
+    await expect(
+      wrapperOpenLong({
+        token: STABLE_IDS.sUSD,
+        isCall: true,
+        maxCost: 375,
+        inputAmount: 400,
+        size: 1,
+      }),
+    ).to.revertedWith('AssetTransferFailed');
   });
 });

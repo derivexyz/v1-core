@@ -78,7 +78,7 @@ Provides helpful functions for any Lyra trading/market data/vault related action
 
 - `_vegaGWAV(uint256 strikeId, uint256 secondsAgo) (internal)`
 
-- `_optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+- `_optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) (internal)`
 
 - `_getBsInput(uint256 strikeId) (internal)`
 
@@ -306,9 +306,7 @@ the volatility `skew` GWAV for a given `strikeId` with GWAV interval `secondsAgo
 
 ### Function `_volGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 internal`
 
-the resultant volatility =`skew` * 'baseIv'
-
-        for a given `strikeId` with GWAV interval `secondsAgo`
+the resultant volatility =`skew` * 'baseIv' for a given `strikeId` with GWAV interval `secondsAgo`
 
 ### Function `_deltaGWAV(uint256 strikeId, uint256 secondsAgo) → int256 callDelta internal`
 
@@ -318,7 +316,7 @@ the delta GWAV for a given `strikeId` with GWAV interval `secondsAgo`
 
 the non-normalized vega GWAV for a given `strikeId` with GWAV interval `secondsAgo`
 
-### Function `_optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 callPrice, uint256 putPrice external`
+### Function `_optionPriceGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 callPrice, uint256 putPrice internal`
 
 the option price GWAV for a given `strikeId` with GWAV interval `secondsAgo`
 

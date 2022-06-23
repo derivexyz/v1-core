@@ -718,9 +718,9 @@ export async function initMarketTestSystem(
       },
     );
 
-  await existingTestSystem.keeperHelper
+  await marketTestSystem.keeperHelper
     .connect(deployer)
-    .init(existingTestSystem.optionMarket.address, existingTestSystem.shortCollateral.address);
+    .init(marketTestSystem.optionMarket.address, marketTestSystem.shortCollateral.address);
 
   ////////////////////////
   // Lyra Market Params //
