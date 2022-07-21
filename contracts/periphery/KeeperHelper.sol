@@ -12,16 +12,40 @@ import "../OptionMarket.sol";
 contract KeeperHelper {
   OptionMarket public optionMarket;
   ShortCollateral public shortCollateral;
+  OptionGreekCache public greekCache;
   bool public initialized;
 
   constructor() {}
 
-  function init(OptionMarket _optionMarket, ShortCollateral _shortCollateral) external {
+  function init(
+    OptionMarket _optionMarket,
+    ShortCollateral _shortCollateral,
+    OptionGreekCache _greekCache
+  ) external {
     require(!initialized, "Keeper Helper: already initialized");
 
     optionMarket = _optionMarket;
     shortCollateral = _shortCollateral;
+    greekCache = _greekCache;
     initialized = true;
+  }
+
+  function updateAllBoardCachedGreeks() external {
+    uint[] memory liveBoards = optionMarket.getLiveBoards();
+
+    for (uint i = 0; i < liveBoards.length; ++i) {
+      greekCache.updateBoardCachedGreeks(liveBoards[i]);
+    }
+  }
+
+  function updateStaleBoardCachedGreeks() external {
+    uint[] memory liveBoards = optionMarket.getLiveBoards();
+
+    for (uint i = 0; i < liveBoards.length; ++i) {
+      if (greekCache.isBoardCacheStale(liveBoards[i])) {
+        greekCache.updateBoardCachedGreeks(liveBoards[i]);
+      }
+    }
   }
 
   /**
