@@ -6,106 +6,94 @@ ensuring accurate prices are provided to the user.
 
 ## Functions:
 
-- `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionMarketPricer _optionMarketPricer, contract IOptionGreekCache _greekCache, contract IOptionToken _optionToken, contract ILiquidityPool _liquidityPool, contract IBlackScholes _blackScholes) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter) (external)`
 
-- `getBoard(uint256 boardId) (public)`
+- `addMarket(struct OptionMarketViewer.OptionMarketAddresses newMarketAddresses) (external)`
 
-- `getListing(uint256 listingId) (public)`
+- `removeMarket(contract OptionMarket market) (external)`
 
-- `getListingCache(uint256 listingId) (internal)`
+- `getMarketAddresses() (external)`
 
-- `getGlobalCache() (internal)`
+- `getMarkets(contract OptionMarket[] markets) (external)`
 
-- `getLiveBoards() (external)`
+- `getMarketForBaseKey(bytes32 baseKey) (public)`
 
-- `getListingsForBoard(uint256 boardId) (external)`
+- `getMarket(contract OptionMarket market) (public)`
 
-- `getListingViewAndBalance(uint256 listingId, address user) (external)`
+- `_getMarket(struct OptionMarketViewer.OptionMarketAddresses marketC, bool isGlobalPaused) (internal)`
 
-- `getListingView(uint256 listingId) (public)`
+- `_getMarketParams(struct OptionMarketViewer.OptionMarketAddresses marketC) (internal)`
 
-- `getPremiumForOpen(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) (external)`
+- `getOwnerPositions(address account) (external)`
 
-- `getPremiumForClose(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) (external)`
+- `getOwnerPositionsInRange(contract OptionMarket market, address account, uint256 start, uint256 limit) (external)`
 
-- `getPremiumForTrade(uint256 _listingId, enum IOptionMarket.TradeType tradeType, bool isBuy, uint256 amount) (public)`
+- `getLiveBoards(contract OptionMarket market) (public)`
 
-- `_getPremiumForTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.OptionBoard board, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals, bool isCall) (public)`
+- `getBoard(contract OptionMarket market, uint256 boardId) (external)`
 
-- `_getPricingForTrade(struct ILyraGlobals.PricingGlobals pricingGlobals, struct IOptionMarket.Trade trade, uint256 _listingId, int256 newCallExposure, int256 newPutExposure, bool isCall) (internal)`
+- `getBoardForBaseKey(bytes32 baseKey, uint256 boardId) (external)`
 
-- `timeToMaturitySeconds(uint256 expiry) (internal)`
+- `getBoardForStrikeId(contract OptionMarket market, uint256 strikeId) (external)`
 
-### Function `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionMarketPricer _optionMarketPricer, contract IOptionGreekCache _greekCache, contract IOptionToken _optionToken, contract ILiquidityPool _liquidityPool, contract IBlackScholes _blackScholes) external`
+- `_getBoard(struct OptionMarketViewer.OptionMarketAddresses marketC, uint256 boardId) (internal)`
+
+- `_getStrikeViews(struct OptionMarket.Strike[] strikes, struct OptionGreekCache.BoardGreeksView boardGreeksView, uint256[] strikeToBaseReturnedRatios, uint256 priceAtExpiry) (internal)`
+
+- `getLiquidityBalancesAndAllowances(contract OptionMarket[] markets, address account) (external)`
+
+## Events:
+
+- `MarketAdded(struct OptionMarketViewer.OptionMarketAddresses market)`
+
+- `MarketRemoved(contract OptionMarket market)`
+
+### Function `init(contract SynthetixAdapter _synthetixAdapter) external`
 
 Initializes the contract
 
 #### Parameters:
 
-- `_globals`: LyraGlobals contract address
+- `_synthetixAdapter`: SynthetixAdapter contract address
 
-- `_optionMarket`: OptionMarket contract address
+### Function `addMarket(struct OptionMarketViewer.OptionMarketAddresses newMarketAddresses) external`
 
-- `_optionMarketPricer`: OptionMarketPricer contract address
+### Function `removeMarket(contract OptionMarket market) external`
 
-- `_greekCache`: OptionGreekCache contract address
+### Function `getMarketAddresses() → struct OptionMarketViewer.OptionMarketAddresses[] external`
 
-- `_optionToken`: OptionToken contract address
+### Function `getMarkets(contract OptionMarket[] markets) → struct OptionMarketViewer.MarketsView marketsView external`
 
-- `_liquidityPool`: LiquidityPool contract address
+### Function `getMarketForBaseKey(bytes32 baseKey) → struct OptionMarketViewer.MarketViewWithBoards market public`
 
-- `_blackScholes`: BlackScholes contract address
+### Function `getMarket(contract OptionMarket market) → struct OptionMarketViewer.MarketViewWithBoards public`
 
-### Function `getBoard(uint256 boardId) → struct IOptionMarket.OptionBoard public`
+### Function `_getMarket(struct OptionMarketViewer.OptionMarketAddresses marketC, bool isGlobalPaused) → struct OptionMarketViewer.MarketView internal`
 
-Gets the OptionBoard struct from the OptionMarket
+### Function `_getMarketParams(struct OptionMarketViewer.OptionMarketAddresses marketC) → struct OptionMarketViewer.MarketParameters params internal`
 
-### Function `getListing(uint256 listingId) → struct IOptionMarket.OptionListing public`
+### Function `getOwnerPositions(address account) → struct OptionMarketViewer.MarketOptionPositions[] external`
 
-Gets the OptionListing struct from the OptionMarket
+### Function `getOwnerPositionsInRange(contract OptionMarket market, address account, uint256 start, uint256 limit) → struct OptionToken.OptionPosition[] external`
 
-### Function `getListingCache(uint256 listingId) → struct IOptionGreekCache.OptionListingCache internal`
+### Function `getLiveBoards(contract OptionMarket market) → struct OptionMarketViewer.BoardView[] marketBoards public`
 
-Gets the OptionListingCache struct from the OptionGreekCache
+### Function `getBoard(contract OptionMarket market, uint256 boardId) → struct OptionMarketViewer.BoardView external`
 
-### Function `getGlobalCache() → struct IOptionGreekCache.GlobalCache internal`
+### Function `getBoardForBaseKey(bytes32 baseKey, uint256 boardId) → struct OptionMarketViewer.BoardView external`
 
-Gets the GlobalCache struct from the OptionGreekCache
+### Function `getBoardForStrikeId(contract OptionMarket market, uint256 strikeId) → struct OptionMarketViewer.BoardView external`
 
-### Function `getLiveBoards() → struct OptionMarketViewer.BoardView[] boards external`
+### Function `_getBoard(struct OptionMarketViewer.OptionMarketAddresses marketC, uint256 boardId) → struct OptionMarketViewer.BoardView internal`
 
-Gets the array of liveBoards with details from the OptionMarket
+### Function `_getStrikeViews(struct OptionMarket.Strike[] strikes, struct OptionGreekCache.BoardGreeksView boardGreeksView, uint256[] strikeToBaseReturnedRatios, uint256 priceAtExpiry) → struct OptionMarketViewer.StrikeView[] strikeViews internal`
 
-### Function `getListingsForBoard(uint256 boardId) → struct OptionMarketViewer.ListingView[] boardListings external`
+### Function `getLiquidityBalancesAndAllowances(contract OptionMarket[] markets, address account) → struct OptionMarketViewer.LiquidityBalanceAndAllowance[] external`
 
-Gets detailed ListingViews for all listings on a board
+### Event `MarketAdded(struct OptionMarketViewer.OptionMarketAddresses market)`
 
-### Function `getListingViewAndBalance(uint256 listingId, address user) → struct OptionMarketViewer.ListingView listingView, uint256 longCallAmt, uint256 longPutAmt, uint256 shortCallAmt, uint256 shortPutAmt external`
+Emitted when an optionMarket is added
 
-Gets detailed ListingView along with all of a user's balances for a given listing
+### Event `MarketRemoved(contract OptionMarket market)`
 
-### Function `getListingView(uint256 listingId) → struct OptionMarketViewer.ListingView listingView public`
-
-Gets a detailed ListingView for a given listing
-
-### Function `getPremiumForOpen(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) → uint256 premium, uint256 newIv external`
-
-Gets the premium and new iv value after opening
-
-### Function `getPremiumForClose(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) → uint256 premium, uint256 newIv external`
-
-Gets the premium and new iv value after closing
-
-### Function `getPremiumForTrade(uint256 _listingId, enum IOptionMarket.TradeType tradeType, bool isBuy, uint256 amount) → uint256 premium, uint256 newIv public`
-
-Gets the premium and new iv value for a given trade
-
-### Function `_getPremiumForTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.OptionBoard board, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals, bool isCall) → uint256, uint256 public`
-
-Gets the premium and new iv value for a given trade
-
-### Function `_getPricingForTrade(struct ILyraGlobals.PricingGlobals pricingGlobals, struct IOptionMarket.Trade trade, uint256 _listingId, int256 newCallExposure, int256 newPutExposure, bool isCall) → struct IOptionMarketPricer.Pricing pricing internal`
-
-### Function `timeToMaturitySeconds(uint256 expiry) → uint256 timeToMaturity internal`
-
-Gets seconds to expiry.
+Emitted when an optionMarket is removed

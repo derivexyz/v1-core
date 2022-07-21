@@ -2,7 +2,7 @@
 .yarn/
 build/
 dist/
+typechain-types/
 node_modules/
-contracts/test-helpers/*
-contracts/synthetix/*
-contracts/openzeppelin-l2/*
+contracts/mocks/*
+contracts/test/*

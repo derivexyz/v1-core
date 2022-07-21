@@ -1,102 +1,138 @@
 # `OptionMarket`
 
-An AMM which allows users to trade options. Supports both buying and selling options, which determine the value
+An AMM which allows users to trade options. Supports both buying and selling options. Also handles liquidating
 
-for the listing's IV. Also allows for auto cash settling options as at expiry.
+short positions.
 
 ## Modifiers:
 
-- `onlyOwner()`
+- `notGlobalPaused()`
 
 ## Functions:
 
-- `init(contract ILyraGlobals _globals, contract ILiquidityPool _liquidityPool, contract IOptionMarketPricer _optionPricer, contract IOptionGreekCache _greekCache, contract IShortCollateral _shortCollateral, contract IOptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter, contract LiquidityPool _liquidityPool, contract OptionMarketPricer _optionPricer, contract OptionGreekCache _greekCache, contract ShortCollateral _shortCollateral, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
 
-- `transferOwnership(address newOwner) (external)`
+- `createOptionBoard(uint256 expiry, uint256 baseIV, uint256[] strikePrices, uint256[] skews, bool frozen) (external)`
 
 - `setBoardFrozen(uint256 boardId, bool frozen) (external)`
 
 - `setBoardBaseIv(uint256 boardId, uint256 baseIv) (external)`
 
-- `setListingSkew(uint256 listingId, uint256 skew) (external)`
+- `setStrikeSkew(uint256 strikeId, uint256 skew) (external)`
 
-- `createOptionBoard(uint256 expiry, uint256 baseIV, uint256[] strikes, uint256[] skews) (external)`
+- `addStrikeToBoard(uint256 boardId, uint256 strikePrice, uint256 skew) (external)`
 
-- `addListingToBoard(uint256 boardId, uint256 strike, uint256 skew) (external)`
+- `_addStrikeToBoard(struct OptionMarket.OptionBoard board, uint256 strikePrice, uint256 skew) (internal)`
 
-- `_addListingToBoard(uint256 boardId, uint256 strike, uint256 skew) (internal)`
+- `forceSettleBoard(uint256 boardId) (external)`
+
+- `setOptionMarketParams(struct OptionMarket.OptionMarketParameters _optionMarketParams) (external)`
+
+- `smClaim() (external)`
+
+- `getOptionMarketParams() (external)`
 
 - `getLiveBoards() (external)`
 
-- `getBoardListings(uint256 boardId) (external)`
+- `getNumLiveBoards() (external)`
 
-- `openPosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) (external)`
+- `getStrikeAndExpiry(uint256 strikeId) (external)`
 
-- `closePosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) (external)`
+- `getBoardStrikes(uint256 boardId) (external)`
 
-- `_doTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.OptionBoard board, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals) (internal)`
+- `getStrike(uint256 strikeId) (external)`
 
-- `liquidateExpiredBoard(uint256 boardId) (external)`
+- `getOptionBoard(uint256 boardId) (external)`
 
-- `_liquidateExpiredBoard(struct IOptionMarket.OptionBoard board) (internal)`
+- `getStrikeAndBoard(uint256 strikeId) (external)`
 
-- `settleOptions(uint256 listingId, enum IOptionMarket.TradeType tradeType) (external)`
+- `getBoardAndStrikeDetails(uint256 boardId) (external)`
 
-- `_require(bool pass, enum IOptionMarket.Error error) (internal)`
+- `openPosition(struct OptionMarket.TradeInputParameters params) (external)`
+
+- `closePosition(struct OptionMarket.TradeInputParameters params) (external)`
+
+- `forceClosePosition(struct OptionMarket.TradeInputParameters params) (external)`
+
+- `addCollateral(uint256 positionId, uint256 amountCollateral) (external)`
+
+- `_checkCostInBounds(uint256 totalCost, uint256 minCost, uint256 maxCost) (internal)`
+
+- `_openPosition(struct OptionMarket.TradeInputParameters params) (internal)`
+
+- `_closePosition(struct OptionMarket.TradeInputParameters params, bool forceClose) (internal)`
+
+- `_composeTrade(uint256 strikeId, enum OptionMarket.OptionType optionType, uint256 amount, enum OptionMarket.TradeDirection _tradeDirection, uint256 iterations, bool isForceClose) (internal)`
+
+- `_isLong(enum OptionMarket.OptionType optionType) (internal)`
+
+- `_doTrade(struct OptionMarket.Strike strike, struct OptionMarket.OptionBoard board, struct OptionMarket.TradeParameters trade, uint256 iterations, uint256 expectedAmount) (internal)`
+
+- `liquidatePosition(uint256 positionId, address rewardBeneficiary) (external)`
+
+- `_routeLPFundsOnOpen(struct OptionMarket.TradeParameters trade, uint256 totalCost, uint256 feePortion) (internal)`
+
+- `_routeLPFundsOnClose(struct OptionMarket.TradeParameters trade, uint256 totalCost, uint256 reservedFee) (internal)`
+
+- `_routeUserCollateral(enum OptionMarket.OptionType optionType, int256 pendingCollateral) (internal)`
+
+- `_updateExposure(uint256 amount, enum OptionMarket.OptionType optionType, struct OptionMarket.Strike strike, bool isOpen) (internal)`
+
+- `settleExpiredBoard(uint256 boardId) (external)`
+
+- `_clearAndSettleBoard(struct OptionMarket.OptionBoard board) (internal)`
+
+- `_settleExpiredBoard(struct OptionMarket.OptionBoard board) (internal)`
+
+- `getSettlementParameters(uint256 strikeId) (external)`
+
+- `_transferFromQuote(address from, address to, uint256 amount) (internal)`
 
 ## Events:
 
-- `BoardCreated(uint256 boardId, uint256 expiry, uint256 baseIv)`
+- `BoardCreated(uint256 boardId, uint256 expiry, uint256 baseIv, bool frozen)`
 
 - `BoardFrozen(uint256 boardId, bool frozen)`
 
 - `BoardBaseIvSet(uint256 boardId, uint256 baseIv)`
 
-- `ListingSkewSet(uint256 listingId, uint256 skew)`
+- `StrikeSkewSet(uint256 strikeId, uint256 skew)`
 
-- `ListingAdded(uint256 boardId, uint256 listingId, uint256 strike, uint256 skew)`
+- `StrikeAdded(uint256 boardId, uint256 strikeId, uint256 strikePrice, uint256 skew)`
 
-- `PositionOpened(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+- `OptionMarketParamsSet(struct OptionMarket.OptionMarketParameters optionMarketParams)`
 
-- `PositionClosed(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+- `SMClaimed(address securityModule, uint256 quoteAmount, uint256 baseAmount)`
 
-- `BoardLiquidated(uint256 boardId, uint256 totalUserLongProfitQuote, uint256 totalBoardLongCallCollateral, uint256 totalBoardLongPutCollateral, uint256 totalAMMShortCallProfitBase, uint256 totalAMMShortPutProfitQuote)`
+- `Trade(address trader, uint256 strikeId, uint256 positionId, struct OptionMarket.TradeEventData trade, struct OptionMarketPricer.TradeResult[] tradeResults, struct OptionMarket.LiquidationEventData liquidation, uint256 timestamp)`
 
-- `OwnershipTransferred(address previousOwner, address newOwner)`
+- `BoardSettled(uint256 boardId, uint256 spotPriceAtExpiry, uint256 totalUserLongProfitQuote, uint256 totalBoardLongCallCollateral, uint256 totalBoardLongPutCollateral, uint256 totalAMMShortCallProfitBase, uint256 totalAMMShortCallProfitQuote, uint256 totalAMMShortPutProfitQuote)`
 
-### Modifier `onlyOwner()`
+### Modifier `notGlobalPaused()`
 
-Throws if called by any account other than the owner.
-
-### Function `init(contract ILyraGlobals _globals, contract ILiquidityPool _liquidityPool, contract IOptionMarketPricer _optionPricer, contract IOptionGreekCache _greekCache, contract IShortCollateral _shortCollateral, contract IOptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) external`
+### Function `init(contract SynthetixAdapter _synthetixAdapter, contract LiquidityPool _liquidityPool, contract OptionMarketPricer _optionPricer, contract OptionGreekCache _greekCache, contract ShortCollateral _shortCollateral, contract OptionToken _optionToken, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
 
 Initialize the contract.
 
-#### Parameters:
+### Function `createOptionBoard(uint256 expiry, uint256 baseIV, uint256[] strikePrices, uint256[] skews, bool frozen) → uint256 boardId external`
 
-- `_globals`: LyraGlobals address
-
-- `_liquidityPool`: LiquidityPool address
-
-- `_optionPricer`: OptionMarketPricer address
-
-- `_greekCache`: OptionGreekCache address
-
-- `_quoteAsset`: Quote asset address
-
-- `_baseAsset`: Base asset address
-
-### Function `transferOwnership(address newOwner) external`
-
-Transfer this contract ownership to `newOwner`.
+Creates a new OptionBoard with defined strikePrices and initial skews.
 
 #### Parameters:
 
-- `newOwner`: The address of the new contract owner.
+- `expiry`: The timestamp when the board expires.
+
+- `baseIV`: The initial value for baseIv (baseIv * skew = strike volatility).
+
+- `strikePrices`: The array of strikePrices offered for this expiry.
+
+- `skews`: The array of initial skews for each strikePrice.
+
+- `frozen`: Whether the board is frozen or not at creation.
 
 ### Function `setBoardFrozen(uint256 boardId, bool frozen) external`
 
-Sets the frozen state of an OptionBoard.
+Sets the frozen state of an OptionBoard, preventing or allowing all trading on board.
 
 #### Parameters:
 
@@ -114,133 +150,217 @@ Sets the baseIv of a frozen OptionBoard.
 
 - `baseIv`: The new baseIv value.
 
-### Function `setListingSkew(uint256 listingId, uint256 skew) external`
+### Function `setStrikeSkew(uint256 strikeId, uint256 skew) external`
 
-Sets the skew of an OptionListing of a frozen OptionBoard.
+Sets the skew of a Strike of a frozen OptionBoard.
 
 #### Parameters:
 
-- `listingId`: The id of the listing being modified.
+- `strikeId`: The id of the strike being modified.
 
 - `skew`: The new skew value.
 
-### Function `createOptionBoard(uint256 expiry, uint256 baseIV, uint256[] strikes, uint256[] skews) → uint256 external`
+### Function `addStrikeToBoard(uint256 boardId, uint256 strikePrice, uint256 skew) external`
 
-Creates a new OptionBoard which contains OptionListings.
-
-This only allows a new maxExpiryTimestamp to be added if the previous one has been passed. This is done to create a
-
-system of "rounds" where PnL for LPs can be computed easily across all boards.
+Add a strike to an existing board in the OptionMarket.
 
 #### Parameters:
 
-- `expiry`: The timestamp when the board expires.
+- `boardId`: The id of the board which the strike will be added
 
-- `baseIV`: The initial value for implied volatility.
+- `strikePrice`: The strike price of the strike being added
 
-- `strikes`: The array of strikes offered for this expiry.
+- `skew`: Skew of the Strike
 
-- `skews`: The array of skews for each strike.
+### Function `_addStrikeToBoard(struct OptionMarket.OptionBoard board, uint256 strikePrice, uint256 skew) → struct OptionMarket.Strike internal`
 
-### Function `addListingToBoard(uint256 boardId, uint256 strike, uint256 skew) external`
+Add a strike to an existing board.
 
-Add a listing to an existing board in the OptionMarket.
+### Function `forceSettleBoard(uint256 boardId) external`
+
+Force settle all open options before expiry.
+
+Only used during emergency situations.
 
 #### Parameters:
 
-- `boardId`: The id of the board which the listing will be added
+- `boardId`: The id of the board to settle
 
-- `strike`: Strike of the Listing
+### Function `setOptionMarketParams(struct OptionMarket.OptionMarketParameters _optionMarketParams) external`
 
-- `skew`: Skew of the Listing
+set OptionMarketParams
 
-### Function `_addListingToBoard(uint256 boardId, uint256 strike, uint256 skew) → uint256 listingId internal`
+### Function `smClaim() external`
 
-Add a listing to an existing board.
+claim all reserved option fees
+
+### Function `getOptionMarketParams() → struct OptionMarket.OptionMarketParameters external`
 
 ### Function `getLiveBoards() → uint256[] _liveBoards external`
 
 Returns the list of live board ids.
 
-### Function `getBoardListings(uint256 boardId) → uint256[] external`
+### Function `getNumLiveBoards() → uint256 numLiveBoards external`
 
-Returns the listing ids for a given `boardId`.
+Returns the number of current live boards
+
+### Function `getStrikeAndExpiry(uint256 strikeId) → uint256 strikePrice, uint256 expiry external`
+
+Returns the strike and expiry for a given strikeId
+
+### Function `getBoardStrikes(uint256 boardId) → uint256[] strikeIds external`
+
+Returns the strike ids for a given `boardId`.
 
 #### Parameters:
 
 - `boardId`: The id of the relevant OptionBoard.
 
-### Function `openPosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) → uint256 totalCost external`
+### Function `getStrike(uint256 strikeId) → struct OptionMarket.Strike external`
+
+Returns the Strike struct for a given strikeId
+
+### Function `getOptionBoard(uint256 boardId) → struct OptionMarket.OptionBoard external`
+
+Returns the OptionBoard struct for a given boardId
+
+### Function `getStrikeAndBoard(uint256 strikeId) → struct OptionMarket.Strike, struct OptionMarket.OptionBoard external`
+
+Returns the Strike and OptionBoard structs for a given strikeId
+
+### Function `getBoardAndStrikeDetails(uint256 boardId) → struct OptionMarket.OptionBoard, struct OptionMarket.Strike[], uint256[], uint256 external`
+
+Returns board and strike details given a boardId
+
+#### Return Values:
+
+- OptionBoard the OptionBoard struct
+
+- the list of board strikes
+
+- the list of strike to base returned ratios
+
+- uint the board to price at expiry
+
+### Function `openPosition(struct OptionMarket.TradeInputParameters params) → struct OptionMarket.Result result external`
+
+Attempts to open positions within cost bounds.
+
+If a positionId is specified that position is adjusted accordingly
+
+#### Parameters:
+
+- `params`: The parameters for the requested trade
+
+### Function `closePosition(struct OptionMarket.TradeInputParameters params) → struct OptionMarket.Result result external`
+
+Attempts to reduce or fully close position within cost bounds.
+
+#### Parameters:
+
+- `params`: The parameters for the requested trade
+
+### Function `forceClosePosition(struct OptionMarket.TradeInputParameters params) → struct OptionMarket.Result result external`
+
+Attempts to reduce or fully close position within cost bounds while ignoring delta trading cutoffs.
+
+#### Parameters:
+
+- `params`: The parameters for the requested trade
+
+### Function `addCollateral(uint256 positionId, uint256 amountCollateral) external`
+
+Add collateral of size amountCollateral onto a short position (long or call) specified by positionId;
+
+        this transfers tokens (which may be denominated in the quote or the base asset). This allows you to
+
+        further collateralise a short position in order to, say, prevent imminent liquidation.
+
+#### Parameters:
+
+- `positionId`: id of OptionToken to add collateral to
+
+- `amountCollateral`: the amount of collateral to be added
+
+### Function `_checkCostInBounds(uint256 totalCost, uint256 minCost, uint256 maxCost) internal`
+
+### Function `_openPosition(struct OptionMarket.TradeInputParameters params) → struct OptionMarket.Result result internal`
 
 Opens a position, which may be long call, long put, short call or short put.
 
-#### Parameters:
-
-- `_listingId`: The id of the relevant OptionListing.
-
-- `tradeType`: Is the trade long or short?
-
-- `amount`: The amount the user has requested to trade.
-
-### Function `closePosition(uint256 _listingId, enum IOptionMarket.TradeType tradeType, uint256 amount) → uint256 totalCost external`
+### Function `_closePosition(struct OptionMarket.TradeInputParameters params, bool forceClose) → struct OptionMarket.Result result internal`
 
 Closes some amount of an open position. The user does not have to close the whole position.
 
-#### Parameters:
+### Function `_composeTrade(uint256 strikeId, enum OptionMarket.OptionType optionType, uint256 amount, enum OptionMarket.TradeDirection _tradeDirection, uint256 iterations, bool isForceClose) → struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, struct OptionMarket.OptionBoard board internal`
 
-- `_listingId`: The id of the relevant OptionListing.
+Compile all trade related details
 
-- `tradeType`: Is the trade long or short?
+### Function `_isLong(enum OptionMarket.OptionType optionType) → bool internal`
 
-- `amount`: The amount the user has requested to trade.
+### Function `_doTrade(struct OptionMarket.Strike strike, struct OptionMarket.OptionBoard board, struct OptionMarket.TradeParameters trade, uint256 iterations, uint256 expectedAmount) → uint256 totalAmount, uint256 totalCost, uint256 totalFee, struct OptionMarketPricer.TradeResult[] tradeResults internal`
 
-### Function `_doTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.OptionBoard board, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals) → uint256 internal`
-
-Determine the cost of the trade and update the system's iv/skew parameters.
+Determine the cost of the trade and update the system's iv/skew/exposure parameters.
 
 #### Parameters:
 
-- `listing`: The relevant OptionListing.
+- `strike`: The currently traded Strike.
 
-- `board`: The relevant OptionBoard.
+- `board`: The currently traded OptionBoard.
 
-- `trade`: The trade parameters.
+- `trade`: The trade parameters struct, informing the trade the caller wants to make.
 
-- `pricingGlobals`: The pricing globals.
+### Function `liquidatePosition(uint256 positionId, address rewardBeneficiary) external`
 
-### Function `liquidateExpiredBoard(uint256 boardId) external`
-
-Liquidates a board that has passed expiry. This function will not preserve the ordering of liveBoards.
+Allows anyone to liquidate an underwater position
 
 #### Parameters:
 
-- `boardId`: The id of the relevant OptionBoard.
+- `positionId`: the position to be liquidated
 
-### Function `_liquidateExpiredBoard(struct IOptionMarket.OptionBoard board) internal`
+- `rewardBeneficiary`: the address to receive the liquidator fee in either quote or base
 
-Liquidates an expired board.
+### Function `_routeLPFundsOnOpen(struct OptionMarket.TradeParameters trade, uint256 totalCost, uint256 feePortion) internal`
 
-It will transfer all short collateral for ITM options that the market owns.
+send/receive quote or base to/from LiquidityPool on position open
 
-It will reserve collateral for users to settle their ITM long options.
+### Function `_routeLPFundsOnClose(struct OptionMarket.TradeParameters trade, uint256 totalCost, uint256 reservedFee) internal`
+
+send/receive quote or base to/from LiquidityPool on position close
+
+### Function `_routeUserCollateral(enum OptionMarket.OptionType optionType, int256 pendingCollateral) internal`
+
+route collateral to/from msg.sender when short positions are adjusted
+
+### Function `_updateExposure(uint256 amount, enum OptionMarket.OptionType optionType, struct OptionMarket.Strike strike, bool isOpen) internal`
+
+update all exposures per strike and optionType
+
+### Function `settleExpiredBoard(uint256 boardId) external`
+
+Settles an expired board.
+
+- Transfers all AMM profits for user shorts from ShortCollateral to LiquidityPool.
+
+- Reserves all user profits for user longs in LiquidityPool.
+
+- Records any profits that AMM did not receive due to user insolvencies
 
 #### Parameters:
 
-- `board`: The relevant OptionBoard.
+- `boardId`: The relevant OptionBoard.
 
-### Function `settleOptions(uint256 listingId, enum IOptionMarket.TradeType tradeType) external`
+### Function `_clearAndSettleBoard(struct OptionMarket.OptionBoard board) internal`
 
-Settles options for expired and liquidated listings. Also functions as the way to reclaim capital for options
+### Function `_settleExpiredBoard(struct OptionMarket.OptionBoard board) internal`
 
-sold to the market.
+### Function `getSettlementParameters(uint256 strikeId) → uint256 strikePrice, uint256 priceAtExpiry, uint256 strikeToBaseReturned external`
 
-#### Parameters:
+Returns the strike price, price at expiry, and profit ratio for user shorts post expiry
 
-- `listingId`: The id of the relevant OptionListing.
+### Function `_transferFromQuote(address from, address to, uint256 amount) internal`
 
-### Function `_require(bool pass, enum IOptionMarket.Error error) internal`
-
-### Event `BoardCreated(uint256 boardId, uint256 expiry, uint256 baseIv)`
+### Event `BoardCreated(uint256 boardId, uint256 expiry, uint256 baseIv, bool frozen)`
 
 Emitted when a Board is created.
 
@@ -252,24 +372,26 @@ Emitted when a Board frozen is updated.
 
 Emitted when a Board new baseIv is set.
 
-### Event `ListingSkewSet(uint256 listingId, uint256 skew)`
+### Event `StrikeSkewSet(uint256 strikeId, uint256 skew)`
 
-Emitted when a Listing new skew is set.
+Emitted when a Strike new skew is set.
 
-### Event `ListingAdded(uint256 boardId, uint256 listingId, uint256 strike, uint256 skew)`
+### Event `StrikeAdded(uint256 boardId, uint256 strikeId, uint256 strikePrice, uint256 skew)`
 
-Emitted when a Listing is added to a board
+Emitted when a Strike is added to a board
 
-### Event `PositionOpened(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+### Event `OptionMarketParamsSet(struct OptionMarket.OptionMarketParameters optionMarketParams)`
 
-Emitted when a Position is opened.
+Emitted when parameters for the option market are adjusted
 
-### Event `PositionClosed(address trader, uint256 listingId, enum IOptionMarket.TradeType tradeType, uint256 amount, uint256 totalCost)`
+### Event `SMClaimed(address securityModule, uint256 quoteAmount, uint256 baseAmount)`
 
-Emitted when a Position is closed.
+Emitted whenever the security module claims their portion of fees
 
-### Event `BoardLiquidated(uint256 boardId, uint256 totalUserLongProfitQuote, uint256 totalBoardLongCallCollateral, uint256 totalBoardLongPutCollateral, uint256 totalAMMShortCallProfitBase, uint256 totalAMMShortPutProfitQuote)`
+### Event `Trade(address trader, uint256 strikeId, uint256 positionId, struct OptionMarket.TradeEventData trade, struct OptionMarketPricer.TradeResult[] tradeResults, struct OptionMarket.LiquidationEventData liquidation, uint256 timestamp)`
+
+Emitted when a Position is opened, closed or liquidated.
+
+### Event `BoardSettled(uint256 boardId, uint256 spotPriceAtExpiry, uint256 totalUserLongProfitQuote, uint256 totalBoardLongCallCollateral, uint256 totalBoardLongPutCollateral, uint256 totalAMMShortCallProfitBase, uint256 totalAMMShortCallProfitQuote, uint256 totalAMMShortPutProfitQuote)`
 
 Emitted when a Board is liquidated.
-
-### Event `OwnershipTransferred(address previousOwner, address newOwner)`

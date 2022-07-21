@@ -1,13 +1,12 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.7.6;
+pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 
 import "./ITestERC20.sol";
 
 contract TestERC20 is ITestERC20, ERC20 {
-  mapping(address => bool) permitted;
+  mapping(address => bool) public permitted;
 
   constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {
     permitted[msg.sender] = true;

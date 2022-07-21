@@ -1,11 +1,10 @@
 //SPDX-License-Identifier: ISC
-pragma solidity >=0.7.6;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.9;
 
 import "./TestSynthetix.sol";
 
 contract TestSynthetixReturnZero is TestSynthetix {
-  bool returnZero = false;
+  bool public returnZero = false;
 
   constructor() {}
 
@@ -22,6 +21,22 @@ contract TestSynthetixReturnZero is TestSynthetix {
       return 0;
     } else {
       return super.exchange(sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
+    }
+  }
+
+  function exchangeOnBehalfWithTracking(
+    address exchangeForAddress,
+    bytes32 sourceCurrencyKey,
+    uint sourceAmount,
+    bytes32 destinationCurrencyKey,
+    address,
+    bytes32
+  ) public override returns (uint amountReceived) {
+    if (returnZero) {
+      return 0;
+    } else {
+      emit Exchange(msg.sender, sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
+      return super.exchangeOnBehalf(exchangeForAddress, sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
     }
   }
 }

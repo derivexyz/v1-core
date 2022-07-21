@@ -1,14 +1,14 @@
 //SPDX-License-Identifier:MIT
-pragma solidity >=0.7.6;
+pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 import "../interfaces/IExchanger.sol";
 
-contract TestExchanger is IExchanger, Ownable {
+contract TestExchanger is IExchanger, Owned {
   mapping(bytes32 => mapping(bytes32 => uint)) fee;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   function feeRateForExchange(bytes32 sourceCurrencyKey, bytes32 destinationCurrencyKey)
     external

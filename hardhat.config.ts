@@ -1,20 +1,31 @@
-import '@eth-optimism/plugins/hardhat/compiler';
 import '@nomiclabs/hardhat-ethers';
+import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-waffle';
+import '@openzeppelin/hardhat-upgrades';
+import '@typechain/hardhat';
+import { config as dotenvConfig } from 'dotenv';
 import 'hardhat-contract-sizer';
 import 'hardhat-gas-reporter';
-import 'hardhat-typechain';
-import { HardhatUserConfig } from 'hardhat/config';
+import 'hardhat-tracer';
+import { extendEnvironment, HardhatUserConfig, task } from 'hardhat/config';
+import { resolve } from 'path';
+import 'solidity-coverage';
+
+dotenvConfig({ path: resolve(__dirname, './deployments/.env.private') });
+const etherscanApiKey = process.env.ETHERSCAN_KEY || '';
 
 const config: HardhatUserConfig = {
-  ovm: { solcVersion: '0.7.6' },
   solidity: {
-    version: '0.7.6',
+    version: '0.8.9',
     settings: {
       outputSelection: {
         '*': {
           '*': ['storageLayout'],
         },
+      },
+      optimizer: {
+        enabled: true,
+        runs: 10000,
       },
     },
   },
@@ -25,23 +36,15 @@ const config: HardhatUserConfig = {
         mnemonic:
           'test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers junk',
       },
-      gasPrice: 0,
     },
     kovan: {
       url: 'https://kovan.infura.io/v3/',
     },
-    'local-ovm': {
-      url: 'http://127.0.0.1:8545',
-      accounts: {
-        mnemonic:
-          'test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers junk',
-      },
-      gasPrice: 0,
-      ovm: true,
-    },
     'kovan-ovm': {
       url: 'https://kovan.optimism.io',
-      ovm: true,
+    },
+    'mainnet-ovm': {
+      url: 'https://mainnet.optimism.io',
     },
   },
   mocha: {
@@ -53,8 +56,29 @@ const config: HardhatUserConfig = {
     disambiguatePaths: false,
   },
   gasReporter: {
-    enabled: false,
+    enabled: !!process.env.REPORT_GAS,
+    // enabled: true,
+  },
+  etherscan: {
+    apiKey: etherscanApiKey,
   },
 };
+
+task('test:heavy')
+  .addOptionalVariadicPositionalParam('testFiles', 'An optional list of files to test', [])
+  .setAction(async (taskArgs, hre) => {
+    (global as any).HEAVY_TESTS = true;
+    await hre.run('test', taskArgs);
+  });
+
+extendEnvironment(hre => {
+  (hre as any).f = {
+    c: undefined,
+    deploySnap: undefined,
+    boardId: undefined,
+    market: undefined,
+    seedSnap: undefined,
+  };
+});
 
 export default config;

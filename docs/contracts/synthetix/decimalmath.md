@@ -1,0 +1,147 @@
+# `DecimalMath`
+
+Modified synthetix SafeDecimalMath to include internal arithmetic underflow/overflow.
+
+https://docs.synthetix.io/contracts/source/libraries/SafeDecimalMath/
+
+## Functions:
+
+- `unit() (external)`
+
+- `preciseUnit() (external)`
+
+- `multiplyDecimal(uint256 x, uint256 y) (internal)`
+
+- `multiplyDecimalRoundPrecise(uint256 x, uint256 y) (internal)`
+
+- `multiplyDecimalRound(uint256 x, uint256 y) (internal)`
+
+- `divideDecimal(uint256 x, uint256 y) (internal)`
+
+- `divideDecimalRound(uint256 x, uint256 y) (internal)`
+
+- `divideDecimalRoundPrecise(uint256 x, uint256 y) (internal)`
+
+- `decimalToPreciseDecimal(uint256 i) (internal)`
+
+- `preciseDecimalToDecimal(uint256 i) (internal)`
+
+### Function `unit() → uint256 external`
+
+#### Return Values:
+
+- Provides an interface to UNIT.
+
+### Function `preciseUnit() → uint256 external`
+
+#### Return Values:
+
+- Provides an interface to PRECISE_UNIT.
+
+### Function `multiplyDecimal(uint256 x, uint256 y) → uint256 internal`
+
+A unit factor is divided out after the product of x and y is evaluated,
+
+so that product must be less than 2**256. As this is an integer division,
+
+the internal division always rounds down. This helps save on gas. Rounding
+
+is more expensive on gas.
+
+#### Return Values:
+
+- The result of multiplying x and y, interpreting the operands as fixed-point
+
+decimals.
+
+### Function `multiplyDecimalRoundPrecise(uint256 x, uint256 y) → uint256 internal`
+
+The operands should be in the precise unit factor which will be
+
+divided out after the product of x and y is evaluated, so that product must be
+
+less than 2**256.
+
+Unlike multiplyDecimal, this function rounds the result to the nearest increment.
+
+Rounding is useful when you need to retain fidelity for small decimal numbers
+
+(eg. small fractions or percentages).
+
+#### Return Values:
+
+- The result of safely multiplying x and y, interpreting the operands
+
+as fixed-point decimals of a precise unit.
+
+### Function `multiplyDecimalRound(uint256 x, uint256 y) → uint256 internal`
+
+The operands should be in the standard unit factor which will be
+
+divided out after the product of x and y is evaluated, so that product must be
+
+less than 2**256.
+
+Unlike multiplyDecimal, this function rounds the result to the nearest increment.
+
+Rounding is useful when you need to retain fidelity for small decimal numbers
+
+(eg. small fractions or percentages).
+
+#### Return Values:
+
+- The result of safely multiplying x and y, interpreting the operands
+
+as fixed-point decimals of a standard unit.
+
+### Function `divideDecimal(uint256 x, uint256 y) → uint256 internal`
+
+y is divided after the product of x and the standard precision unit
+
+is evaluated, so the product of x and UNIT must be less than 2**256. As
+
+this is an integer division, the result is always rounded down.
+
+This helps save on gas. Rounding is more expensive on gas.
+
+#### Return Values:
+
+- The result of safely dividing x and y. The return value is a high
+
+precision decimal.
+
+### Function `divideDecimalRound(uint256 x, uint256 y) → uint256 internal`
+
+y is divided after the product of x and the standard precision unit
+
+is evaluated, so the product of x and the standard precision unit must
+
+be less than 2**256. The result is rounded to the nearest increment.
+
+#### Return Values:
+
+- The result of safely dividing x and y. The return value is as a rounded
+
+standard precision decimal.
+
+### Function `divideDecimalRoundPrecise(uint256 x, uint256 y) → uint256 internal`
+
+y is divided after the product of x and the high precision unit
+
+is evaluated, so the product of x and the high precision unit must
+
+be less than 2**256. The result is rounded to the nearest increment.
+
+#### Return Values:
+
+- The result of safely dividing x and y. The return value is as a rounded
+
+high precision decimal.
+
+### Function `decimalToPreciseDecimal(uint256 i) → uint256 internal`
+
+Convert a standard decimal representation to a high precision one.
+
+### Function `preciseDecimalToDecimal(uint256 i) → uint256 internal`
+
+Convert a high precision decimal to a standard decimal representation.

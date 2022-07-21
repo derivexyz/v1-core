@@ -1,60 +1,62 @@
 # `PoolHedger`
 
-Uses the delta hedging funds from the LiquidityPool to hedge option deltas,
+Uses the delta hedging funds from the LiquidityPool to hedge option deltas, so LPs are minimally exposed to
 
-so LPs are minimally exposed to movements in the underlying asset price.
+movements in the underlying asset price.
 
 ## Modifiers:
 
-- `reentrancyGuard()`
+- `onlyLiquidityPool()`
 
 ## Functions:
 
-- `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionGreekCache _optionGreekCache, contract ILiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter, contract OptionMarket _optionMarket, contract OptionGreekCache _optionGreekCache, contract LiquidityPool _liquidityPool, contract ERC20 _quoteAsset, contract ERC20 _baseAsset) (external)`
 
-- `setShortBuffer(uint256 newShortBuffer) (external)`
+- `setPoolHedgerParams(struct PoolHedger.PoolHedgerParameters _poolHedgerParams) (external)`
 
-- `setInteractionDelay(uint256 newInteractionDelay) (external)`
+- `openShortAccount() (external)`
 
-- `initShort() (external)`
+- `_openShortAccount(struct SynthetixAdapter.ExchangeParams exchangeParams) (internal)`
 
-- `reopenShort() (external)`
-
-- `openShort(struct ILyraGlobals.ExchangeGlobals exchangeGlobals) (internal)`
-
-- `hedgeDelta() (external)`
-
-- `_hedgeDelta(int256 expectedHedge) (internal)`
-
-- `updatePosition(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) (internal)`
+- `resetInteractionDelay() (external)`
 
 - `getShortPosition(contract ICollateralShort short) (public)`
 
 - `getCurrentHedgedNetDelta() (external)`
 
-- `getValueQuote(contract ICollateralShort short, uint256 spotPrice) (public)`
+- `getHedgingLiquidity(contract ICollateralShort short, uint256 spotPrice) (external)`
 
-- `increaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) (internal)`
+- `hedgeDelta() (external)`
 
-- `decreaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) (internal)`
+- `updateCollateral() (external)`
 
-- `setShortTo(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) (internal)`
+- `_hedgeDelta(int256 expectedHedge) (internal)`
 
-- `sendAllQuoteToLP() (internal)`
+- `_updatePosition(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) (internal)`
+
+- `_increaseLong(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amount, uint256 currentBalance) (internal)`
+
+- `_decreaseLong(uint256 amount, uint256 currentBalance) (internal)`
+
+- `_setShortTo(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 startShort, uint256 startCollateral) (internal)`
+
+- `_updateCollateral(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 shortBalance, uint256 startCollateral) (internal)`
+
+- `getCappedExpectedHedge() (public)`
+
+- `_sendAllQuoteToLP() (internal)`
+
+- `getPoolHedgerParams() (external)`
+
+- `_abs(int256 val) (internal)`
 
 ## Events:
 
-- `ShortBufferSet(uint256 newShortBuffer)`
+- `PoolHedgerParametersSet(struct PoolHedger.PoolHedgerParameters poolHedgerParams)`
 
-- `InteractionDelaySet(uint256 newInteractionDelay)`
-
-- `ShortInitialized(uint256 shortId)`
+- `OpenedShortAccount(uint256 shortId)`
 
 - `PositionUpdated(int256 oldNetDelta, int256 currentNetDelta, int256 expectedNetDelta)`
-
-- `BaseExchanged(uint256 baseAmount, uint256 quoteReceived)`
-
-- `QuoteExchanged(uint256 quoteAmount, uint256 baseReceived)`
 
 - `LongSetTo(uint256 oldAmount, uint256 newAmount)`
 
@@ -62,15 +64,17 @@ so LPs are minimally exposed to movements in the underlying asset price.
 
 - `QuoteReturnedToLP(uint256 amountQuote)`
 
-### Modifier `reentrancyGuard()`
+### Modifier `onlyLiquidityPool()`
 
-### Function `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionGreekCache _optionGreekCache, contract ILiquidityPool _liquidityPool, contract IERC20 _quoteAsset, contract IERC20 _baseAsset) external`
+Modifiers
+
+### Function `init(contract SynthetixAdapter _synthetixAdapter, contract OptionMarket _optionMarket, contract OptionGreekCache _optionGreekCache, contract LiquidityPool _liquidityPool, contract ERC20 _quoteAsset, contract ERC20 _baseAsset) external`
 
 Initialize the contract.
 
 #### Parameters:
 
-- `_globals`: LyraGlobals address
+- `_synthetixAdapter`: SynthetixAdapter address
 
 - `_optionMarket`: OptionMarket address
 
@@ -80,67 +84,25 @@ Initialize the contract.
 
 - `_baseAsset`: Base asset address
 
-### Function `setShortBuffer(uint256 newShortBuffer) external`
+### Function `setPoolHedgerParams(struct PoolHedger.PoolHedgerParameters _poolHedgerParams) external`
 
-Initialize the contract.
+Update pool hedger parameters.
 
-#### Parameters:
+### Function `openShortAccount() external`
 
-- `newShortBuffer`: The new short buffer for collateral to short ratio.
+Opens/reopens short account if the old one was closed or liquidated.
 
-### Function `setInteractionDelay(uint256 newInteractionDelay) external`
+opens short account with min colalteral and 0 amount
 
-Set the contract interaction delay.
+### Function `_openShortAccount(struct SynthetixAdapter.ExchangeParams exchangeParams) internal`
 
-#### Parameters:
-
-- `newInteractionDelay`: The new interaction delay.
-
-### Function `initShort() external`
-
-Initialises the short.
-
-### Function `reopenShort() external`
-
-Reopens the short if the old one was closed or liquidated.
-
-### Function `openShort(struct ILyraGlobals.ExchangeGlobals exchangeGlobals) internal`
-
-Opens the short position with 0 amount and 0 collateral.
+Opens new short account with min collateral and 0 amount.
 
 #### Parameters:
 
-- `exchangeGlobals`: The ExchangeGlobals.
+- `exchangeParams`: The ExchangeParams.
 
-### Function `hedgeDelta() external`
-
-Retrieves the netDelta from the OptionGreekCache and updates the hedge position.
-
-### Function `_hedgeDelta(int256 expectedHedge) internal`
-
-Updates the hedge position. This may need to be called several times as it will only do one step at a time
-
-I.e. to go from a long position to asho
-
-#### Parameters:
-
-- `expectedHedge`: The expected final hedge value.
-
-### Function `updatePosition(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) → int256 internal`
-
-Updates the hedge contract based off a new netDelta.
-
-#### Parameters:
-
-- `exchangeGlobals`: TODO
-
-- `longBalance`: TODO
-
-- `shortBalance`: TODO
-
-- `collateral`: TODO
-
-- `expectedHedge`: The amount of baseAsset exposure needed to hedge delta risk.
+### Function `resetInteractionDelay() external`
 
 ### Function `getShortPosition(contract ICollateralShort short) → uint256 shortBalance, uint256 collateral public`
 
@@ -152,39 +114,71 @@ Returns short balance and collateral.
 
 ### Function `getCurrentHedgedNetDelta() → int256 external`
 
-Returns the current hedged netDelta position
+Returns the current hedged netDelta position.
 
-### Function `getValueQuote(contract ICollateralShort short, uint256 spotPrice) → uint256 value public`
+### Function `getHedgingLiquidity(contract ICollateralShort short, uint256 spotPrice) → uint256 pendingDeltaLiquidity, uint256 usedDeltaLiquidity external`
 
-Returns the value of the long/short position held by the PoolHedger.
+Returns pending delta hedge liquidity and used delta hedge liquidity
+
+include funds potentially transferred to the contract
+
+### Function `hedgeDelta() external`
+
+Retrieves the netDelta from the OptionGreekCache and updates the hedge position based off base
+
+     asset balance of the liquidityPool minus netDelta (from OptionGreekCache)
+
+### Function `updateCollateral() external`
+
+Updates the collateral held in the short to prevent liquidations and
+
+return excess collateral without checking/triggering the interaction delay.
+
+### Function `_hedgeDelta(int256 expectedHedge) internal`
+
+Updates the hedge position. This may need to be called several times as it will only do one step at a time
+
+I.e. to go from a long position to asho
 
 #### Parameters:
 
-- `short`: The short contract.
+- `expectedHedge`: The expected final hedge value.
 
-- `spotPrice`: The price of the baseAsset.
+### Function `_updatePosition(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 longBalance, uint256 shortBalance, uint256 collateral, int256 expectedHedge) → int256 internal`
 
-### Function `increaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
+Updates the hedge contract based off a new netDelta.
+
+#### Parameters:
+
+- `exchangeParams`: Globals related to exchanging synths
+
+- `longBalance`: The current long base balance of the PoolHedger
+
+- `shortBalance`: The current short balance of the PoolHedger
+
+- `collateral`: The current quote collateral for shorts of the PoolHedger
+
+- `expectedHedge`: The amount of baseAsset exposure needed to hedge delta risk.
+
+### Function `_increaseLong(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
 
 Increases the long exposure of the hedge contract.
 
 #### Parameters:
 
-- `exchangeGlobals`: The ExchangeGlobals.
+- `exchangeParams`: The ExchangeParams.
 
 - `amount`: The amount of baseAsset to purchase.
 
-### Function `decreaseLong(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
+### Function `_decreaseLong(uint256 amount, uint256 currentBalance) → uint256 newBalance internal`
 
 Decreases the long exposure of the hedge contract.
 
 #### Parameters:
 
-- `exchangeGlobals`: The ExchangeGlobals.
-
 - `amount`: The amount of baseAsset to sell.
 
-### Function `setShortTo(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 desiredShort, uint256 currentShort, uint256 currentCollateral) → uint256 newShortAmount internal`
+### Function `_setShortTo(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 desiredShort, uint256 startShort, uint256 startCollateral) → uint256 newShort internal`
 
 Increases or decreases short to get to this amount of shorted baseAsset at the shortBuffer ratio. Note,
 
@@ -194,41 +188,49 @@ disregards the desired ratio.
 
 #### Parameters:
 
-- `exchangeGlobals`: The ExchangeGlobals.
+- `exchangeParams`: The ExchangeParams.
 
 - `desiredShort`: The desired short balance.
 
-- `currentShort`: Trusted value for current short amount, in base.
+- `startShort`: Trusted value for current short amount, in base.
 
-- `currentCollateral`: Trusted value for current amount of collateral, in quote.
+- `startCollateral`: Trusted value for current amount of collateral, in quote.
 
-### Function `sendAllQuoteToLP() internal`
+### Function `_updateCollateral(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 shortBalance, uint256 startCollateral) → uint256 newCollateral internal`
+
+### Function `getCappedExpectedHedge() → int256 cappedExpectedHedge public`
+
+Calculates the expected delta hedge that hedger must perform and
+
+adjusts the result down to the hedgeCap param if needed.
+
+### Function `_sendAllQuoteToLP() internal`
 
 Sends all quote asset deposited in this contract to the `LiquidityPool`.
 
-### Event `ShortBufferSet(uint256 newShortBuffer)`
+### Function `getPoolHedgerParams() → struct PoolHedger.PoolHedgerParameters external`
 
-Emitted when the short buffer ratio is set.
+Returns PoolHedgerParameters struct
 
-### Event `InteractionDelaySet(uint256 newInteractionDelay)`
+### Function `_abs(int256 val) → uint256 internal`
 
-Emitted when the interaction delay is set.
+Compute the absolute value of `val`.
 
-### Event `ShortInitialized(uint256 shortId)`
+#### Parameters:
+
+- `val`: The number to absolute value.
+
+### Event `PoolHedgerParametersSet(struct PoolHedger.PoolHedgerParameters poolHedgerParams)`
+
+Emitted when pool hedger parameters are updated.
+
+### Event `OpenedShortAccount(uint256 shortId)`
 
 Emitted when the short is initialized.
 
 ### Event `PositionUpdated(int256 oldNetDelta, int256 currentNetDelta, int256 expectedNetDelta)`
 
 Emitted when the hedge position is updated.
-
-### Event `BaseExchanged(uint256 baseAmount, uint256 quoteReceived)`
-
-Emitted when base is sold
-
-### Event `QuoteExchanged(uint256 quoteAmount, uint256 baseReceived)`
-
-Emitted when base is sold
 
 ### Event `LongSetTo(uint256 oldAmount, uint256 newAmount)`
 

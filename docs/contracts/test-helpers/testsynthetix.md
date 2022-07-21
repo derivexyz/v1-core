@@ -2,11 +2,13 @@
 
 ## Functions:
 
-- `init(contract ILyraGlobals _globals, contract ITestERC20 _quoteAsset) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset, contract IAddressResolver _addressResolver) (external)`
 
 - `addBaseAsset(bytes32 ticker, contract ITestERC20 baseAsset, address market) (external)`
 
 - `exchange(bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey) (public)`
+
+- `exchangeOnBehalfWithTracking(address exchangeForAddress, bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey, address, bytes32) (public)`
 
 - `exchangeOnBehalf(address exchangeForAddress, bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey) (public)`
 
@@ -14,11 +16,13 @@
 
 - `Exchange(address exchangeForAddress, bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey)`
 
-### Function `init(contract ILyraGlobals _globals, contract ITestERC20 _quoteAsset) external`
+### Function `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset, contract IAddressResolver _addressResolver) external`
 
 ### Function `addBaseAsset(bytes32 ticker, contract ITestERC20 baseAsset, address market) external`
 
 ### Function `exchange(bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey) → uint256 amountReceived public`
+
+### Function `exchangeOnBehalfWithTracking(address exchangeForAddress, bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey, address, bytes32) → uint256 amountReceived public`
 
 ### Function `exchangeOnBehalf(address exchangeForAddress, bytes32 sourceCurrencyKey, uint256 sourceAmount, bytes32 destinationCurrencyKey) → uint256 amountReceived public`
 

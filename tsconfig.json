@@ -6,16 +6,17 @@
     "strict": true,
     "esModuleInterop": true,
     "outDir": "dist",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "declaration": true
   },
-  "include": ["./scripts", "./test", "./types", "./simulation"],
+  "include": ["./scripts", "./test", "./types", "./simulation", "test-old/SynthetixAdapter.ts"],
   "exclude": [
     "node_modules",
     "artifacts",
-    "artifacts-ovm",
     "cache",
-    "cache-ovm",
-    ".git"
+    ".git",
+    "typechain-types",
+    ".lyra"
   ],
-  "files": ["./hardhat.config.ts"]
+  "files": ["./hardhat.config.ts", "typechain-types/hardhat.d.ts", "types.d.ts"]
 }

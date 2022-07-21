@@ -10,23 +10,49 @@ premium.
 
 ## Functions:
 
-- `init(address _optionMarket, contract IOptionGreekCache _greekCache) (external)`
+- `init(address _optionMarket, contract OptionGreekCache _greekCache) (external)`
 
-- `ivImpactForTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals, uint256 boardBaseIv) (public)`
+- `setPricingParams(struct OptionMarketPricer.PricingParameters _pricingParams) (public)`
 
-- `updateCacheAndGetTotalCost(struct IOptionMarket.OptionListing listing, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals, uint256 boardBaseIv) (external)`
+- `setTradeLimitParams(struct OptionMarketPricer.TradeLimitParameters _tradeLimitParams) (public)`
 
-- `getPremium(struct IOptionMarket.Trade trade, struct IOptionMarketPricer.Pricing pricing, struct ILyraGlobals.PricingGlobals pricingGlobals) (public)`
+- `setVarianceFeeParams(struct OptionMarketPricer.VarianceFeeParameters _varianceFeeParams) (public)`
 
-- `getVegaUtil(struct IOptionMarket.Trade trade, struct IOptionMarketPricer.Pricing pricing, struct ILyraGlobals.PricingGlobals pricingGlobals) (public)`
+- `updateCacheAndGetTradeResult(struct OptionMarket.Strike strike, struct OptionMarket.TradeParameters trade, uint256 boardBaseIv, uint256 boardExpiry) (external)`
 
-- `getFee(struct ILyraGlobals.PricingGlobals pricingGlobals, uint256 amount, uint256 optionPrice, uint256 vegaUtil) (public)`
+- `ivImpactForTrade(struct OptionMarket.TradeParameters trade, uint256 boardBaseIv, uint256 strikeSkew) (public)`
 
-- `abs(int256 val) (internal)`
+- `getTradeResult(struct OptionMarket.TradeParameters trade, struct OptionGreekCache.TradePricing pricing, uint256 newBaseIv, uint256 newSkew) (public)`
+
+- `getTimeWeightedFee(uint256 expiry, uint256 pointA, uint256 pointB, uint256 coefficient) (public)`
+
+- `getVegaUtilFee(struct OptionMarket.TradeParameters trade, struct OptionGreekCache.TradePricing pricing) (public)`
+
+- `getVarianceFee(struct OptionMarket.TradeParameters trade, struct OptionGreekCache.TradePricing pricing, uint256 skew) (public)`
+
+- `getPricingParams() (external)`
+
+- `getTradeLimitParams() (external)`
+
+- `getVarianceFeeParams() (external)`
+
+- `_min(uint256 x, uint256 y) (internal)`
+
+- `_max(uint256 x, uint256 y) (internal)`
+
+- `_abs(int256 val) (internal)`
+
+## Events:
+
+- `PricingParametersSet(struct OptionMarketPricer.PricingParameters pricingParams)`
+
+- `TradeLimitParametersSet(struct OptionMarketPricer.TradeLimitParameters tradeLimitParams)`
+
+- `VarianceFeeParametersSet(struct OptionMarketPricer.VarianceFeeParameters varianceFeeParams)`
 
 ### Modifier `onlyOptionMarket()`
 
-### Function `init(address _optionMarket, contract IOptionGreekCache _greekCache) external`
+### Function `init(address _optionMarket, contract OptionGreekCache _greekCache) external`
 
 Initialize the contract.
 
@@ -36,47 +62,99 @@ Initialize the contract.
 
 - `_greekCache`: OptionGreekCache address
 
-### Function `ivImpactForTrade(struct IOptionMarket.OptionListing listing, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals, uint256 boardBaseIv) → uint256, uint256 public`
+### Function `setPricingParams(struct OptionMarketPricer.PricingParameters _pricingParams) public`
 
-Calculates the impact a trade has on the base IV of the OptionBoard and the skew of the OptionListing.
+@dev
 
 #### Parameters:
 
-- `listing`: The OptionListing.
+- `params`: new parameters
 
-- `trade`: The Trade.
+### Function `setTradeLimitParams(struct OptionMarketPricer.TradeLimitParameters _tradeLimitParams) public`
 
-- `pricingGlobals`: The PricingGlobals.
+@dev
 
-- `boardBaseIv`: The base IV of the OptionBoard.
+#### Parameters:
 
-### Function `updateCacheAndGetTotalCost(struct IOptionMarket.OptionListing listing, struct IOptionMarket.Trade trade, struct ILyraGlobals.PricingGlobals pricingGlobals, uint256 boardBaseIv) → uint256 totalCost, uint256 newBaseIv, uint256 newSkew external`
+- `params`: new parameters
+
+### Function `setVarianceFeeParams(struct OptionMarketPricer.VarianceFeeParameters _varianceFeeParams) public`
+
+@dev
+
+#### Parameters:
+
+- `params`: new parameters
+
+### Function `updateCacheAndGetTradeResult(struct OptionMarket.Strike strike, struct OptionMarket.TradeParameters trade, uint256 boardBaseIv, uint256 boardExpiry) → struct OptionMarketPricer.TradeResult tradeResult external`
 
 The entry point for the OptionMarket into the pricing logic when a trade is performed.
 
 #### Parameters:
 
-- `listing`: The OptionListing.
+- `strike`: The strike being traded.
 
-- `trade`: The Trade.
-
-- `pricingGlobals`: The PricingGlobals.
+- `trade`: The trade struct, containing fields related to the ongoing trade.
 
 - `boardBaseIv`: The base IV of the OptionBoard.
 
-### Function `getPremium(struct IOptionMarket.Trade trade, struct IOptionMarketPricer.Pricing pricing, struct ILyraGlobals.PricingGlobals pricingGlobals) → uint256 premium public`
+### Function `ivImpactForTrade(struct OptionMarket.TradeParameters trade, uint256 boardBaseIv, uint256 strikeSkew) → uint256 newBaseIv, uint256 newSkew public`
+
+Calculates the impact a trade has on the base IV of the OptionBoard and the skew of the Strike.
+
+#### Parameters:
+
+- `trade`: The trade struct, containing fields related to the ongoing trade.
+
+- `boardBaseIv`: The base IV of the OptionBoard.
+
+- `strikeSkew`: The skew of the option being traded.
+
+### Function `getTradeResult(struct OptionMarket.TradeParameters trade, struct OptionGreekCache.TradePricing pricing, uint256 newBaseIv, uint256 newSkew) → struct OptionMarketPricer.TradeResult tradeResult public`
 
 Calculates the final premium for a trade.
 
 #### Parameters:
 
-- `trade`: The Trade.
+- `trade`: The trade struct, containing fields related to the ongoing trade.
 
-- `pricing`: The Pricing.
+- `pricing`: Fields related to option pricing and required for fees.
 
-- `pricingGlobals`: The PricingGlobals.
+### Function `getTimeWeightedFee(uint256 expiry, uint256 pointA, uint256 pointB, uint256 coefficient) → uint256 timeWeightedFee public`
 
-### Function `getVegaUtil(struct IOptionMarket.Trade trade, struct IOptionMarketPricer.Pricing pricing, struct ILyraGlobals.PricingGlobals pricingGlobals) → uint256 vegaUtil public`
+Calculates a time weighted fee depending on the time to expiry. The fee graph has value = 1 and slope = 0
+
+until pointA is reached; at which it increasing linearly to 2x at pointB. This only assumes pointA < pointB, so
+
+fees can only get larger for longer dated options.
+
+   |
+
+   |       /
+
+   |      /
+
+2x |     /|
+
+   |    / |
+
+1x |___/  |
+
+   |__________
+
+       A  B
+
+#### Parameters:
+
+- `expiry`: the timestamp at which the listing/board expires
+
+- `pointA`: the point (time to expiry) at which the fees start to increase beyond 1x
+
+- `pointB`: the point (time to expiry) at which the fee are 2x
+
+- `coefficient`: the fee coefficent as a result of the time to expiry.
+
+### Function `getVegaUtilFee(struct OptionMarket.TradeParameters trade, struct OptionGreekCache.TradePricing pricing) → struct OptionMarketPricer.VegaUtilFeeComponents vegaUtilFeeComponents public`
 
 Calculates vega utilisation to be used as part of the trade fee. If the trade reduces net standard vega, this
 
@@ -84,30 +162,46 @@ component is omitted from the fee.
 
 #### Parameters:
 
-- `trade`: The Trade.
+- `trade`: The trade struct, containing fields related to the ongoing trade.
 
-- `pricing`: The Pricing.
+- `pricing`: Fields related to option pricing and required for fees.
 
-- `pricingGlobals`: The PricingGlobals.
+### Function `getVarianceFee(struct OptionMarket.TradeParameters trade, struct OptionGreekCache.TradePricing pricing, uint256 skew) → struct OptionMarketPricer.VarianceFeeComponents varianceFeeComponents public`
 
-### Function `getFee(struct ILyraGlobals.PricingGlobals pricingGlobals, uint256 amount, uint256 optionPrice, uint256 vegaUtil) → uint256 fee public`
-
-Calculate the fee for a trade.
+Calculates the variance fee to be used as part of the trade fee.
 
 #### Parameters:
 
-- `pricingGlobals`: The PricingGlobals.
+- `trade`: The trade struct, containing fields related to the ongoing trade.
 
-- `amount`: The amount of options being traded.
+- `pricing`: Fields related to option pricing and required for fees.
 
-- `optionPrice`: The fair price for one option.
+### Function `getPricingParams() → struct OptionMarketPricer.PricingParameters pricingParameters external`
 
-- `vegaUtil`: The vega utilisation of the LiquidityPool.
+returns current pricing paramters
 
-### Function `abs(int256 val) → uint256 absVal internal`
+### Function `getTradeLimitParams() → struct OptionMarketPricer.TradeLimitParameters tradeLimitParameters external`
+
+returns current trade limit parameters
+
+### Function `getVarianceFeeParams() → struct OptionMarketPricer.VarianceFeeParameters varianceFeeParameters external`
+
+returns current variance fee parameters
+
+### Function `_min(uint256 x, uint256 y) → uint256 internal`
+
+### Function `_max(uint256 x, uint256 y) → uint256 internal`
+
+### Function `_abs(int256 val) → uint256 internal`
 
 Compute the absolute value of `val`.
 
 #### Parameters:
 
 - `val`: The number to absolute value.
+
+### Event `PricingParametersSet(struct OptionMarketPricer.PricingParameters pricingParams)`
+
+### Event `TradeLimitParametersSet(struct OptionMarketPricer.TradeLimitParameters tradeLimitParams)`
+
+### Event `VarianceFeeParametersSet(struct OptionMarketPricer.VarianceFeeParameters varianceFeeParams)`

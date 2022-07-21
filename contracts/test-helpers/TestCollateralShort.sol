@@ -1,39 +1,36 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.7.6;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-
+import "../synthetix/Owned.sol";
 import "./ITestERC20.sol";
 import "../interfaces/ICollateralShort.sol";
 import "../interfaces/IExchangeRates.sol";
-import "../synthetix/SafeDecimalMath.sol";
-import "../LyraGlobals.sol";
+import "../synthetix/DecimalMath.sol";
+import "../SynthetixAdapter.sol";
 
-contract TestCollateralShort is ICollateralShort, Ownable {
-  using SafeMath for uint;
-  using SafeDecimalMath for uint;
+contract TestCollateralShort is ICollateralShort, Owned {
+  using DecimalMath for uint;
 
-  uint public override minCratio = (12 * 1e18) / 10;
-  uint public override minCollateral = 1000 * 1e18;
-  uint public override issueFeeRate = (5 * 1e18) / 1000; // 0.5%
+  uint public override minCratio = (12 * DecimalMath.UNIT) / 10;
+  uint public override minCollateral = 1000 * DecimalMath.UNIT;
+  uint public override issueFeeRate = (5 * DecimalMath.UNIT) / 1000; // 0.5%
 
-  LyraGlobals internal globals;
+  SynthetixAdapter internal synthetixAdapter;
   ITestERC20 internal quoteAsset;
 
-  mapping(bytes32 => ITestERC20) baseAssets;
-  mapping(bytes32 => address) markets;
+  mapping(bytes32 => ITestERC20) public baseAssets;
+  mapping(bytes32 => address) public markets;
 
   uint internal nextLoanId = 1;
   mapping(uint => Loan) public override loans;
 
-  bool initialized = false;
+  bool public initialized = false;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
-  function init(LyraGlobals _globals, ITestERC20 _quoteAsset) external {
-    require(!initialized, "contract already initialized");
-    globals = _globals;
+  function init(SynthetixAdapter _synthetixAdapter, ITestERC20 _quoteAsset) external {
+    require(!initialized, "already initialized");
+    synthetixAdapter = _synthetixAdapter;
     quoteAsset = _quoteAsset;
     initialized = true;
   }
@@ -44,7 +41,7 @@ contract TestCollateralShort is ICollateralShort, Ownable {
     address market
   ) external onlyOwner {
     require(market != address(0), "market cannot be 0");
-    require(baseAsset != ITestERC20(0), "baseAsset cannot be 0");
+    require(baseAsset != ITestERC20(address(0)), "baseAsset cannot be 0");
     baseAssets[ticker] = baseAsset;
     markets[ticker] = market;
   }
@@ -54,24 +51,26 @@ contract TestCollateralShort is ICollateralShort, Ownable {
     uint amount,
     bytes32 currency
   ) external override returns (uint id) {
-    Loan memory loan =
-      Loan({
-        id: nextLoanId++,
-        account: msg.sender,
-        collateral: collateral,
-        currency: currency,
-        amount: amount,
-        short: true,
-        accruedInterest: 0,
-        interestIndex: 1,
-        lastInteraction: block.timestamp
-      });
-    uint price = globals.getSpotPriceForMarket(markets[currency]);
+    Loan memory loan = Loan({
+      id: nextLoanId++,
+      account: msg.sender,
+      collateral: collateral,
+      currency: currency,
+      amount: amount,
+      short: true,
+      accruedInterest: 0,
+      interestIndex: 1,
+      lastInteraction: block.timestamp
+    });
+    uint price = synthetixAdapter.getSpotPriceForMarket(markets[currency]);
 
     require(collateral >= minCollateral, "must provide more than minCollateral");
     require(price.multiplyDecimal(loan.amount) < loan.collateral.multiplyDecimal(minCratio), "not enough collateral");
 
-    quoteAsset.mint(msg.sender, price.multiplyDecimal(loan.amount).multiplyDecimalRound(1e18 - issueFeeRate));
+    quoteAsset.mint(
+      msg.sender,
+      price.multiplyDecimal(loan.amount).multiplyDecimalRound(DecimalMath.UNIT - issueFeeRate)
+    );
     quoteAsset.burn(msg.sender, collateral);
 
     loans[loan.id] = loan;
@@ -81,28 +80,30 @@ contract TestCollateralShort is ICollateralShort, Ownable {
 
   function draw(uint id, uint amount) external override returns (uint, uint) {
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     require(loan.account == msg.sender, "draw: loan.account mismatch");
-    uint price = globals.getSpotPriceForMarket(markets[loan.currency]);
+    uint price = synthetixAdapter.getSpotPriceForMarket(markets[loan.currency]);
 
     loan.amount += amount;
-    quoteAsset.mint(msg.sender, price.multiplyDecimal(amount).multiplyDecimalRound(1e18 - issueFeeRate));
+    quoteAsset.mint(msg.sender, price.multiplyDecimal(amount).multiplyDecimalRound(DecimalMath.UNIT - issueFeeRate));
     require(price.multiplyDecimal(loan.amount) < loan.collateral.multiplyDecimal(minCratio), "not enough collateral");
 
     return (loan.amount, loan.collateral);
   }
 
   function repay(
-    address account,
+    address, // account
     uint id,
     uint amount
   ) external override returns (uint, uint) {
     Loan storage loan = loans[id];
-    uint price = globals.getSpotPriceForMarket(markets[loan.currency]);
+    _isLoanOpen(loan.interestIndex);
+    uint price = synthetixAdapter.getSpotPriceForMarket(markets[loan.currency]);
     ITestERC20 baseAsset = baseAssets[loan.currency];
 
     // Burning user's baseAsset
     baseAsset.burn(msg.sender, amount);
-    loan.amount = loan.amount.sub(amount);
+    loan.amount = loan.amount - amount;
 
     require(price.multiplyDecimal(loan.amount) < loan.collateral.multiplyDecimal(minCratio), "not enough collateral");
 
@@ -111,27 +112,36 @@ contract TestCollateralShort is ICollateralShort, Ownable {
 
   function repayWithCollateral(uint id, uint amount) external override returns (uint, uint) {
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     require(loan.account == msg.sender, "only loan account");
-    uint price = globals.getSpotPriceForMarket(markets[loan.currency]);
+    uint price = synthetixAdapter.getSpotPriceForMarket(markets[loan.currency]);
 
     // Converting and burning user's collateral
 
     // Not perfect, but represents a larger loss than just the simple conversion
-    loan.collateral = loan.collateral.sub(price.multiplyDecimal(amount).divideDecimalRound(1e18 - issueFeeRate));
-    loan.amount = loan.amount.sub(amount);
+    loan.collateral =
+      loan.collateral -
+      price.multiplyDecimal(amount).divideDecimalRound(DecimalMath.UNIT - issueFeeRate);
+    loan.amount = loan.amount - amount;
 
-    require(price.multiplyDecimal(loan.amount) <= loan.collateral.multiplyDecimal(minCratio), "not enough collateral");
+    // Roughly estimate accrued interest as a portion of issueFeeRate. Does not account for amount < true accrued interest
+    uint mockAccruedInterest = amount.multiplyDecimal(issueFeeRate).multiplyDecimal((50 * DecimalMath.UNIT) / 100); // 50%
+    uint repaidAmount = amount + mockAccruedInterest;
 
-    return (loan.amount, loan.collateral);
+    // shouldn't be checking cRatio when loan is being reduced
+    // require(price.multiplyDecimal(loan.amount) <= loan.collateral.multiplyDecimal(minCratio), "not enough collateral");
+
+    return (repaidAmount, loan.collateral);
   }
 
   function deposit(
-    address borrower,
+    address, // borrower
     uint id,
     uint amount
   ) external override returns (uint, uint) {
     quoteAsset.burn(msg.sender, amount);
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     loan.collateral += amount;
 
     return (loan.amount, loan.collateral);
@@ -139,12 +149,13 @@ contract TestCollateralShort is ICollateralShort, Ownable {
 
   function withdraw(uint id, uint amount) external override returns (uint, uint) {
     Loan storage loan = loans[id];
+    _isLoanOpen(loan.interestIndex);
     require(loan.account == msg.sender, "withdraw: loan.account mismatch");
 
-    loan.collateral = loan.collateral.sub(amount);
+    loan.collateral = loan.collateral - amount;
     quoteAsset.mint(msg.sender, amount);
 
-    uint price = globals.getSpotPriceForMarket(markets[loan.currency]);
+    uint price = synthetixAdapter.getSpotPriceForMarket(markets[loan.currency]);
     require(
       price.multiplyDecimal(loan.amount) <= loan.collateral.multiplyDecimal(minCratio),
       "withdrawing drops ratio too much"
@@ -153,7 +164,10 @@ contract TestCollateralShort is ICollateralShort, Ownable {
     return (loan.amount, loan.collateral);
   }
 
-  function getShortAndCollateral(address account, uint id) external view override returns (uint, uint) {
+  function getShortAndCollateral(
+    address, // account
+    uint id
+  ) external view override returns (uint, uint) {
     Loan memory loan = loans[id];
     return (loan.amount, loan.collateral);
   }
@@ -161,23 +175,34 @@ contract TestCollateralShort is ICollateralShort, Ownable {
   // Methods for testing
 
   function createTestEmptyLoanForAccount(address account) external onlyOwner {
-    Loan memory loan =
-      Loan({
-        id: nextLoanId++,
-        account: account,
-        collateral: 0,
-        currency: "",
-        amount: 0,
-        short: true,
-        accruedInterest: 0,
-        interestIndex: 1,
-        lastInteraction: block.timestamp
-      });
+    Loan memory loan = Loan({
+      id: nextLoanId++,
+      account: account,
+      collateral: 0,
+      currency: "",
+      amount: 0,
+      short: true,
+      accruedInterest: 0,
+      interestIndex: 1,
+      lastInteraction: block.timestamp
+    });
 
     loans[loan.id] = loan;
   }
 
+  function _recordLoanAsClosed(Loan storage loan) internal {
+    loan.amount = 0;
+    loan.collateral = 0;
+    loan.accruedInterest = 0;
+    loan.interestIndex = 0;
+    loan.lastInteraction = block.timestamp;
+  }
+
   function testForceClose(uint id) external onlyOwner {
-    loans[id].interestIndex = 0;
+    _recordLoanAsClosed(loans[id]);
+  }
+
+  function _isLoanOpen(uint interestIndex) internal pure {
+    require(interestIndex != 0, "Loan is closed");
   }
 }

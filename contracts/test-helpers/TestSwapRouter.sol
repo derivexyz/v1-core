@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.7.6;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.9;
 
 import "../interfaces/ISwapRouter.sol";
 import "./Path.sol";
 import "./TestERC20.sol";
-import "../synthetix/SafeDecimalMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/DecimalMath.sol";
+import "../synthetix/Owned.sol";
 
 /// @title Router token swapping functionality
 /// @notice Functions for swapping tokens via Uniswap V3
-contract TestSwapRouter is ISwapRouter, Ownable {
-  using SafeMath for uint;
-  using SafeDecimalMath for uint;
+contract TestSwapRouter is ISwapRouter, Owned {
+  using DecimalMath for uint;
 
-  bool initialized = false;
+  bool public initialized = false;
 
   mapping(address => uint) public rates;
 
@@ -45,11 +43,14 @@ contract TestSwapRouter is ISwapRouter, Ownable {
       while (Path.hasMultiplePools(path)) {
         path = Path.skipToken(path);
       }
-      (address _token, address _tokenOut, ) = Path.decodeFirstPool(path);
+      (, address _tokenOut, ) = Path.decodeFirstPool(path);
       tokenOut = TestERC20(_tokenOut);
     }
 
-    require(tokenIn != TestERC20(0) && tokenOut != TestERC20(0), "token in or token out is zero address");
+    require(
+      tokenIn != TestERC20(address(0)) && tokenOut != TestERC20(address(0)),
+      "token in or token out is zero address"
+    );
 
     uint bal = tokenIn.balanceOf(params.recipient);
     require(bal >= params.amountIn, "not enough to exchange");

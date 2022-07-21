@@ -1,22 +1,27 @@
 //SPDX-License-Identifier: ISC
-pragma solidity >=0.7.6;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.9;
 
 import "../interfaces/ISynthetix.sol";
+import "../interfaces/IAddressResolver.sol";
+import "../interfaces/IDelegateApprovals.sol";
+
 // Debug
 import "./ITestERC20.sol";
-import "../synthetix/SafeDecimalMath.sol";
-import "../interfaces/ILyraGlobals.sol";
+import "../synthetix/DecimalMath.sol";
+
+import "../SynthetixAdapter.sol";
 
 contract TestSynthetix is ISynthetix {
-  using SafeMath for uint;
-  using SafeDecimalMath for uint;
+  using DecimalMath for uint;
 
-  ILyraGlobals internal globals;
+  SynthetixAdapter internal synthetixAdapter;
+  IAddressResolver public addressResolver;
   ITestERC20 internal quoteAsset;
 
-  mapping(bytes32 => ITestERC20) baseAssets;
-  mapping(bytes32 => address) markets;
+  bytes32 private constant CONTRACT_DELEGATE_APPROVALS = "DelegateApprovals";
+
+  mapping(bytes32 => ITestERC20) public baseAssets;
+  mapping(bytes32 => address) public markets;
 
   event Exchange(
     address exchangeForAddress,
@@ -25,14 +30,19 @@ contract TestSynthetix is ISynthetix {
     bytes32 destinationCurrencyKey
   );
 
-  bool initialized = false;
+  bool public initialized = false;
 
   constructor() {}
 
-  function init(ILyraGlobals _globals, ITestERC20 _quoteAsset) external {
-    require(!initialized);
-    globals = _globals;
+  function init(
+    SynthetixAdapter _synthetixAdapter,
+    ITestERC20 _quoteAsset,
+    IAddressResolver _addressResolver
+  ) external {
+    require(!initialized, "Already initialized");
+    synthetixAdapter = _synthetixAdapter;
     quoteAsset = _quoteAsset;
+    addressResolver = _addressResolver;
     initialized = true;
   }
 
@@ -41,8 +51,8 @@ contract TestSynthetix is ISynthetix {
     ITestERC20 baseAsset,
     address market
   ) external {
-    require(baseAsset != ITestERC20(0));
-    require(market != address(0));
+    require(baseAsset != ITestERC20(address(0)), "ERC20 cannot have zero address");
+    require(market != address(0), "Market cannot have zero address");
     baseAssets[ticker] = baseAsset;
     markets[ticker] = market;
   }
@@ -56,29 +66,55 @@ contract TestSynthetix is ISynthetix {
     return exchangeOnBehalf(msg.sender, sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
   }
 
+  function exchangeOnBehalfWithTracking(
+    address exchangeForAddress,
+    bytes32 sourceCurrencyKey,
+    uint sourceAmount,
+    bytes32 destinationCurrencyKey,
+    address,
+    bytes32
+  ) public virtual override returns (uint amountReceived) {
+    require(
+      IDelegateApprovals(addressResolver.getAddress(CONTRACT_DELEGATE_APPROVALS)).canExchangeOnBehalf(
+        msg.sender,
+        exchangeForAddress
+      ),
+      "Not approved to act on behalf"
+    );
+
+    emit Exchange(msg.sender, sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
+    return exchangeOnBehalf(exchangeForAddress, sourceCurrencyKey, sourceAmount, destinationCurrencyKey);
+  }
+
   function exchangeOnBehalf(
     address exchangeForAddress,
     bytes32 sourceCurrencyKey,
     uint sourceAmount,
     bytes32 destinationCurrencyKey
-  ) public override returns (uint amountReceived) {
-    require(exchangeForAddress == msg.sender, "cannot exchangeOnBehalf of someone else");
+  ) public returns (uint amountReceived) {
     uint fromRate;
     uint feeRate = 0;
     uint toRate;
+    require(
+      IDelegateApprovals(addressResolver.getAddress(CONTRACT_DELEGATE_APPROVALS)).canExchangeOnBehalf(
+        msg.sender,
+        exchangeForAddress
+      ),
+      "Not approved to act on behalf"
+    );
+
     if (sourceCurrencyKey == "sUSD") {
       fromRate = 1e18;
       quoteAsset.burn(exchangeForAddress, sourceAmount);
     } else {
       address market = markets[sourceCurrencyKey];
       require(market != address(0), "invalid source currency key");
-      ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
-        globals.getExchangeGlobals(market, ILyraGlobals.ExchangeType.BASE_QUOTE);
+      SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(market);
       ITestERC20 baseAsset = baseAssets[sourceCurrencyKey];
-      require(baseAsset != ITestERC20(0));
+      require(baseAsset != ITestERC20(address(0)), "ERC20 cannot have zero address");
       baseAsset.burn(exchangeForAddress, sourceAmount);
-      fromRate = exchangeGlobals.spotPrice;
-      feeRate = exchangeGlobals.baseQuoteFeeRate;
+      fromRate = exchangeParams.spotPrice;
+      feeRate = exchangeParams.baseQuoteFeeRate;
     }
 
     if (destinationCurrencyKey == "sUSD") {
@@ -88,12 +124,11 @@ contract TestSynthetix is ISynthetix {
     } else {
       address market = markets[destinationCurrencyKey];
       require(market != address(0), "invalid destination currency key");
-      ILyraGlobals.ExchangeGlobals memory exchangeGlobals =
-        globals.getExchangeGlobals(market, ILyraGlobals.ExchangeType.QUOTE_BASE);
+      SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(market);
       ITestERC20 baseAsset = baseAssets[destinationCurrencyKey];
-      toRate = exchangeGlobals.spotPrice;
+      toRate = exchangeParams.spotPrice;
       if (feeRate == 0) {
-        feeRate = exchangeGlobals.quoteBaseFeeRate;
+        feeRate = exchangeParams.quoteBaseFeeRate;
       }
 
       uint amountConverted = sourceAmount.multiplyDecimalRound(fromRate).divideDecimalRound(toRate);

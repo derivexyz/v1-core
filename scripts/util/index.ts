@@ -1,65 +1,249 @@
-import { Provider } from '@ethersproject/providers';
-import { ethers } from 'ethers';
+import { Wallet } from 'ethers';
+import { ethers } from 'hardhat';
+import {
+  LiquidityPool,
+  // BlackScholes,
+  LiquidityToken,
+  OptionGreekCache,
+  OptionMarket,
+  OptionMarketPricer,
+  OptionMarketViewer,
+  OptionToken,
+  PoolHedger,
+  ShortCollateral,
+  TestERC20,
+} from '../../typechain-types';
+// import { MultistepSwapper } from '../../typechain-types/MultistepSwapper';
 
 (global as any).hashes = [];
 
-export type AllowedNetworks = 'kovan-ovm' | 'mainnet-ovm';
-
-export type Params = {
-  network: AllowedNetworks;
-  provider: Provider;
-  wallet?: ethers.Wallet;
+export type MarketContracts = {
+  optionMarket: OptionMarket;
+  optionMarketPricer: OptionMarketPricer;
+  optionGreekCache: OptionGreekCache;
+  optionToken: OptionToken;
+  liquidityPool: LiquidityPool;
+  liquidityToken: LiquidityToken;
+  optionMarketViewer: OptionMarketViewer;
+  shortCollateral: ShortCollateral;
+  poolHedger: PoolHedger;
+  baseAsset: TestERC20;
+  // multistepSwapper: MultistepSwapper;
 };
 
-export function getNetworkProvider(network: AllowedNetworks): Provider {
-  if (network == 'kovan-ovm') {
-    return new ethers.providers.JsonRpcProvider('https://kovan.optimism.io');
-  } else {
-    return new ethers.providers.JsonRpcProvider('https://mainnet.optimism.io');
-  }
+export type EnvVars = {
+  GAS_PRICE: string;
+  GAS_LIMIT: string;
+  PRIVATE_KEY: string;
+  INFURA_PROJECT_ID: string;
+  ETHERSCAN_KEY: string;
+  RPC_URL: string;
+  SYNTHETIX_LOCATION: string;
+};
+
+export type AllParams = {
+  OptionMarketParams: {
+    maxBoardExpiry: number;
+    securityModule: string;
+    feePortionReserved: string;
+  };
+  LiquidityPoolParams: {
+    minDepositWithdraw: string;
+    depositDelay: number;
+    withdrawalDelay: number;
+    withdrawalFee: string;
+    liquidityCBThreshold: string;
+    liquidityCBTimeout: number;
+    ivVarianceCBThreshold: string;
+    skewVarianceCBThreshold: string;
+    ivVarianceCBTimeout: string;
+    skewVarianceCBTimeout: string;
+    guardianMultisig: string;
+    guardianDelay: number;
+    boardSettlementCBTimeout: number;
+  };
+  GreekCacheParams: {
+    maxStrikesPerBoard: number;
+    acceptableSpotPricePercentMove: string;
+    staleUpdateDuration: number;
+    varianceIvGWAVPeriod: number;
+    varianceSkewGWAVPeriod: number;
+    optionValueIvGWAVPeriod: number;
+    optionValueSkewGWAVPeriod: number;
+    gwavSkewFloor: string;
+    gwavSkewCap: string;
+    rateAndCarry: string;
+  };
+  MinCollateralParams: {
+    minStaticBaseCollateral: string;
+    minStaticQuoteCollateral: string;
+    shockVolA: string;
+    shockVolPointA: number;
+    shockVolB: string;
+    shockVolPointB: number;
+    callSpotPriceShock: string;
+    putSpotPriceShock: string;
+  };
+  ForceCloseParams: {
+    ivGWAVPeriod: number;
+    skewGWAVPeriod: number;
+    shortVolShock: string;
+    shortPostCutoffVolShock: string;
+    longVolShock: string;
+    longPostCutoffVolShock: string;
+    liquidateVolShock: string;
+    liquidatePostCutoffVolShock: string;
+    shortSpotMin: string;
+    liquidateSpotMin: string;
+  };
+  PricingParams: {
+    optionPriceFeeCoefficient: string;
+    optionPriceFee1xPoint: number;
+    optionPriceFee2xPoint: number;
+    spotPriceFeeCoefficient: string;
+    spotPriceFee1xPoint: number;
+    spotPriceFee2xPoint: number;
+    vegaFeeCoefficient: string;
+    standardSize: string;
+    skewAdjustmentFactor: string;
+  };
+  TradeLimitParams: {
+    maxBaseIV: string;
+    maxSkew: string;
+    minBaseIV: string;
+    minSkew: string;
+    minDelta: string;
+    minForceCloseDelta: string;
+    minVol: string;
+    maxVol: string;
+    tradingCutoff: number;
+    absMaxSkew: string;
+    absMinSkew: string;
+  };
+  PartialCollatParams: {
+    penaltyRatio: string;
+    liquidatorFeeRatio: string;
+    smFeeRatio: string;
+    minLiquidationFee: string;
+    securityModule: string;
+  };
+  PoolHedgerParams: {
+    shortBuffer: string;
+    interactionDelay: number;
+    hedgeCap: string;
+  };
+};
+
+export type MarketParams = {
+  BaseTicker: string;
+  MockPrice?: string;
+  ParameterOverrides: AllParams;
+  // Boards: { BaseIv: string; Expiry: number; Skews: string[]; Strikes: string[] }[];
+};
+
+export type MintParams = {
+  run: boolean;
+  markets: {
+    [key: string]: {
+      quoteAmount: string;
+      baseAmount: string;
+    };
+  };
+};
+
+export type DepositParams = {
+  run: boolean;
+  markets: {
+    [key: string]: {
+      quoteAmount: string;
+    };
+  };
+};
+
+export type TradeSeedingParams = {
+  repetitionProbabilityPerBoard: number;
+  maxPerBoard: number;
+};
+
+export type ExercisableOptionsParams = {
+  markets: {
+    [key: string]: {
+      run: boolean;
+    };
+  };
+};
+
+export type AddBoardsParams = {
+  run: boolean;
+  markets: {
+    [key: string]: {
+      generated: boolean; // If not generated, use static
+      staticBoards: { BaseIv: string; Expiry: number; Skews: string[]; Strikes: string[] }[];
+    };
+  };
+};
+
+export type SeedParams = {
+  mintFunds: MintParams;
+  deposit: DepositParams;
+  addExercisableOptions: ExercisableOptionsParams;
+  addBoards: AddBoardsParams;
+  updateCaches: { markets: { [key: string]: boolean } };
+  hedgeDelta: { markets: { [key: string]: boolean } };
+  seedTrades: { markets: { [key: string]: boolean }; populationParameters: TradeSeedingParams };
+  seedLiquidations: { markets: { [key: string]: { [key: string]: boolean } } }; // if false will make puts insolvent
+  changeOwner: { run: boolean; globalOwner: string; markets: { [key: string]: string } };
+};
+
+export type SystemParams = {
+  QuoteTicker: string;
+  Parameters: AllParams;
+  SwapRouter: string;
+  SwapTestERC20s: { [key: string]: { Ticker: string; Decimals: number; Name: string; Rate: string } };
+  Markets: { [key: string]: MarketParams };
+  Seed: SeedParams;
+};
+
+export type AllowedNetworks = 'kovan-ovm' | 'mainnet-ovm' | 'local';
+export const allNetworks = ['kovan-ovm', 'mainnet-ovm', 'local'];
+export const ovmNetworks = ['kovan-ovm', 'mainnet-ovm'];
+
+export type DeploymentParams = {
+  network: AllowedNetworks;
+  mockSnx: boolean;
+  realPricing: boolean;
+  deployer: Wallet;
+};
+
+export function isOvm(network: string) {
+  return ovmNetworks.includes(network);
 }
 
-export function getNetworkProviderUrl(network: AllowedNetworks): string {
-  if (network == 'kovan-ovm') {
-    return 'https://kovan.optimism.io';
-  } else {
-    return 'https://mainnet.optimism.io';
-  }
-}
+export async function getDeployer(envVars: EnvVars) {
+  const provider = new ethers.providers.JsonRpcProvider(envVars.RPC_URL);
 
-export function getWallet(network: AllowedNetworks) {
-  return new ethers.Wallet(
-    '0x0000000000000000000000000000000000000000000000000000000000000000',
-    getNetworkProvider(network),
-  );
+  if (envVars.GAS_PRICE) {
+    provider.getGasPrice = async () => {
+      return ethers.BigNumber.from(envVars.GAS_PRICE);
+    };
+  }
+  if (envVars.GAS_LIMIT) {
+    provider.estimateGas = async () => {
+      return ethers.BigNumber.from(envVars.GAS_LIMIT);
+    };
+  }
+  return new ethers.Wallet(envVars.PRIVATE_KEY, provider);
 }
 
 export function getSelectedNetwork(): AllowedNetworks {
-  const foundFlag = process.argv.find(arg => arg.includes('--network='));
-
-  if (!foundFlag) {
-    throw new Error('Missing --network=<kovan-ovm|mainnet-ovm> flag');
-  }
-
-  const network = foundFlag.split('network=').pop();
-
-  if (network === 'kovan-ovm' || network === 'mainnet-ovm') {
+  const network = process.env.HARDHAT_NETWORK;
+  if (network === 'kovan-ovm' || network === 'mainnet-ovm' || network === 'local') {
     return network;
   }
   throw Error('Invalid network ' + network);
 }
 
-export function getAddressParameter(): string {
-  const foundFlag = process.argv.find(arg => arg.includes('--address='));
-
-  if (!foundFlag) {
-    throw new Error('Missing --address=0x... flag');
-  }
-
-  const address = foundFlag.split('address=').pop();
-
-  if (address && address.match(/0x[0-9A-Fa-f]/)) {
-    return address;
-  }
-  throw Error('Invalid address ' + address);
+export async function getAltSigner(envVars: any) {
+  const provider = new ethers.providers.JsonRpcProvider(envVars.RPC_URL);
+  return new ethers.Wallet(envVars.ALT_SIGNER_KEY, provider);
 }

@@ -2,7 +2,7 @@
 
 ## Functions:
 
-- `init(contract LyraGlobals _globals, contract ITestERC20 _quoteAsset) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset) (external)`
 
 - `addBaseAsset(bytes32 ticker, contract ITestERC20 baseAsset, address market) (external)`
 
@@ -10,21 +10,25 @@
 
 - `draw(uint256 id, uint256 amount) (external)`
 
-- `repay(address account, uint256 id, uint256 amount) (external)`
+- `repay(address, uint256 id, uint256 amount) (external)`
 
 - `repayWithCollateral(uint256 id, uint256 amount) (external)`
 
-- `deposit(address borrower, uint256 id, uint256 amount) (external)`
+- `deposit(address, uint256 id, uint256 amount) (external)`
 
 - `withdraw(uint256 id, uint256 amount) (external)`
 
-- `getShortAndCollateral(address account, uint256 id) (external)`
+- `getShortAndCollateral(address, uint256 id) (external)`
 
 - `createTestEmptyLoanForAccount(address account) (external)`
 
+- `_recordLoanAsClosed(struct ICollateralShort.Loan loan) (internal)`
+
 - `testForceClose(uint256 id) (external)`
 
-### Function `init(contract LyraGlobals _globals, contract ITestERC20 _quoteAsset) external`
+- `_isLoanOpen(uint256 interestIndex) (internal)`
+
+### Function `init(contract SynthetixAdapter _synthetixAdapter, contract ITestERC20 _quoteAsset) external`
 
 ### Function `addBaseAsset(bytes32 ticker, contract ITestERC20 baseAsset, address market) external`
 
@@ -32,16 +36,20 @@
 
 ### Function `draw(uint256 id, uint256 amount) → uint256, uint256 external`
 
-### Function `repay(address account, uint256 id, uint256 amount) → uint256, uint256 external`
+### Function `repay(address, uint256 id, uint256 amount) → uint256, uint256 external`
 
 ### Function `repayWithCollateral(uint256 id, uint256 amount) → uint256, uint256 external`
 
-### Function `deposit(address borrower, uint256 id, uint256 amount) → uint256, uint256 external`
+### Function `deposit(address, uint256 id, uint256 amount) → uint256, uint256 external`
 
 ### Function `withdraw(uint256 id, uint256 amount) → uint256, uint256 external`
 
-### Function `getShortAndCollateral(address account, uint256 id) → uint256, uint256 external`
+### Function `getShortAndCollateral(address, uint256 id) → uint256, uint256 external`
 
 ### Function `createTestEmptyLoanForAccount(address account) external`
 
+### Function `_recordLoanAsClosed(struct ICollateralShort.Loan loan) internal`
+
 ### Function `testForceClose(uint256 id) external`
+
+### Function `_isLoanOpen(uint256 interestIndex) internal`

@@ -1,336 +1,911 @@
-import { deployMockContract } from '@ethereum-waffle/mock-contract';
-import { MockContract } from 'ethereum-waffle';
-import { Signer } from 'ethers';
-import { ethers } from 'hardhat';
-import { DAY_SEC, toBN, toBytes32 } from '../../scripts/util/web3utils';
+import { BigNumber, Contract, ContractFactory, Signer } from 'ethers';
+import { ethers, tracer, upgrades } from 'hardhat';
+import { toBN, toBytes32, YEAR_SEC } from '../../scripts/util/web3utils';
 import {
+  BasicFeeCounter,
+  BasicLiquidityCounter,
   BlackScholes,
-  IExchanger,
-  IExchangeRates,
-  LiquidityCertificate,
-  LyraGlobals,
-  LyraMarketsRegistry,
+  GWAV,
+  GWAVOracle,
+  KeeperHelper,
+  LiquidityPool,
+  LiquidityToken,
+  LyraRegistry,
+  MockAggregatorV2V3,
   OptionGreekCache,
   OptionMarket,
   OptionMarketPricer,
-  OptionMarketSafeSlippage,
   OptionMarketViewer,
+  OptionMarketWrapper,
   OptionToken,
-  PoolHedger,
   ShortCollateral,
+  ShortPoolHedger,
+  SynthetixAdapter,
+  TestAddressResolver,
   TestCollateralShort,
+  TestCurve,
+  TestDelegateApprovals,
   TestERC20Fail,
-  TestLiquidityPool,
+  TestExchanger,
+  TestExchangeRates,
   TestSynthetixReturnZero,
-} from '../../typechain';
-import * as IExchangerJson from './mocked/interfaces/IExchanger.json';
-import * as IExchangeRatesJson from './mocked/interfaces/IExchangeRates.json';
-import { MockedExchanger } from './mocked/MockedExchanger';
-import { MockedExchangeRates } from './mocked/MockedExchangeRates';
+} from '../../typechain-types';
+import { LiquidityPoolParametersStruct } from '../../typechain-types/LiquidityPool';
+import { GreekCacheParametersStruct, MinCollateralParametersStruct } from '../../typechain-types/OptionGreekCache';
+import { OptionMarketParametersStruct } from '../../typechain-types/OptionMarket';
+import { VarianceFeeParametersStruct } from '../../typechain-types/OptionMarketPricer';
+import {
+  ForceCloseParametersStruct,
+  PricingParametersStruct,
+  TradeLimitParametersStruct,
+} from '../../typechain-types/OptionMarketViewer';
+import { PartialCollateralParametersStruct } from '../../typechain-types/OptionToken';
+import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
+import * as defaultParams from './defaultParams';
+import { DEFAULT_SECURITY_MODULE } from './defaultParams';
+// import _ from 'lodash';
+import { mergeDeep } from './package/merge';
+import { exportGlobalDeployment, exportMarketDeployment, getLocalRealSynthetixContract } from './package/parseFiles';
+import { changeRate, compileAndDeployRealSynthetix, mintsUSD, setDebtLimit } from './package/realSynthetixUtils';
 
-export type TestSystemContractsType = {
-  lyraGlobals: LyraGlobals;
-  registry: LyraMarketsRegistry;
+export type TestSystemContractsType = GlobalTestSystemContracts & MarketTestSystemContracts;
+
+export type GlobalTestSystemContracts = {
+  synthetixAdapter: SynthetixAdapter;
+  lyraRegistry: LyraRegistry;
+  blackScholes: BlackScholes;
+  gwav: GWAV;
+  optionMarketViewer: OptionMarketViewer;
+  optionMarketWrapper: OptionMarketWrapper;
+  testCurve: TestCurve;
+  basicFeeCounter: BasicFeeCounter;
+  snx: {
+    isMockSNX: boolean;
+    addressResolver: Contract;
+    collateralShort: Contract;
+    synthetix: Contract;
+    delegateApprovals: Contract;
+    quoteAsset: Contract;
+    exchangeRates: Contract;
+    exchanger: Contract;
+    snxMockAggregator?: Contract;
+    ethMockAggregator?: Contract;
+    btcMockAggregator?: Contract;
+    collateralManager?: Contract;
+    systemSettings?: Contract;
+  };
+};
+
+export type MarketTestSystemContracts = {
   optionMarket: OptionMarket;
   optionMarketPricer: OptionMarketPricer;
   optionGreekCache: OptionGreekCache;
   optionToken: OptionToken;
-  liquidityPool: TestLiquidityPool;
-  liquidityCertificate: LiquidityCertificate;
-  blackScholes: BlackScholes;
+  GWAVOracle: GWAVOracle;
+  liquidityPool: LiquidityPool;
+  liquidityToken: LiquidityToken;
+  basicLiquidityCounter: BasicLiquidityCounter;
   shortCollateral: ShortCollateral;
-  optionMarketViewer: OptionMarketViewer;
-  optionMarketSafeSlippage: OptionMarketSafeSlippage;
-  poolHedger: PoolHedger;
-  test: {
-    collateralShort: TestCollateralShort;
-    synthetix: TestSynthetixReturnZero;
-    quoteToken: TestERC20Fail;
-    baseToken: TestERC20Fail;
-  };
-  mocked: {
-    exchangeRates: MockedExchangeRates;
-    exchanger: MockedExchanger;
+  poolHedger: ShortPoolHedger;
+  keeperHelper: KeeperHelper;
+  snx: {
+    baseAsset: Contract;
   };
 };
 
-export async function deployTestContracts(deployer: Signer): Promise<TestSystemContractsType> {
-  // Deploy mocked contracts
-  const mockedExchangeRatesContract = await deployMockContract(deployer, IExchangeRatesJson.abi);
-  const exchangeRates = new MockedExchangeRates(mockedExchangeRatesContract as MockContract & IExchangeRates);
+export type DeployOverrides = {
+  // market parameters
+  optionMarketParams?: OptionMarketParametersStruct;
+  liquidityPoolParams?: LiquidityPoolParametersStruct;
+  poolHedgerParams?: PoolHedgerParametersStruct;
+  hedgerShortBuffer?: BigNumber;
+  greekCacheParams?: GreekCacheParametersStruct;
+  minCollateralParams?: MinCollateralParametersStruct;
+  forceCloseParams?: ForceCloseParametersStruct;
+  pricingParams?: PricingParametersStruct;
+  tradeLimitParams?: TradeLimitParametersStruct;
+  varianceFeeParams?: VarianceFeeParametersStruct;
+  partialCollateralParams?: PartialCollateralParametersStruct;
+  feeRateForBase?: BigNumber;
+  feeRateForQuote?: BigNumber;
+  basePrice?: BigNumber;
+  marketId?: string;
 
-  const mockedExchangerContract = await deployMockContract(deployer, IExchangerJson.abi);
-  const exchanger = new MockedExchanger(mockedExchangerContract as MockContract & IExchanger);
+  // override contract addresses for mock purposes
+  synthetixAdapter?: string;
+  lyraRegistry?: string;
+  blackScholes?: string;
+  gwav?: string;
+  optionMarketViewer?: string;
+  optionMarketWrapper?: string;
+  testCurve?: string;
+  basicFeeCounter?: string;
+  optionMarket?: string;
+  optionMarketPricer?: string;
+  optionGreekCache?: string;
+  optionToken?: string;
+  GWAVOracle?: string;
+  liquidityPool?: string;
+  liquidityToken?: string;
+  basicLiquidityCounter?: string;
+  shortCollateral?: string;
+  poolHedger?: string;
+  addressResolver?: string;
+  collateralShort?: string;
+  synthetix?: string;
+  delegateApprovals?: string;
+  exchangeRates?: string;
+  exchanger?: string;
+  quoteAsset?: string;
+  baseAsset?: string;
+  quoteToken?: string;
+  baseToken?: string;
 
-  // Deploy real contracts
+  // set to false to deploy full SNX stack
+  // only works when deployed to localhost (not hardhat tests)
+  mockSNX?: boolean; // true by default
+  compileSNX?: boolean; // only need to compile once
+};
 
-  const lyraGlobals = (await (await ethers.getContractFactory('LyraGlobals'))
+export async function deployTestSystem(
+  deployer: Signer,
+  useTracer?: boolean,
+  exportAddresses?: boolean,
+  overrides?: DeployOverrides,
+): Promise<TestSystemContractsType> {
+  exportAddresses = exportAddresses || false;
+  overrides = overrides || ({} as DeployOverrides);
+
+  const globalSystem = await deployGlobalTestContracts(deployer, exportAddresses, overrides);
+  const marketSystem = await deployMarketTestContracts(globalSystem, deployer, 'sETH', exportAddresses, overrides);
+  const testSystem: TestSystemContractsType = mergeDeep(globalSystem, marketSystem);
+
+  await initGlobalTestSystem(testSystem, deployer, overrides);
+  await initMarketTestSystem('sETH', testSystem, marketSystem, deployer, overrides);
+
+  // linking tracer for easy debugging with events
+  if (useTracer === true) {
+    await linkEventTracer(testSystem);
+  }
+  return testSystem;
+}
+
+// only used in certain tests
+export async function addNewMarketSystem(
+  deployer: Signer,
+  existingTestSystem: TestSystemContractsType,
+  market: string,
+  exportAddresses?: boolean,
+  overrides?: DeployOverrides,
+): Promise<TestSystemContractsType> {
+  exportAddresses = exportAddresses || false;
+  overrides = overrides || ({} as DeployOverrides);
+
+  const newMarketSystem: MarketTestSystemContracts = await deployMarketTestContracts(
+    existingTestSystem,
+    deployer,
+    market,
+    exportAddresses,
+    overrides,
+  );
+  await initMarketTestSystem(market, existingTestSystem, newMarketSystem, deployer, overrides);
+  return newTestSystemForMarket(existingTestSystem, newMarketSystem);
+}
+
+export async function deployGlobalTestContracts(
+  deployer: Signer,
+  exportAddresses: boolean,
+  overrides: DeployOverrides,
+): Promise<GlobalTestSystemContracts> {
+  ////////////////////////
+  // Libraries & Oracle //
+  ////////////////////////
+
+  const gwav = (await ((await ethers.getContractFactory('GWAV')) as ContractFactory)
     .connect(deployer)
-    .deploy()) as LyraGlobals;
+    .deploy()) as GWAV;
 
-  const blackScholes = (await (await ethers.getContractFactory('BlackScholes'))
+  const blackScholes = (await ((await ethers.getContractFactory('BlackScholes')) as ContractFactory)
     .connect(deployer)
     .deploy()) as BlackScholes;
 
-  const registry = (await (await ethers.getContractFactory('LyraMarketsRegistry'))
-    .connect(deployer)
-    .deploy()) as LyraMarketsRegistry;
+  /////////////////////////
+  // SNX Proxy vs Direct //
+  /////////////////////////
 
-  const optionMarket = (await (await ethers.getContractFactory('OptionMarket'))
-    .connect(deployer)
-    .deploy()) as OptionMarket;
+  const filename = __filename.split('.');
+  const runEnv = filename[filename.length - 1];
+  let synthetixAdapter: SynthetixAdapter;
+  if (runEnv == 'ts') {
+    // Deploy via proxy if testing within repo
+    // deployProxy automatically runs initialize()
+    // implementation contracts stored in '.openzeppelin' in project root
+    const synthetixAdapterImplementation = (
+      (await ethers.getContractFactory('SynthetixAdapter')) as ContractFactory
+    ).connect(deployer);
 
-  const optionMarketPricer = (await (await ethers.getContractFactory('OptionMarketPricer'))
-    .connect(deployer)
-    .deploy()) as OptionMarketPricer;
+    try {
+      synthetixAdapter = (await upgrades.deployProxy(synthetixAdapterImplementation, [], {
+        timeout: 60000,
+        pollingInterval: 5000,
+      })) as SynthetixAdapter;
+      await synthetixAdapter.deployed();
+    } catch (e) {
+      if (e instanceof Error) {
+        // OZ upgrade package uses hre.network when confirming corret deployment
+        e.message =
+          e.message + '\n\nLyra prompt: if deploying to local, make sure to run using `hardhat run --network local';
+      }
+      throw e;
+    }
+  } else {
+    // Deploy directly if testing as npm package
+    synthetixAdapter = (await ((await ethers.getContractFactory('SynthetixAdapter')) as ContractFactory)
+      .connect(deployer)
+      .deploy()) as SynthetixAdapter;
 
-  const optionGreekCache = (await (await ethers.getContractFactory('OptionGreekCache'))
-    .connect(deployer)
-    .deploy()) as OptionGreekCache;
+    // manually initialize()
+    await synthetixAdapter.connect(deployer).initialize();
+  }
 
-  const liquidityPool = (await (await ethers.getContractFactory('TestLiquidityPool'))
-    .connect(deployer)
-    .deploy()) as TestLiquidityPool;
+  //////////////////
+  // Lyra Globals //
+  //////////////////
 
-  const liquidityCertificate = (await (await ethers.getContractFactory('LiquidityCertificate'))
-    .connect(deployer)
-    .deploy('USD/ETH Pool Certificate', 'UEP')) as LiquidityCertificate;
-
-  const optionToken = (await (await ethers.getContractFactory('OptionToken'))
-    .connect(deployer)
-    .deploy('USD/ETH Option Tokens')) as OptionToken;
-
-  const shortCollateral = (await (await ethers.getContractFactory('ShortCollateral'))
-    .connect(deployer)
-    .deploy()) as ShortCollateral;
-
-  const optionMarketViewer = (await (await ethers.getContractFactory('OptionMarketViewer'))
+  const optionMarketViewer = (await ((await ethers.getContractFactory('OptionMarketViewer')) as ContractFactory)
     .connect(deployer)
     .deploy()) as OptionMarketViewer;
 
-  const optionMarketSafeSlippage = (await (await ethers.getContractFactory('OptionMarketSafeSlippage'))
+  const optionMarketWrapper = (await ((await ethers.getContractFactory('OptionMarketWrapper')) as ContractFactory)
     .connect(deployer)
-    .deploy()) as OptionMarketSafeSlippage;
+    .deploy()) as OptionMarketWrapper;
 
-  // Test Contracts
+  const lyraRegistry = (await ((await ethers.getContractFactory('LyraRegistry')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as LyraRegistry;
 
-  const quoteToken = (await (await ethers.getContractFactory('TestERC20Fail'))
+  const basicFeeCounter = (await ((await ethers.getContractFactory('BasicFeeCounter')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as BasicFeeCounter;
+
+  const testCurve = (await ((await ethers.getContractFactory('TestCurve')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as TestCurve; // test curve for now
+
+  const testSystem = {
+    synthetixAdapter,
+    lyraRegistry,
+    blackScholes,
+    gwav,
+    optionMarketViewer,
+    optionMarketWrapper,
+    testCurve,
+    basicFeeCounter,
+    snx: {} as any,
+  };
+
+  //////////////////////
+  // SNX Mock or Real //
+  //////////////////////
+
+  if (overrides.mockSNX || overrides.mockSNX == undefined) {
+    testSystem.snx = await deployMockGlobalSNX(deployer);
+  } else {
+    await compileAndDeployRealSynthetix(overrides.compileSNX || overrides.compileSNX == undefined);
+
+    const snxMockAggregator = (await ((await ethers.getContractFactory('MockAggregatorV2V3')) as ContractFactory)
+      .connect(deployer)
+      .deploy()) as MockAggregatorV2V3; // used to mock SNX price
+
+    const ethMockAggregator = (await ((await ethers.getContractFactory('MockAggregatorV2V3')) as ContractFactory)
+      .connect(deployer)
+      .deploy()) as MockAggregatorV2V3; // used to mock sETH price
+
+    const btcMockAggregator = (await ((await ethers.getContractFactory('MockAggregatorV2V3')) as ContractFactory)
+      .connect(deployer)
+      .deploy()) as MockAggregatorV2V3; // used to mock sBTC price
+
+    testSystem.snx = {
+      isMockSNX: false,
+      addressResolver: await getLocalRealSynthetixContract(deployer, 'local', 'AddressResolver'),
+      collateralShort: await getLocalRealSynthetixContract(deployer, 'local', 'CollateralShort'),
+      synthetix: await getLocalRealSynthetixContract(deployer, 'local', 'ProxySynthetix'),
+      delegateApprovals: await getLocalRealSynthetixContract(deployer, 'local', 'DelegateApprovals'),
+      quoteAsset: await getLocalRealSynthetixContract(deployer, 'local', `ProxyERC20sUSD`), // not ProxysUSD?
+      exchangeRates: await getLocalRealSynthetixContract(deployer, 'local', `ExchangeRates`),
+      exchanger: await getLocalRealSynthetixContract(deployer, 'local', `Exchanger`),
+      collateralManager: await getLocalRealSynthetixContract(deployer, 'local', 'CollateralManager'),
+      systemSettings: await getLocalRealSynthetixContract(deployer, 'local', 'SystemSettings'),
+      snxMockAggregator: snxMockAggregator as Contract,
+      ethMockAggregator: ethMockAggregator as Contract,
+      btcMockAggregator: btcMockAggregator as Contract,
+    };
+
+    await testSystem.snx.collateralManager.addCollaterals([testSystem.snx.collateralShort.address]);
+    await testSystem.snx.systemSettings.setWaitingPeriodSecs(toBN('0'));
+    await testSystem.snx.systemSettings.setInteractionDelay(testSystem.snx.collateralShort.address, toBN('0'));
+    await testSystem.snx.systemSettings.setRateStalePeriod(ethers.BigNumber.from(YEAR_SEC));
+  }
+
+  if (exportAddresses) {
+    await exportGlobalDeployment(testSystem as GlobalTestSystemContracts);
+  }
+  return testSystem as GlobalTestSystemContracts;
+}
+
+export async function deployMarketTestContracts(
+  existingSystem: TestSystemContractsType | GlobalTestSystemContracts,
+  deployer: Signer,
+  market: string,
+  exportAddresses: boolean,
+  overrides: DeployOverrides,
+): Promise<MarketTestSystemContracts> {
+  /////////////////
+  // Lyra Market //
+  /////////////////
+
+  const optionMarket = (await ((await ethers.getContractFactory('OptionMarket')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as OptionMarket;
+
+  const optionMarketPricer = (await ((await ethers.getContractFactory('OptionMarketPricer')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as OptionMarketPricer;
+
+  const optionGreekCache = (await (
+    await ethers.getContractFactory('OptionGreekCache', {
+      signer: deployer,
+      libraries: {
+        GWAV: existingSystem.gwav.address,
+        BlackScholes: existingSystem.blackScholes.address,
+      },
+    })
+  )
+    .connect(deployer)
+    .deploy()) as OptionGreekCache;
+
+  const liquidityPool = (await ((await ethers.getContractFactory('LiquidityPool')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as LiquidityPool;
+
+  const liquidityToken = (await ((await ethers.getContractFactory('LiquidityToken')) as ContractFactory)
+    .connect(deployer)
+    .deploy(`sUSD/${market} Pool Tokens`, 'LyraELPT')) as LiquidityToken;
+
+  const basicLiquidityCounter = (await ((await ethers.getContractFactory('BasicLiquidityCounter')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as BasicLiquidityCounter;
+
+  const optionToken = (await ((await ethers.getContractFactory('OptionToken')) as ContractFactory)
+    .connect(deployer)
+    .deploy(`sUSD/${market} Option Tokens`, 'LyraEOT')) as OptionToken;
+
+  const shortCollateral = (await ((await ethers.getContractFactory('ShortCollateral')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as ShortCollateral;
+
+  const poolHedger = (await ((await ethers.getContractFactory('ShortPoolHedger')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as ShortPoolHedger;
+
+  const GWAVOracle = (await (
+    await ethers.getContractFactory('GWAVOracle', {
+      signer: deployer,
+      libraries: {
+        BlackScholes: existingSystem.blackScholes.address,
+      },
+    })
+  )
+    .connect(deployer)
+    .deploy()) as GWAVOracle;
+
+  // TODO: consider moving to global state in the future.
+  const keeperHelper = (await ((await ethers.getContractFactory('KeeperHelper')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as KeeperHelper;
+
+  ///////////////
+  // SNX sBase //
+  ///////////////
+
+  const marketSystem: MarketTestSystemContracts = {
+    optionMarket,
+    optionMarketPricer,
+    optionGreekCache,
+    optionToken,
+    GWAVOracle,
+    liquidityPool,
+    liquidityToken,
+    basicLiquidityCounter,
+    shortCollateral,
+    poolHedger,
+    keeperHelper,
+    snx: {} as any,
+  };
+
+  if (overrides.mockSNX || overrides.mockSNX == undefined) {
+    const baseName = 'Synthetic ' + market.slice(1);
+    marketSystem.snx.baseAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
+      .connect(deployer)
+      .deploy(baseName, market)) as TestERC20Fail;
+  } else {
+    marketSystem.snx.baseAsset = await getLocalRealSynthetixContract(deployer, 'local', `Proxy${market}`);
+  }
+
+  if (exportAddresses) {
+    await exportMarketDeployment(marketSystem, market);
+  }
+  return marketSystem;
+}
+
+export async function initGlobalTestSystem(
+  testSystem: GlobalTestSystemContracts,
+  deployer: Signer,
+  overrides: DeployOverrides,
+) {
+  //////////////////////////
+  // SNX Address Resolver //
+  //////////////////////////
+
+  const names = [
+    toBytes32('ProxySynthetix'),
+    toBytes32('Exchanger'),
+    toBytes32('ExchangeRates'),
+    toBytes32('CollateralShort'),
+    toBytes32('DelegateApprovals'),
+  ];
+  const addresses = [
+    testSystem.snx.synthetix.address,
+    testSystem.snx.exchanger.address,
+    testSystem.snx.exchangeRates.address,
+    testSystem.snx.collateralShort.address,
+    testSystem.snx.delegateApprovals.address,
+  ];
+
+  if (overrides.mockSNX || overrides.mockSNX == undefined) {
+    await testSystem.snx.synthetix
+      .connect(deployer)
+      .init(
+        overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
+        overrides.quoteAsset || testSystem.snx.quoteAsset.address,
+        overrides.addressResolver || testSystem.snx.addressResolver.address,
+      );
+
+    await testSystem.snx.collateralShort
+      .connect(deployer)
+      .init(
+        overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
+        overrides.quoteAsset || testSystem.snx.quoteAsset.address,
+      );
+
+    await testSystem.snx.addressResolver.connect(deployer).setAddresses(names, addresses);
+
+    await testSystem.snx.quoteAsset.connect(deployer).permitMint(testSystem.snx.synthetix.address, true);
+    await testSystem.snx.quoteAsset.connect(deployer).permitMint(testSystem.snx.collateralShort.address, true);
+  } else {
+    testSystem.snx.snxMockAggregator = testSystem.snx.snxMockAggregator || ({} as Contract);
+    await testSystem.snx.exchangeRates.addAggregator(toBytes32('SNX'), testSystem.snx.snxMockAggregator.address);
+
+    testSystem.snx.ethMockAggregator = testSystem.snx.ethMockAggregator || ({} as Contract);
+    await testSystem.snx.exchangeRates.addAggregator(toBytes32('sETH'), testSystem.snx.ethMockAggregator.address);
+
+    testSystem.snx.btcMockAggregator = testSystem.snx.btcMockAggregator || ({} as Contract);
+    await testSystem.snx.exchangeRates.addAggregator(toBytes32('sBTC'), testSystem.snx.btcMockAggregator.address);
+
+    await changeRate(testSystem as TestSystemContractsType, toBN('1000'), 'SNX');
+
+    await changeRate(testSystem as TestSystemContractsType, defaultParams.getBasePrice('sETH'), 'sETH');
+    await changeRate(testSystem as TestSystemContractsType, defaultParams.getBasePrice('sBTC'), 'sBTC');
+
+    await setDebtLimit(testSystem as TestSystemContractsType, toBN('1000000000')); // need to double check
+    await mintsUSD(testSystem as TestSystemContractsType, deployer, toBN('0')); // need to double check
+  }
+
+  //////////////////////////////
+  // Lyra Adapters & Wrappers //
+  //////////////////////////////
+
+  await testSystem.synthetixAdapter.connect(deployer).setAddressResolver(testSystem.snx.addressResolver.address);
+  await testSystem.synthetixAdapter.connect(deployer).updateSynthetixAddresses();
+
+  await testSystem.optionMarketViewer
+    .connect(deployer)
+    .init(overrides.synthetixAdapter || testSystem.synthetixAdapter.address);
+
+  await testSystem.optionMarketWrapper
+    .connect(deployer)
+    .updateContractParams(
+      overrides.baseToken || testSystem.testCurve.address,
+      overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
+      testSystem.basicFeeCounter.address,
+      toBN('0.1'),
+    );
+
+  await testSystem.lyraRegistry.updateGlobalAddresses(
+    [
+      toBytes32('SYNTHETIX_ADAPTER'),
+      toBytes32('MARKET_VIEWER'),
+      toBytes32('MARKET_WRAPPER'),
+      toBytes32('GWAV'),
+      toBytes32('BLACK_SCHOLES'),
+    ],
+    [
+      testSystem.synthetixAdapter.address,
+      testSystem.optionMarketViewer.address,
+      testSystem.optionMarketWrapper.address,
+      testSystem.gwav.address,
+      testSystem.blackScholes.address,
+    ],
+  );
+}
+
+export async function initMarketTestSystem(
+  market: string,
+  existingTestSystem: TestSystemContractsType,
+  marketTestSystem: MarketTestSystemContracts,
+  deployer: Signer,
+  overrides: DeployOverrides,
+) {
+  ///////////
+  // sBase //
+  ///////////
+  if (overrides.mockSNX || overrides.mockSNX == undefined) {
+    await existingTestSystem.snx.synthetix
+      .connect(deployer)
+      .addBaseAsset(
+        toBytes32(market),
+        overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+        marketTestSystem.optionMarket.address,
+      );
+
+    await existingTestSystem.snx.collateralShort
+      .connect(deployer)
+      .addBaseAsset(
+        toBytes32(market),
+        overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+        marketTestSystem.optionMarket.address,
+      );
+
+    await marketTestSystem.snx.baseAsset.permitMint(existingTestSystem.snx.synthetix.address, true);
+    await marketTestSystem.snx.baseAsset.permitMint(existingTestSystem.snx.collateralShort.address, true);
+  } else {
+    // current snx deployment only supports 2 assets. Already manually set during global init.
+    // Manually change .snx config files to add other assets.
+    // marketTestSystem.snx.baseMockAggregator = marketTestSystem.snx.baseMockAggregator || {} as Contract;
+    // await existingTestSystem.snx.exchangeRates.addAggregator(
+    //   toBytes32(market),
+    //   marketTestSystem.snx.baseMockAggregator.address)
+  }
+
+  ///////////////////
+  // Set Addresses //
+  ///////////////////
+
+  await marketTestSystem.optionMarket
+    .connect(deployer)
+    .init(
+      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+      overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
+      overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+      overrides.shortCollateral || marketTestSystem.shortCollateral.address,
+      overrides.optionToken || marketTestSystem.optionToken.address,
+      overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
+      overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+    );
+
+  await marketTestSystem.optionMarket.setOptionMarketParams(
+    overrides.optionMarketParams || defaultParams.DEFAULT_OPTION_MARKET_PARAMS,
+  );
+
+  await marketTestSystem.optionMarketPricer
+    .connect(deployer)
+    .init(
+      overrides.optionMarket || marketTestSystem.optionMarket.address,
+      overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+    );
+
+  await marketTestSystem.optionGreekCache
+    .connect(deployer)
+    .init(
+      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.optionMarket || marketTestSystem.optionMarket.address,
+      overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
+    );
+
+  await marketTestSystem.liquidityPool
+    .connect(deployer)
+    .init(
+      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.optionMarket || marketTestSystem.optionMarket.address,
+      overrides.liquidityToken || marketTestSystem.liquidityToken.address,
+      overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+      overrides.poolHedger || marketTestSystem.poolHedger.address,
+      overrides.shortCollateral || marketTestSystem.shortCollateral.address,
+      overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
+      overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+    );
+
+  await marketTestSystem.liquidityToken
+    .connect(deployer)
+    .init(overrides.liquidityPool || marketTestSystem.liquidityPool.address);
+
+  await marketTestSystem.poolHedger
+    .connect(deployer)
+    .init(
+      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.optionMarket || marketTestSystem.optionMarket.address,
+      overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+      overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+      overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
+      overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+    );
+
+  await marketTestSystem.shortCollateral
+    .connect(deployer)
+    .init(
+      overrides.optionMarket || marketTestSystem.optionMarket.address,
+      overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+      overrides.optionToken || marketTestSystem.optionToken.address,
+      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
+      overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+    );
+
+  await marketTestSystem.optionToken
+    .connect(deployer)
+    .init(
+      overrides.optionMarket || marketTestSystem.optionMarket.address,
+      overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+      overrides.shortCollateral || marketTestSystem.shortCollateral.address,
+      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+    );
+
+  await existingTestSystem.synthetixAdapter
+    .connect(deployer)
+    .setGlobalsForContract(
+      marketTestSystem.optionMarket.address,
+      toBytes32('sUSD'),
+      toBytes32(market),
+      DEFAULT_SECURITY_MODULE,
+      toBytes32(''),
+    );
+
+  await marketTestSystem.GWAVOracle.connect(deployer).init(
+    overrides.optionMarket || marketTestSystem.optionMarket.address,
+    overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+    overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+  );
+
+  await existingTestSystem.optionMarketViewer.connect(deployer).addMarket({
+    liquidityPool: overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+    liquidityToken: overrides.liquidityToken || marketTestSystem.liquidityToken.address,
+    greekCache: overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+    optionMarket: overrides.optionMarket || marketTestSystem.optionMarket.address,
+    optionMarketPricer: overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
+    optionToken: overrides.optionToken || marketTestSystem.optionToken.address,
+    poolHedger: overrides.poolHedger || marketTestSystem.poolHedger.address,
+    shortCollateral: overrides.shortCollateral || marketTestSystem.shortCollateral.address,
+    baseAsset: overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+    quoteAsset: overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
+  });
+
+  await existingTestSystem.lyraRegistry.connect(deployer).addMarket({
+    liquidityPool: overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+    liquidityToken: overrides.liquidityToken || marketTestSystem.liquidityToken.address,
+    greekCache: overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+    optionMarket: overrides.optionMarket || marketTestSystem.optionMarket.address,
+    optionMarketPricer: overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
+    optionToken: overrides.optionToken || marketTestSystem.optionToken.address,
+    poolHedger: overrides.poolHedger || marketTestSystem.poolHedger.address,
+    shortCollateral: overrides.shortCollateral || marketTestSystem.shortCollateral.address,
+    gwavOracle: overrides.GWAVOracle || marketTestSystem.GWAVOracle.address,
+    baseAsset: overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
+    quoteAsset: overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
+  });
+
+  await existingTestSystem.optionMarketWrapper
+    .connect(deployer)
+    .addMarket(
+      overrides.optionMarket || marketTestSystem.optionMarket.address,
+      overrides.marketId || defaultParams.DEFAULT_MARKET_ID,
+      {
+        quoteAsset: overrides.quoteToken || existingTestSystem.snx.quoteAsset.address,
+        baseAsset: overrides.baseToken || marketTestSystem.snx.baseAsset.address,
+        optionToken: overrides.optionToken || marketTestSystem.optionToken.address,
+        liquidityPool: overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+        liquidityToken: overrides.liquidityToken || marketTestSystem.liquidityToken.address,
+      },
+    );
+
+  await marketTestSystem.keeperHelper
+    .connect(deployer)
+    .init(marketTestSystem.optionMarket.address, marketTestSystem.shortCollateral.address);
+
+  ////////////////////////
+  // Lyra Market Params //
+  ////////////////////////
+
+  await marketTestSystem.liquidityPool
+    .connect(deployer)
+    .setLiquidityPoolParameters(overrides.liquidityPoolParams || defaultParams.DEFAULT_LIQUIDITY_POOL_PARAMS);
+
+  await marketTestSystem.poolHedger
+    .connect(deployer)
+    .setPoolHedgerParams(overrides.poolHedgerParams || defaultParams.DEFAULT_POOL_HEDGER_PARAMS);
+
+  await marketTestSystem.poolHedger
+    .connect(deployer)
+    .setShortBuffer(overrides.hedgerShortBuffer || defaultParams.DEFAULT_SHORT_BUFFER);
+
+  await marketTestSystem.optionGreekCache
+    .connect(deployer)
+    .setGreekCacheParameters(overrides.greekCacheParams || defaultParams.DEFAULT_GREEK_CACHE_PARAMS);
+
+  await marketTestSystem.optionGreekCache
+    .connect(deployer)
+    .setMinCollateralParameters(overrides.minCollateralParams || defaultParams.DEFAULT_MIN_COLLATERAL_PARAMS);
+
+  await marketTestSystem.optionGreekCache
+    .connect(deployer)
+    .setForceCloseParameters(overrides.forceCloseParams || defaultParams.DEFAULT_FORCE_CLOSE_PARAMS);
+
+  await marketTestSystem.optionMarketPricer
+    .connect(deployer)
+    .setPricingParams(overrides.pricingParams || defaultParams.getMarketPricingParams(market));
+
+  await marketTestSystem.optionMarketPricer
+    .connect(deployer)
+    .setTradeLimitParams(overrides.tradeLimitParams || defaultParams.DEFAULT_TRADE_LIMIT_PARAMS);
+
+  await marketTestSystem.optionMarketPricer
+    .connect(deployer)
+    .setVarianceFeeParams(overrides.varianceFeeParams || defaultParams.DEFAULT_VARIANCE_FEE_PARAMS);
+
+  await marketTestSystem.optionToken
+    .connect(deployer)
+    .setPartialCollateralParams(overrides.partialCollateralParams || defaultParams.DEFAULT_PARTIAL_COLLAT_PARAMS);
+
+  if (overrides.mockSNX || overrides.mockSNX == undefined) {
+    await existingTestSystem.snx.exchanger
+      .connect(deployer)
+      .setFeeRateForExchange(
+        toBytes32(market),
+        toBytes32('sUSD'),
+        overrides.feeRateForBase || defaultParams.DEFAULT_FEE_RATE_FOR_BASE,
+      );
+
+    await existingTestSystem.snx.exchanger
+      .connect(deployer)
+      .setFeeRateForExchange(
+        toBytes32('sUSD'),
+        toBytes32(market),
+        overrides.feeRateForQuote || defaultParams.DEFAULT_FEE_RATE_FOR_QUOTE,
+      );
+
+    await existingTestSystem.snx.exchangeRates
+      .connect(deployer)
+      .setRateAndInvalid(toBytes32(market), overrides.basePrice || defaultParams.getBasePrice(market), false);
+  } else {
+    // this is manually done during deploymer. Current snx deployment only supports sBTC and sETH assets.
+    // Need to manually change .snx config files to add other assets + add rate in changeRates.
+  }
+}
+
+export async function deployMockGlobalSNX(deployer: Signer) {
+  const isMockSNX: boolean = true;
+
+  const exchanger = (await ((await ethers.getContractFactory('TestExchanger')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as TestExchanger;
+
+  const exchangeRates = (await ((await ethers.getContractFactory('TestExchangeRates')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as TestExchangeRates;
+
+  const quoteAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
     .connect(deployer)
     .deploy('Synthetic USD', 'sUSD')) as TestERC20Fail;
 
-  const baseToken = (await (await ethers.getContractFactory('TestERC20Fail'))
-    .connect(deployer)
-    .deploy('Synthetic ETH', 'sETH')) as TestERC20Fail;
-
-  const synthetix = (await (await ethers.getContractFactory('TestSynthetixReturnZero'))
+  const synthetix = (await ((await ethers.getContractFactory('TestSynthetixReturnZero')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestSynthetixReturnZero;
 
-  const poolHedger = (await (await ethers.getContractFactory('PoolHedger')).connect(deployer).deploy()) as PoolHedger;
+  const delegateApprovals = (await ((await ethers.getContractFactory('TestDelegateApprovals')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as TestDelegateApprovals;
 
-  const collateralShort = (await (await ethers.getContractFactory('TestCollateralShort'))
+  const collateralShort = (await ((await ethers.getContractFactory('TestCollateralShort')) as ContractFactory)
     .connect(deployer)
     .deploy()) as TestCollateralShort;
 
+  const addressResolver = (await ((await ethers.getContractFactory('TestAddressResolver')) as ContractFactory)
+    .connect(deployer)
+    .deploy()) as TestAddressResolver;
+
   return {
-    lyraGlobals,
-    registry,
-    optionMarket,
-    optionGreekCache,
-    optionMarketPricer,
-    optionToken,
-    blackScholes,
-    liquidityPool,
-    liquidityCertificate,
-    shortCollateral,
-    optionMarketViewer,
-    optionMarketSafeSlippage,
-    poolHedger,
-    mocked: {
-      exchangeRates,
-      exchanger,
-    },
-    test: {
-      quoteToken,
-      baseToken,
-      synthetix,
-      collateralShort,
-    },
+    isMockSNX,
+    addressResolver,
+    collateralShort,
+    synthetix,
+    delegateApprovals,
+    quoteAsset,
+    exchangeRates,
+    exchanger,
   };
 }
 
-export async function initTestSystem(c: TestSystemContractsType, overrides: any) {
-  await c.mocked.exchanger.mockFeeFor('sETH', 'sUSD', toBN('0.0075'));
-  await c.mocked.exchanger.mockFeeFor('sUSD', 'sETH', toBN('0.005'));
-  await c.mocked.exchangeRates.mockLatestPrice(toBN('1742.01337'));
+export function newTestSystemForMarket(
+  testSystem: TestSystemContractsType,
+  marketTestSystem?: MarketTestSystemContracts,
+) {
+  const newTestSystem = {} as TestSystemContractsType;
 
-  // Initialize the contracts
+  if (marketTestSystem) {
+    // Assigning globals
+    newTestSystem.synthetixAdapter = testSystem.synthetixAdapter;
+    newTestSystem.lyraRegistry = testSystem.lyraRegistry;
+    newTestSystem.blackScholes = testSystem.blackScholes;
+    newTestSystem.gwav = testSystem.gwav;
+    newTestSystem.optionMarketViewer = testSystem.optionMarketViewer;
+    newTestSystem.optionMarketWrapper = testSystem.optionMarketWrapper;
+    newTestSystem.testCurve = testSystem.testCurve;
+    newTestSystem.basicFeeCounter = testSystem.basicFeeCounter;
+    newTestSystem.snx = {
+      isMockSNX: testSystem.snx.isMockSNX,
+      addressResolver: testSystem.snx.addressResolver,
+      collateralShort: testSystem.snx.collateralShort,
+      synthetix: testSystem.snx.synthetix,
+      delegateApprovals: testSystem.snx.delegateApprovals,
+      quoteAsset: testSystem.snx.quoteAsset,
+      exchangeRates: testSystem.snx.exchangeRates,
+      exchanger: testSystem.snx.exchanger,
+      baseAsset: marketTestSystem.snx.baseAsset,
+    };
 
-  await c.lyraGlobals.setGlobals(
-    c.test.synthetix.address,
-    c.mocked.exchanger.contract.address,
-    c.mocked.exchangeRates.contract.address,
-    c.test.collateralShort.address,
-  );
-
-  await c.lyraGlobals.setGlobalsForContract(
-    c.optionMarket.address,
-    DAY_SEC / 2,
-    {
-      optionPriceFeeCoefficient: toBN('0.01'),
-      spotPriceFeeCoefficient: toBN('0.01'),
-      vegaFeeCoefficient: toBN('300'),
-      vegaNormFactor: toBN('0.2'),
-      standardSize: toBN('5'),
-      skewAdjustmentFactor: toBN('0.75'),
-      rateAndCarry: toBN('0.1'),
-      minDelta: toBN('0.15'),
-      volatilityCutoff: toBN('0.55'),
-      spotPrice: 0,
-    },
-    toBytes32('sUSD'),
-    toBytes32('sETH'),
-  );
-
-  await c.optionMarket.init(
-    overrides.lyraGlobals || c.lyraGlobals.address,
-    overrides.liquidityPool || c.liquidityPool.address,
-    overrides.optionMarketPricer || c.optionMarketPricer.address,
-    overrides.optionGreekCache || c.optionGreekCache.address,
-    overrides.shortCollateral || c.shortCollateral.address,
-    overrides.optionToken || c.optionToken.address,
-    overrides.quoteToken || c.test.quoteToken.address,
-    overrides.baseToken || c.test.baseToken.address,
-    [
-      'TransferOwnerToZero',
-      'InvalidBoardId',
-      'InvalidBoardIdOrNotFrozen',
-      'InvalidListingIdOrNotFrozen',
-      'StrikeSkewLengthMismatch',
-      'BoardMaxExpiryReached',
-      'CannotStartNewRoundWhenBoardsExist',
-      'ZeroAmountOrInvalidTradeType',
-      'BoardFrozenOrTradingCutoffReached',
-      'QuoteTransferFailed',
-      'BaseTransferFailed',
-      'BoardNotExpired',
-      'BoardAlreadyLiquidated',
-      'OnlyOwner',
-    ],
-  );
-
-  await c.optionMarketPricer.init(
-    overrides.optionMarket || c.optionMarket.address,
-    overrides.optionGreekCache || c.optionGreekCache.address,
-  );
-
-  await c.optionGreekCache.init(
-    overrides.lyraGlobals || c.lyraGlobals.address,
-    overrides.optionMarket || c.optionMarket.address,
-    overrides.optionMarketPricer || c.optionMarketPricer.address,
-    overrides.blackScholes || c.blackScholes.address,
-  );
-
-  await c.liquidityPool.init(
-    overrides.lyraGlobals || c.lyraGlobals.address,
-    overrides.optionMarket || c.optionMarket.address,
-    overrides.liquidityCertificate || c.liquidityCertificate.address,
-    overrides.poolHedger || c.poolHedger.address,
-    overrides.shortCollateral || c.shortCollateral.address,
-    overrides.quoteToken || c.test.quoteToken.address,
-    overrides.baseToken || c.test.baseToken.address,
-    [
-      'QuoteTransferFailed',
-      'AlreadySignalledWithdrawal',
-      'SignallingBetweenRounds',
-      'UnSignalMustSignalFirst',
-      'UnSignalAlreadyBurnable',
-      'WithdrawNotBurnable',
-      'EndRoundWithLiveBoards',
-      'EndRoundAlreadyEnded',
-      'EndRoundMustExchangeBase',
-      'EndRoundMustHedgeDelta',
-      'StartRoundMustEndRound',
-      'ReceivedZeroFromBaseQuoteExchange',
-      'ReceivedZeroFromQuoteBaseExchange',
-      'LockingMoreQuoteThanIsFree',
-      'LockingMoreBaseThanCanBeExchanged',
-      'FreeingMoreBaseThanLocked',
-      'SendPremiumNotEnoughCollateral',
-      'OnlyPoolHedger',
-      'OnlyOptionMarket',
-      'OnlyShortCollateral',
-      'ReentrancyDetected',
-    ],
-  );
-
-  await c.liquidityCertificate.init(overrides.liquidityPool || c.liquidityPool.address);
-
-  await c.poolHedger.init(
-    overrides.lyraGlobals || c.lyraGlobals.address,
-    overrides.optionMarket || c.optionMarket.address,
-    overrides.optionGreekCache || c.optionGreekCache.address,
-    overrides.liquidityPool || c.liquidityPool.address,
-    overrides.quoteToken || c.test.quoteToken.address,
-    overrides.baseToken || c.test.baseToken.address,
-  );
-
-  await c.shortCollateral.init(
-    overrides.optionMarket || c.optionMarket.address,
-    overrides.liquidityPool || c.liquidityPool.address,
-    overrides.quoteToken || c.test.quoteToken.address,
-    overrides.baseToken || c.test.baseToken.address,
-  );
-
-  await c.optionMarketViewer.init(
-    overrides.lyraGlobals || c.lyraGlobals.address,
-    overrides.optionMarket || c.optionMarket.address,
-    overrides.optionMarketPricer || c.optionMarketPricer.address,
-    overrides.optionGreekCache || c.optionGreekCache.address,
-    overrides.optionToken || c.optionToken.address,
-    overrides.liquidityPool || c.liquidityPool.address,
-    overrides.blackScholes || c.blackScholes.address,
-  );
-
-  await c.optionMarketSafeSlippage.init(
-    overrides.optionMarket || c.optionMarket.address,
-    overrides.optionToken || c.optionToken.address,
-    overrides.quoteToken || c.test.quoteToken.address,
-    overrides.baseToken || c.test.baseToken.address,
-  );
-
-  await c.optionToken.init(overrides.optionMarket || c.optionMarket.address);
-
-  await c.test.synthetix.init(
-    overrides.lyraGlobals || c.lyraGlobals.address,
-    overrides.quoteToken || c.test.quoteToken.address,
-  );
-
-  await c.test.synthetix.addBaseAsset(
-    toBytes32('sETH'),
-    overrides.baseToken || c.test.baseToken.address,
-    c.optionMarket.address,
-  );
-
-  await c.test.collateralShort.init(
-    overrides.lyraGlobals || c.lyraGlobals.address,
-    overrides.quoteToken || c.test.quoteToken.address,
-  );
-
-  await c.test.collateralShort.addBaseAsset(
-    toBytes32('sETH'),
-    overrides.baseToken || c.test.baseToken.address,
-    c.optionMarket.address,
-  );
-
-  await c.test.baseToken.permitMint(c.test.synthetix.address, true);
-  await c.test.baseToken.permitMint(c.test.collateralShort.address, true);
-  await c.test.quoteToken.permitMint(c.test.synthetix.address, true);
-  await c.test.quoteToken.permitMint(c.test.collateralShort.address, true);
+    if (!testSystem.snx.isMockSNX) {
+      newTestSystem.snx.snxMockAggregator = testSystem.snx.snxMockAggregator;
+      newTestSystem.snx.ethMockAggregator = testSystem.snx.ethMockAggregator;
+      newTestSystem.snx.btcMockAggregator = testSystem.snx.btcMockAggregator;
+      newTestSystem.snx.collateralManager = testSystem.snx.collateralManager;
+      newTestSystem.snx.systemSettings = testSystem.snx.systemSettings;
+    }
+    // Assigning market
+    newTestSystem.optionMarket = marketTestSystem.optionMarket;
+    newTestSystem.optionMarketPricer = marketTestSystem.optionMarketPricer;
+    newTestSystem.optionGreekCache = marketTestSystem.optionGreekCache;
+    newTestSystem.optionToken = marketTestSystem.optionToken;
+    newTestSystem.GWAVOracle = marketTestSystem.GWAVOracle;
+    newTestSystem.liquidityPool = marketTestSystem.liquidityPool;
+    newTestSystem.liquidityToken = marketTestSystem.liquidityToken;
+    newTestSystem.basicLiquidityCounter = marketTestSystem.basicLiquidityCounter;
+    newTestSystem.shortCollateral = marketTestSystem.shortCollateral;
+    newTestSystem.poolHedger = marketTestSystem.poolHedger;
+  }
+  return newTestSystem;
 }
 
-export async function deployTestSystem(deployer: Signer): Promise<TestSystemContractsType> {
-  const c = await deployTestContracts(deployer);
-  await initTestSystem(c, {});
-  return c;
+export async function linkEventTracer(testSystem: TestSystemContractsType) {
+  // currently only supports default sETH market
+
+  // Lyra
+  tracer.nameTags[testSystem.synthetixAdapter.address] = 'synthetixAdapter';
+  tracer.nameTags[testSystem.optionMarket.address] = 'optionMarket';
+  tracer.nameTags[testSystem.optionMarketPricer.address] = 'optionMarketPricer';
+  tracer.nameTags[testSystem.optionGreekCache.address] = 'optionGreekCache';
+  tracer.nameTags[testSystem.liquidityPool.address] = 'liquidityPool';
+  tracer.nameTags[testSystem.liquidityToken.address] = 'liquidityToken';
+  tracer.nameTags[testSystem.optionToken.address] = 'optionToken';
+  tracer.nameTags[testSystem.shortCollateral.address] = 'shortCollateral';
+  tracer.nameTags[testSystem.optionMarketViewer.address] = 'optionMarketViewer';
+  tracer.nameTags[testSystem.poolHedger.address] = 'poolHedger';
+
+  // Synthetix
+  tracer.nameTags[testSystem.snx.exchangeRates.address] = 'exchangeRates';
+  tracer.nameTags[testSystem.snx.exchanger.address] = 'exchanger';
+  tracer.nameTags[testSystem.snx.quoteAsset.address] = 'quoteAsset';
+  tracer.nameTags[testSystem.snx.baseAsset.address] = 'baseAsset';
+  tracer.nameTags[testSystem.snx.synthetix.address] = 'synthetix';
+  tracer.nameTags[testSystem.snx.collateralShort.address] = 'collateralShort';
+  tracer.nameTags[testSystem.snx.addressResolver.address] = 'addressResolver';
 }

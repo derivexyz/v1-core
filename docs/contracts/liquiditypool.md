@@ -2,7 +2,7 @@
 
 Holds funds from LPs, which are used for the following purposes:
 
-1. Collateralising options sold by the OptionMarket.
+1. Collateralizing options sold by the OptionMarket.
 
 2. Buying options from users.
 
@@ -18,87 +18,133 @@ Holds funds from LPs, which are used for the following purposes:
 
 - `onlyShortCollateral()`
 
-- `reentrancyGuard()`
-
 ## Functions:
 
-- `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract ILiquidityCertificate _liquidityCertificate, contract IPoolHedger _poolHedger, contract IShortCollateral _shortCollateral, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter, contract OptionMarket _optionMarket, contract LiquidityToken _liquidityToken, contract OptionGreekCache _greekCache, contract PoolHedger _poolHedger, contract ShortCollateral _shortCollateral, contract ERC20 _quoteAsset, contract ERC20 _baseAsset) (external)`
 
-- `deposit(address beneficiary, uint256 amount) (external)`
+- `setLiquidityPoolParameters(struct LiquidityPool.LiquidityPoolParameters _lpParams) (external)`
 
-- `signalWithdrawal(uint256 certificateId) (external)`
+- `setPoolHedger(contract PoolHedger newPoolHedger) (external)`
 
-- `unSignalWithdrawal(uint256 certificateId) (external)`
+- `updateDelegateApproval() (external)`
 
-- `withdraw(address beneficiary, uint256 certificateId) (external)`
+- `initiateDeposit(address beneficiary, uint256 amountQuote) (external)`
 
-- `tokenPriceQuote() (public)`
+- `initiateWithdraw(address beneficiary, uint256 amountLiquidityToken) (external)`
 
-- `endRound() (external)`
+- `processDepositQueue(uint256 limit) (external)`
 
-- `startRound(uint256 lastMaxExpiryTimestamp, uint256 newMaxExpiryTimestamp) (external)`
+- `processWithdrawalQueue(uint256 limit) (external)`
 
-- `exchangeBase() (external)`
+- `_canProcess(uint256 initiatedTime, uint256 minimumDelay, bool isStale, uint256 entryId) (internal)`
 
-- `lockQuote(uint256 amount, uint256 freeCollatLiq) (external)`
+- `_getTotalBurnableTokens() (internal)`
 
-- `lockBase(uint256 amount, struct ILyraGlobals.ExchangeGlobals exchangeGlobals, struct ILiquidityPool.Liquidity liquidity) (external)`
+- `_getTokenPriceAndStale() (internal)`
 
-- `freeQuoteCollateral(uint256 amount) (external)`
+- `updateCBs() (external)`
 
-- `_freeQuoteCollateral(uint256 amount) (internal)`
+- `_updateCBs(struct LiquidityPool.Liquidity liquidity, uint256 maxIvVariance, uint256 maxSkewVariance, int256 optionValueDebt) (internal)`
 
-- `freeBase(uint256 amountBase) (external)`
+- `lockQuote(uint256 amount, uint256 freeLiquidity) (external)`
 
-- `sendPremium(address recipient, uint256 amount, uint256 freeCollatLiq) (external)`
+- `lockBase(uint256 amount, struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 freeLiquidity) (external)`
 
-- `boardLiquidation(uint256 amountQuoteFreed, uint256 amountQuoteReserved, uint256 amountBaseFreed) (external)`
+- `freeQuoteCollateralAndSendPremium(uint256 amountQuoteFreed, address recipient, uint256 totalCost, uint256 reservedFee) (external)`
 
-- `sendReservedQuote(address user, uint256 amount) (external)`
+- `liquidateBaseAndSendPremium(uint256 amountBase, address recipient, uint256 totalCost, uint256 reservedFee) (external)`
 
-- `getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity) (public)`
+- `sendShortPremium(address recipient, uint256 premium, uint256 freeLiquidity, uint256 reservedFee) (external)`
 
-- `getLiquidity(uint256 basePrice, contract ICollateralShort short) (public)`
+- `boardSettlement(uint256 insolventSettlements, uint256 amountQuoteFreed, uint256 amountQuoteReserved, uint256 amountBaseFreed) (external)`
 
-- `transferQuoteToHedge(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount) (external)`
+- `_freeQuoteCollateral(uint256 amountQuote) (internal)`
 
-- `_require(bool pass, enum ILiquidityPool.Error error) (internal)`
+- `_freeBase(uint256 amountBase) (internal)`
+
+- `_sendPremium(address recipient, uint256 recipientAmount, uint256 optionMarketPortion) (internal)`
+
+- `sendSettlementValue(address user, uint256 amount) (external)`
+
+- `reclaimInsolventQuote(uint256 spotPrice, uint256 amountQuote) (external)`
+
+- `reclaimInsolventBase(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amountBase) (external)`
+
+- `getTotalTokenSupply() (public)`
+
+- `getTokenPriceWithCheck() (external)`
+
+- `getTokenPrice() (public)`
+
+- `_getTokenPrice(uint256 totalPoolValue, uint256 totalTokenSupply) (internal)`
+
+- `getCurrentLiquidity() (external)`
+
+- `getLiquidity(uint256 spotPrice) (public)`
+
+- `getTotalPoolValueQuote() (public)`
+
+- `_getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity, int256 optionValueDebt) (internal)`
+
+- `_getLiquidity(uint256 basePrice, uint256 totalPoolValue, uint256 reservedTokenValue, uint256 usedDelta, uint256 pendingDelta) (internal)`
+
+- `exchangeBase() (public)`
+
+- `_maybeExchangeBase(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 freeLiquidity, bool revertBuyOnInsufficientFunds) (internal)`
+
+- `getLpParams() (external)`
+
+- `updateLiquidationInsolvency(uint256 insolvencyAmountInQuote) (external)`
+
+- `_getPoolHedgerLiquidity(uint256 basePrice) (internal)`
+
+- `transferQuoteToHedge(uint256 spotPrice, uint256 amount) (external)`
+
+- `_transferQuote(address to, uint256 amount) (internal)`
 
 ## Events:
 
-- `Deposit(address beneficiary, uint256 certificateId, uint256 amount)`
+- `LiquidityPoolParametersUpdated(struct LiquidityPool.LiquidityPoolParameters lpParams)`
 
-- `WithdrawSignaled(uint256 certificateId, uint256 tokensBurnableForRound)`
-
-- `WithdrawUnSignaled(uint256 certificateId, uint256 tokensBurnableForRound)`
-
-- `Withdraw(address beneficiary, uint256 certificateId, uint256 value, uint256 totalQuoteAmountReserved)`
-
-- `RoundEnded(uint256 maxExpiryTimestamp, uint256 pricePerToken, uint256 totalQuoteAmountReserved, uint256 totalTokenSupply)`
-
-- `RoundStarted(uint256 lastMaxExpiryTimestmp, uint256 newMaxExpiryTimestmp, uint256 totalTokenSupply, uint256 totalPoolValueQuote)`
+- `PoolHedgerUpdated(contract PoolHedger poolHedger)`
 
 - `QuoteLocked(uint256 quoteLocked, uint256 lockedCollateralQuote)`
 
-- `BaseLocked(uint256 baseLocked, uint256 lockedCollateralBase)`
-
 - `QuoteFreed(uint256 quoteFreed, uint256 lockedCollateralQuote)`
+
+- `BaseLocked(uint256 baseLocked, uint256 lockedCollateralBase)`
 
 - `BaseFreed(uint256 baseFreed, uint256 lockedCollateralBase)`
 
-- `BasePurchased(address caller, uint256 quoteSpent, uint256 amountPurchased)`
+- `BoardSettlement(uint256 insolventSettlementAmount, uint256 amountQuoteReserved, uint256 totalOutstandingSettlements)`
 
-- `BaseSold(address caller, uint256 amountSold, uint256 quoteReceived)`
+- `OutstandingSettlementSent(address user, uint256 amount, uint256 totalOutstandingSettlements)`
 
-- `CollateralLiquidated(uint256 totalAmountToLiquidate, uint256 baseFreed, uint256 quoteReceived, uint256 lockedCollateralBase)`
+- `BasePurchased(uint256 quoteSpent, uint256 baseReceived)`
 
-- `QuoteReserved(uint256 amountQuoteReserved, uint256 totalQuoteAmountReserved)`
+- `BaseSold(uint256 amountBase, uint256 quoteReceived)`
 
-- `ReservedQuoteSent(address user, uint256 amount, uint256 totalQuoteAmountReserved)`
+- `PremiumTransferred(address recipient, uint256 recipientPortion, uint256 optionMarketPortion)`
 
-- `CollateralQuoteTransferred(address recipient, uint256 amount)`
+- `QuoteTransferredToPoolHedger(uint256 amountQuote)`
 
-- `DeltaQuoteTransferredToPoolHedger(uint256 amount)`
+- `InsolventSettlementAmountUpdated(uint256 amountQuoteAdded, uint256 totalInsolventSettlementAmount)`
+
+- `DepositQueued(address depositor, address beneficiary, uint256 depositQueueId, uint256 amountDeposited, uint256 totalQueuedDeposits, uint256 timestamp)`
+
+- `DepositProcessed(address caller, address beneficiary, uint256 depositQueueId, uint256 amountDeposited, uint256 tokenPrice, uint256 tokensReceived, uint256 timestamp)`
+
+- `WithdrawProcessed(address caller, address beneficiary, uint256 withdrawalQueueId, uint256 amountWithdrawn, uint256 tokenPrice, uint256 quoteReceived, uint256 totalQueuedWithdrawals, uint256 timestamp)`
+
+- `WithdrawPartiallyProcessed(address caller, address beneficiary, uint256 withdrawalQueueId, uint256 amountWithdrawn, uint256 tokenPrice, uint256 quoteReceived, uint256 totalQueuedWithdrawals, uint256 timestamp)`
+
+- `WithdrawQueued(address withdrawer, address beneficiary, uint256 withdrawalQueueId, uint256 amountWithdrawn, uint256 totalQueuedWithdrawals, uint256 timestamp)`
+
+- `CircuitBreakerUpdated(uint256 newTimestamp, bool ivVarianceThresholdCrossed, bool skewVarianceThresholdCrossed, bool liquidityThresholdCrossed)`
+
+- `BoardSettlementCircuitBreakerUpdated(uint256 newTimestamp)`
+
+- `CheckingCanProcess(uint256 entryId, bool boardNotStale, bool validEntry, bool guardianBypass, bool delaysExpired)`
 
 ### Modifier `onlyPoolHedger()`
 
@@ -106,145 +152,123 @@ Holds funds from LPs, which are used for the following purposes:
 
 ### Modifier `onlyShortCollateral()`
 
-### Modifier `reentrancyGuard()`
+### Function `init(contract SynthetixAdapter _synthetixAdapter, contract OptionMarket _optionMarket, contract LiquidityToken _liquidityToken, contract OptionGreekCache _greekCache, contract PoolHedger _poolHedger, contract ShortCollateral _shortCollateral, contract ERC20 _quoteAsset, contract ERC20 _baseAsset) external`
 
-### Function `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract ILiquidityCertificate _liquidityCertificate, contract IPoolHedger _poolHedger, contract IShortCollateral _shortCollateral, contract IERC20 _quoteAsset, contract IERC20 _baseAsset, string[] _errorMessages) external`
+Initialise important addresses for the contract
 
-Initialize the contract.
+### Function `setLiquidityPoolParameters(struct LiquidityPool.LiquidityPoolParameters _lpParams) external`
 
-#### Parameters:
+set `LiquidityPoolParameteres`
 
-- `_optionMarket`: OptionMarket address
+### Function `setPoolHedger(contract PoolHedger newPoolHedger) external`
 
-- `_liquidityCertificate`: LiquidityCertificate address
+Swap out current PoolHedger with a new contract
 
-- `_quoteAsset`: Quote Asset address
+### Function `updateDelegateApproval() external`
 
-- `_poolHedger`: PoolHedger address
+In case of an update to the synthetix contract that revokes the approval
 
-### Function `deposit(address beneficiary, uint256 amount) → uint256 external`
+### Function `initiateDeposit(address beneficiary, uint256 amountQuote) external`
 
-Deposits liquidity to the pool. This assumes users have authorised access to the quote ERC20 token. Will add
+LP will send sUSD into the contract in return for LiquidityToken (representative of their share of the entire pool)
 
-any deposited amount to the queuedQuoteFunds until the next round begins.
+        to be given either instantly (if no live boards) or after the delay period passes (including CBs).
 
-#### Parameters:
-
-- `beneficiary`: The account that will receive the liquidity certificate.
-
-- `amount`: The amount of quoteAsset to deposit.
-
-### Function `signalWithdrawal(uint256 certificateId) external`
-
-Signals withdraw of liquidity from the pool.
-
-It is not possible to withdraw during a round, thus a user can signal to withdraw at the time the round ends.
+        This action is not reversible.
 
 #### Parameters:
 
-- `certificateId`: The id of the LiquidityCertificate.
+- `beneficiary`: will receive the LiquidityToken after the deposit is processed
 
-### Function `unSignalWithdrawal(uint256 certificateId) external`
+- `amountQuote`: is the amount of sUSD the LP is depositing
 
-Undo a previously signalled withdraw. Certificate owner must have signalled withdraw to call this function,
+### Function `initiateWithdraw(address beneficiary, uint256 amountLiquidityToken) external`
 
-and cannot unsignal if the token is already burnable or burnt.
+LP instantly burns LiquidityToken, signalling they wish to withdraw
 
-#### Parameters:
+        their share of the pool in exchange for quote, to be processed instantly (if no live boards)
 
-- `certificateId`: The id of the LiquidityCertificate.
+        or after the delay period passes (including CBs).
 
-### Function `withdraw(address beneficiary, uint256 certificateId) → uint256 value external`
-
-Withdraws liquidity from the pool.
-
-This requires tokens to have been locked until the round ending at the burnableAt timestamp has been ended.
-
-This will burn the liquidityCertificates and have the quote asset equivalent at the time be reserved for the users.
+        This action is not reversible.
 
 #### Parameters:
 
-- `beneficiary`: The account that will receive the withdrawn funds.
+- `beneficiary`: will receive sUSD after the withdrawal is processed
 
-- `certificateId`: The id of the LiquidityCertificate.
+- `is`: the amount of LiquidityToken the LP is withdrawing
 
-### Function `tokenPriceQuote() → uint256 public`
-
-Return Token value.
-
-This token price is only accurate within the period between rounds.
-
-### Function `endRound() external`
-
-Ends a round.
-
-Should only be called after all boards have been liquidated.
-
-### Function `startRound(uint256 lastMaxExpiryTimestamp, uint256 newMaxExpiryTimestamp) external`
-
-Starts a round. Can only be called by optionMarket contract when adding a board.
+### Function `processDepositQueue(uint256 limit) external`
 
 #### Parameters:
 
-- `lastMaxExpiryTimestamp`: The time at which the previous round ended.
+- `limit`: number of deposit tickets to process in a single transaction to avoid gas limit soft-locks
 
-- `newMaxExpiryTimestamp`: The time which funds will be locked until.
+### Function `processWithdrawalQueue(uint256 limit) external`
 
-### Function `exchangeBase() external`
+#### Parameters:
 
-external override function that will bring the base balance of this contract to match locked.base. This cannot be done
+- `limit`: number of withdrawal tickets to process in a single transaction to avoid gas limit soft-locks
 
-in the same transaction as locking the base, as exchanging on synthetix is too costly gas-wise.
+### Function `_canProcess(uint256 initiatedTime, uint256 minimumDelay, bool isStale, uint256 entryId) → bool internal`
 
-### Function `lockQuote(uint256 amount, uint256 freeCollatLiq) external`
+Checks if deposit/withdrawal ticket can be processed
 
-Locks quote when the system sells a put option.
+### Function `_getTotalBurnableTokens() → uint256 tokensBurnable, uint256 tokenPriceWithFee, bool stale internal`
+
+### Function `_getTokenPriceAndStale() → uint256 tokenPrice, bool, uint256 burnableLiquidity internal`
+
+### Function `updateCBs() external`
+
+Checks the ivVariance, skewVariance, and liquidity circuit breakers and triggers if necessary
+
+### Function `_updateCBs(struct LiquidityPool.Liquidity liquidity, uint256 maxIvVariance, uint256 maxSkewVariance, int256 optionValueDebt) internal`
+
+### Function `lockQuote(uint256 amount, uint256 freeLiquidity) external`
+
+Locks quote as collateral when the AMM sells a put option.
 
 #### Parameters:
 
 - `amount`: The amount of quote to lock.
 
-- `freeCollatLiq`: The amount of free collateral that can be locked.
+- `freeLiquidity`: The amount of free collateral that can be locked.
 
-### Function `lockBase(uint256 amount, struct ILyraGlobals.ExchangeGlobals exchangeGlobals, struct ILiquidityPool.Liquidity liquidity) external`
+### Function `lockBase(uint256 amount, struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 freeLiquidity) external`
 
-Purchases and locks base when the system sells a call option.
+Purchases and locks base as collateral when the AMM sells a call option.
 
 #### Parameters:
 
 - `amount`: The amount of baseAsset to purchase and lock.
 
-- `exchangeGlobals`: The exchangeGlobals.
+- `exchangeParams`: The exchangeParams.
 
-- `liquidity`: Free and used liquidity amounts.
+- `freeLiquidity`: The amount of free collateral that can be locked.
 
-### Function `freeQuoteCollateral(uint256 amount) external`
+### Function `freeQuoteCollateralAndSendPremium(uint256 amountQuoteFreed, address recipient, uint256 totalCost, uint256 reservedFee) external`
 
-Frees quote when the system buys back a put from the user.
+Frees quote collateral when user closes a long put
 
-#### Parameters:
-
-- `amount`: The amount of quote to free.
-
-### Function `_freeQuoteCollateral(uint256 amount) internal`
-
-Frees quote when the system buys back a put from the user.
+        and sends them the option premium
 
 #### Parameters:
 
-- `amount`: The amount of quote to free.
+- `amountQuoteFreed`: The amount of quote to free.
 
-### Function `freeBase(uint256 amountBase) external`
+### Function `liquidateBaseAndSendPremium(uint256 amountBase, address recipient, uint256 totalCost, uint256 reservedFee) external`
 
-Sells base and frees the proceeds of the sale.
+Frees/exchange base collateral when user closes a long call
+
+        and sends the option premium to the user
 
 #### Parameters:
 
-- `amountBase`: The amount of base to sell.
+- `amountBase`: The amount of base to free and exchange.
 
-### Function `sendPremium(address recipient, uint256 amount, uint256 freeCollatLiq) external`
+### Function `sendShortPremium(address recipient, uint256 premium, uint256 freeLiquidity, uint256 reservedFee) external`
 
-Sends the premium to a user who is selling an option to the pool.
+Sends premium user selling an option to the pool.
 
 The caller must be the OptionMarket.
 
@@ -252,29 +276,61 @@ The caller must be the OptionMarket.
 
 - `recipient`: The address of the recipient.
 
-- `amount`: The amount to transfer.
+- `premium`: The amount to transfer to the user.
 
-- `freeCollatLiq`: The amount of free collateral liquidity.
+- `freeLiquidity`: The amount of free collateral liquidity.
 
-### Function `boardLiquidation(uint256 amountQuoteFreed, uint256 amountQuoteReserved, uint256 amountBaseFreed) external`
+- `reservedFee`: The amount collected by the OptionMarket.
 
-Manages collateral at the time of board liquidation, also converting base sent here from the OptionMarket.
+### Function `boardSettlement(uint256 insolventSettlements, uint256 amountQuoteFreed, uint256 amountQuoteReserved, uint256 amountBaseFreed) external`
+
+Manages collateral at the time of board liquidation, also converting base received from shortCollateral.
 
 #### Parameters:
 
-- `amountQuoteFreed`: Total amount of base to convert to quote, including profits from short calls.
+- `insolventSettlements`: amount of AMM profits not paid by shortCollateral due to user insolvencies.
 
-- `amountQuoteReserved`: Total amount of base to convert to quote, including profits from short calls.
+- `amountQuoteFreed`: amount of AMM long put quote collateral that can be freed, including ITM profits.
 
-- `amountBaseFreed`: Total amount of collateral to liquidate.
+- `amountQuoteReserved`: amount of AMM quote reserved for long call/put ITM profits.
 
-### Function `sendReservedQuote(address user, uint256 amount) external`
+- `amountBaseFreed`: amount of AMM long call base collateral that can be freed, including ITM profits.
 
-Transfers reserved quote. Sends `amount` of reserved quoteAsset to `user`.
+### Function `_freeQuoteCollateral(uint256 amountQuote) internal`
 
-Requirements:
+Frees quote when the AMM buys back/settles a put from the user.
 
-- the caller must be `OptionMarket`.
+#### Parameters:
+
+- `amountQuote`: The amount of quote to free.
+
+### Function `_freeBase(uint256 amountBase) internal`
+
+Frees base when the AMM buys back/settles a call from the user.
+
+#### Parameters:
+
+- `amountBase`: The amount of base to free.
+
+### Function `_sendPremium(address recipient, uint256 recipientAmount, uint256 optionMarketPortion) internal`
+
+Sends the premium to a user who is closing a long or opening a short.
+
+The caller must be the OptionMarket.
+
+#### Parameters:
+
+- `recipient`: The address of the recipient.
+
+- `recipientAmount`: The amount to transfer to the recipient.
+
+- `optionMarketPortion`: The fee to transfer to the optionMarket.
+
+### Function `sendSettlementValue(address user, uint256 amount) external`
+
+Transfers long option settlement profits to `user`.
+
+The caller must be the ShortCollateral.
 
 #### Parameters:
 
@@ -282,106 +338,200 @@ Requirements:
 
 - `amount`: The amount of quote to send.
 
-### Function `getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity) → uint256 public`
+### Function `reclaimInsolventQuote(uint256 spotPrice, uint256 amountQuote) external`
 
-Returns the total pool value in quoteAsset.
+Claims AMM profits that were not paid during boardSettlement() due to
 
-#### Parameters:
+total quote insolvencies > total solvent quote collateral.
 
-- `basePrice`: The price of the baseAsset.
-
-- `usedDeltaLiquidity`: The amout of delta liquidity that has been used for hedging.
-
-### Function `getLiquidity(uint256 basePrice, contract ICollateralShort short) → struct ILiquidityPool.Liquidity public`
-
-Returns the used and free amounts for collateral and delta liquidity.
+The caller must be ShortCollateral.
 
 #### Parameters:
 
-- `basePrice`: The price of the base asset.
+- `spotPrice`: The current spot price of the base asset.
 
-- `short`: The address of the short contract.
+- `amountQuote`: The amount of quote to send to the LiquidityPool.
 
-### Function `transferQuoteToHedge(struct ILyraGlobals.ExchangeGlobals exchangeGlobals, uint256 amount) → uint256 external`
+### Function `reclaimInsolventBase(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 amountBase) external`
 
-Sends quoteAsset to the PoolHedger.
+Claims AMM profits that were not paid during boardSettlement() due to
 
-This function will transfer whatever free delta liquidity is available.
+total base insolvencies > total solvent base collateral.
+
+The caller must be ShortCollateral.
+
+#### Parameters:
+
+- `exchangeParams`: synthetix exchange parameters.
+
+- `amountBase`: The amount of base to send to the LiquidityPool.
+
+### Function `getTotalTokenSupply() → uint256 public`
+
+Get total number of oustanding LiquidityToken
+
+### Function `getTokenPriceWithCheck() → uint256 tokenPrice, bool isStale, uint256 circuitBreakerExpiry external`
+
+Get current pool token price and check if market conditions warrant an accurate token price
+
+#### Return Values:
+
+- tokenPrice price of token
+
+- isStale has global cache not been updated in a long time (if stale, greeks may be inaccurate)
+
+- circuitBreakerExpiry expiry timestamp of the CircuitBreaker (if not expired, greeks may be inaccurate)
+
+### Function `getTokenPrice() → uint256 public`
+
+Get current pool token price without market condition check
+
+### Function `_getTokenPrice(uint256 totalPoolValue, uint256 totalTokenSupply) → uint256 internal`
+
+### Function `getCurrentLiquidity() → struct LiquidityPool.Liquidity external`
+
+Returns the breakdown of current liquidity usage
+
+### Function `getLiquidity(uint256 spotPrice) → struct LiquidityPool.Liquidity public`
+
+Same return as `getCurrentLiquidity()` but with manual spot price
+
+### Function `getTotalPoolValueQuote() → uint256 public`
+
+Gets the current NAV
+
+### Function `_getTotalPoolValueQuote(uint256 basePrice, uint256 usedDeltaLiquidity, int256 optionValueDebt) → uint256 internal`
+
+### Function `_getLiquidity(uint256 basePrice, uint256 totalPoolValue, uint256 reservedTokenValue, uint256 usedDelta, uint256 pendingDelta) → struct LiquidityPool.Liquidity internal`
+
+Calculates breakdown of LP liquidity usage.
+
+     Accounts for quote needed to buy/lock base in cases where pool is not fully collateralized.
+
+     PendingLiquidity never exceeds freeLiquidity (before pendingLiquidity is considered).
+
+### Function `exchangeBase() public`
+
+Will buy/sell and lock/free base if pool is under or over collateralized
+
+### Function `_maybeExchangeBase(struct SynthetixAdapter.ExchangeParams exchangeParams, uint256 freeLiquidity, bool revertBuyOnInsufficientFunds) internal`
+
+Will skip base purchase/locking if snx spot fees exceed `lpParams.maxFeePaid`.
+
+### Function `getLpParams() → struct LiquidityPool.LiquidityPoolParameters external`
+
+returns the LiquidityPoolParameters struct
+
+### Function `updateLiquidationInsolvency(uint256 insolvencyAmountInQuote) external`
+
+updates `liquidationInsolventAmount` if liquidated position is insolveny
+
+### Function `_getPoolHedgerLiquidity(uint256 basePrice) → uint256 pendingDeltaLiquidity, uint256 usedDeltaLiquidity internal`
+
+get the total amount of quote used and pending for delta hedging
+
+#### Return Values:
+
+- pendingDeltaLiquidity The amount of liquidity reserved for delta hedging that hasn't occured yet
+
+- usedDeltaLiquidity The value of the current hedge position (long value OR collateral - short debt)
+
+### Function `transferQuoteToHedge(uint256 spotPrice, uint256 amount) → uint256 external`
+
+Sends quote to the PoolHedger.
+
+Transfer amount up to `pendingLiquidity + freeLiquidity`.
 
 The hedger must determine what to do with the amount received.
 
 #### Parameters:
 
-- `exchangeGlobals`: The exchangeGlobals.
+- `spotPrice`: The spot price of the base asset.
 
 - `amount`: The amount requested by the PoolHedger.
 
-### Function `_require(bool pass, enum ILiquidityPool.Error error) internal`
+### Function `_transferQuote(address to, uint256 amount) internal`
 
-### Event `Deposit(address beneficiary, uint256 certificateId, uint256 amount)`
+### Event `LiquidityPoolParametersUpdated(struct LiquidityPool.LiquidityPoolParameters lpParams)`
 
-Emitted when liquidity is deposited.
+Emitted whenever the pool paramters are updated
 
-### Event `WithdrawSignaled(uint256 certificateId, uint256 tokensBurnableForRound)`
+### Event `PoolHedgerUpdated(contract PoolHedger poolHedger)`
 
-Emitted when withdrawal is signaled.
-
-### Event `WithdrawUnSignaled(uint256 certificateId, uint256 tokensBurnableForRound)`
-
-Emitted when a withdrawal is unsignaled.
-
-### Event `Withdraw(address beneficiary, uint256 certificateId, uint256 value, uint256 totalQuoteAmountReserved)`
-
-Emitted when liquidity is withdrawn.
-
-### Event `RoundEnded(uint256 maxExpiryTimestamp, uint256 pricePerToken, uint256 totalQuoteAmountReserved, uint256 totalTokenSupply)`
-
-Emitted when a round ends.
-
-### Event `RoundStarted(uint256 lastMaxExpiryTimestmp, uint256 newMaxExpiryTimestmp, uint256 totalTokenSupply, uint256 totalPoolValueQuote)`
-
-Emitted when a round starts.
+Emitted whenever the poolHedger address is modified
 
 ### Event `QuoteLocked(uint256 quoteLocked, uint256 lockedCollateralQuote)`
 
 Emitted when quote is locked.
 
-### Event `BaseLocked(uint256 baseLocked, uint256 lockedCollateralBase)`
-
-Emitted when base is locked.
-
 ### Event `QuoteFreed(uint256 quoteFreed, uint256 lockedCollateralQuote)`
 
 Emitted when quote is freed.
+
+### Event `BaseLocked(uint256 baseLocked, uint256 lockedCollateralBase)`
+
+Emitted when base is locked.
 
 ### Event `BaseFreed(uint256 baseFreed, uint256 lockedCollateralBase)`
 
 Emitted when base is freed.
 
-### Event `BasePurchased(address caller, uint256 quoteSpent, uint256 amountPurchased)`
+### Event `BoardSettlement(uint256 insolventSettlementAmount, uint256 amountQuoteReserved, uint256 totalOutstandingSettlements)`
 
-Emitted when base is purchased.
+Emitted when a board is settled.
 
-### Event `BaseSold(address caller, uint256 amountSold, uint256 quoteReceived)`
-
-Emitted when base is sold.
-
-### Event `CollateralLiquidated(uint256 totalAmountToLiquidate, uint256 baseFreed, uint256 quoteReceived, uint256 lockedCollateralBase)`
-
-Emitted when collateral is liquidated. This combines LP profit from short calls and freeing base collateral
-
-### Event `QuoteReserved(uint256 amountQuoteReserved, uint256 totalQuoteAmountReserved)`
-
-Emitted when quote is reserved.
-
-### Event `ReservedQuoteSent(address user, uint256 amount, uint256 totalQuoteAmountReserved)`
+### Event `OutstandingSettlementSent(address user, uint256 amount, uint256 totalOutstandingSettlements)`
 
 Emitted when reserved quote is sent.
 
-### Event `CollateralQuoteTransferred(address recipient, uint256 amount)`
+### Event `BasePurchased(uint256 quoteSpent, uint256 baseReceived)`
 
-Emitted when collatQuote is transferred.
+Emitted whenever quote is exchanged for base
 
-### Event `DeltaQuoteTransferredToPoolHedger(uint256 amount)`
+### Event `BaseSold(uint256 amountBase, uint256 quoteReceived)`
 
-Emitted when quote is transferred to hedge.
+Emitted whenever base is exchanged for quote
+
+### Event `PremiumTransferred(address recipient, uint256 recipientPortion, uint256 optionMarketPortion)`
+
+Emitted whenever premium is sent to a trader closing their position
+
+### Event `QuoteTransferredToPoolHedger(uint256 amountQuote)`
+
+Emitted whenever quote is sent to the PoolHedger
+
+### Event `InsolventSettlementAmountUpdated(uint256 amountQuoteAdded, uint256 totalInsolventSettlementAmount)`
+
+Emitted whenever the insolvent settlement amount is updated (settlement and excess)
+
+### Event `DepositQueued(address depositor, address beneficiary, uint256 depositQueueId, uint256 amountDeposited, uint256 totalQueuedDeposits, uint256 timestamp)`
+
+Emitted whenever a user deposits and enters the queue.
+
+### Event `DepositProcessed(address caller, address beneficiary, uint256 depositQueueId, uint256 amountDeposited, uint256 tokenPrice, uint256 tokensReceived, uint256 timestamp)`
+
+Emitted whenever a deposit gets processed. Note, can be processed without being queued.
+
+ QueueId of 0 indicates it was not queued.
+
+### Event `WithdrawProcessed(address caller, address beneficiary, uint256 withdrawalQueueId, uint256 amountWithdrawn, uint256 tokenPrice, uint256 quoteReceived, uint256 totalQueuedWithdrawals, uint256 timestamp)`
+
+Emitted whenever a deposit gets processed. Note, can be processed without being queued.
+
+ QueueId of 0 indicates it was not queued.
+
+### Event `WithdrawPartiallyProcessed(address caller, address beneficiary, uint256 withdrawalQueueId, uint256 amountWithdrawn, uint256 tokenPrice, uint256 quoteReceived, uint256 totalQueuedWithdrawals, uint256 timestamp)`
+
+### Event `WithdrawQueued(address withdrawer, address beneficiary, uint256 withdrawalQueueId, uint256 amountWithdrawn, uint256 totalQueuedWithdrawals, uint256 timestamp)`
+
+### Event `CircuitBreakerUpdated(uint256 newTimestamp, bool ivVarianceThresholdCrossed, bool skewVarianceThresholdCrossed, bool liquidityThresholdCrossed)`
+
+Emitted whenever the CB timestamp is updated
+
+### Event `BoardSettlementCircuitBreakerUpdated(uint256 newTimestamp)`
+
+Emitted whenever the CB timestamp is updated from a board settlement
+
+### Event `CheckingCanProcess(uint256 entryId, bool boardNotStale, bool validEntry, bool guardianBypass, bool delaysExpired)`
+
+Emitted whenever a queue item is checked for the ability to be processed

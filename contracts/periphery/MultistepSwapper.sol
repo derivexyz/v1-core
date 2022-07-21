@@ -1,11 +1,10 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.7.6;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.9;
 
 import "../interfaces/ISwapRouter.sol";
 import "../interfaces/ISynthetix.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 
 /**
  * @title SwapRouter
@@ -20,7 +19,10 @@ contract MultistepSwapper is ReentrancyGuard {
   mapping(IERC20 => bool) internal approved;
   uint internal constant UINT_MAX = ~uint(0);
 
-  enum SwapType {Synthetix, Uniswap}
+  enum SwapType {
+    Synthetix,
+    Uniswap
+  }
 
   struct Swap {
     SwapType swapType;
@@ -35,7 +37,7 @@ contract MultistepSwapper is ReentrancyGuard {
    * @dev Initialize the contract.
    */
   function init(ISwapRouter _swapRouter, ISynthetix _synthetix) external {
-    require(!initialized, "contract already initialized");
+    require(!initialized, "already initialized");
     swapRouter = _swapRouter;
     synthetix = _synthetix;
     initialized = true;
@@ -65,7 +67,7 @@ contract MultistepSwapper is ReentrancyGuard {
     tokenIn.transferFrom(msg.sender, address(this), amountIn);
     amountOut = amountIn;
     bytes memory path = "";
-    for (uint i = 0; i < swaps.length; i++) {
+    for (uint i = 0; i < swaps.length; ++i) {
       require(uint(swaps[i].swapType) <= uint(SwapType.Uniswap), "Invalid swaptype");
       if (swaps[i].swapType == SwapType.Synthetix) {
         amountOut = synthetix.exchange(tokenInCurrencyKey, amountOut, swaps[i].tokenOutCurrencyKey);

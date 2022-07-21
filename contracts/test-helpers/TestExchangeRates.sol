@@ -1,15 +1,15 @@
 //SPDX-License-Identifier:MIT
-pragma solidity >=0.7.6;
+pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../synthetix/Owned.sol";
 
 import "../interfaces/IExchangeRates.sol";
 
-contract TestExchangeRates is IExchangeRates, Ownable {
-  mapping(bytes32 => uint) rates;
-  mapping(bytes32 => bool) isInvalid;
+contract TestExchangeRates is IExchangeRates, Owned {
+  mapping(bytes32 => uint) public rates;
+  mapping(bytes32 => bool) public isInvalid;
 
-  constructor() Ownable() {}
+  constructor() Owned() {}
 
   function rateAndInvalid(bytes32 currencyKey) external view override returns (uint rate, bool invalid) {
     rate = rates[currencyKey];

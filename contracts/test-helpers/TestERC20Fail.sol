@@ -1,15 +1,20 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.7.6;
+pragma solidity 0.8.9;
 
 import "./TestERC20.sol";
 
 contract TestERC20Fail is TestERC20 {
-  bool forceFail = false;
+  bool public forceFail = false;
+  bool public maxApproveFail = false;
 
   constructor(string memory name_, string memory symbol_) TestERC20(name_, symbol_) {}
 
   function setForceFail(bool _forceFail) external {
     forceFail = _forceFail;
+  }
+
+  function setMaxApprovalFail(bool _maxApproveFail) external {
+    maxApproveFail = _maxApproveFail;
   }
 
   // This isn't ideal, it hits the coverage cases, but should only return false if the transfer fails. Would
@@ -30,5 +35,16 @@ contract TestERC20Fail is TestERC20 {
       return false;
     }
     return super.transferFrom(sender, receiver, amount);
+  }
+
+  function approve(address spender, uint amount) external override returns (bool) {
+    if (forceFail) {
+      return false;
+    }
+
+    if (maxApproveFail && amount == type(uint).max) {
+      return false;
+    }
+    return super.approve(spender, amount);
   }
 }

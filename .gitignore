@@ -1,12 +1,18 @@
+dist/
+.lyra/
 .idea/
+.openzeppelin
 node_modules/
 **/.DS_Store
 #Hardhat files
 cache/
-cache-ovm/
+out/
 artifacts/
-artifacts-ovm/
 typechain/
+artifacts-ovm/
+typechain-types/
 coverage/
 coverage.json
 .env.private*
+yarn-error.log
+

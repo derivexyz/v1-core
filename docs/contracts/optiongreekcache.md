@@ -1,10 +1,16 @@
 # `OptionGreekCache`
 
-Aggregates the netDelta and netStdVega of the OptionMarket by iterating over current listings.
+Aggregates the netDelta and netStdVega of the OptionMarket by iterating over current strikes, using gwav vols.
 
-Needs to be called by an external override actor as it's not feasible to do all the computation during the trade flow and
+Needs to be called by an external actor as it's not feasible to do all the computation during the trade flow and
 
 because delta/vega change over time and with movements in asset price and volatility.
+
+All stored values in this contract are the aggregate of the trader's perspective. So values need to be inverted
+
+to get the LP's perspective
+
+Also handles logic for figuring out minimal collateral requirements for shorts.
 
 ## Modifiers:
 
@@ -14,273 +20,265 @@ because delta/vega change over time and with movements in asset price and volati
 
 ## Functions:
 
-- `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionMarketPricer _optionPricer, contract IBlackScholes _blackScholes) (external)`
+- `init(contract SynthetixAdapter _synthetixAdapter, contract OptionMarket _optionMarket, address _optionMarketPricer) (external)`
 
-- `setStaleCacheParameters(uint256 _staleUpdateDuration, uint256 _priceScalingPeriod, uint256 _maxAcceptablePercent, uint256 _minAcceptablePercent) (external)`
+- `setGreekCacheParameters(struct OptionGreekCache.GreekCacheParameters _greekCacheParams) (external)`
 
-- `addBoard(uint256 boardId) (external)`
+- `setForceCloseParameters(struct OptionGreekCache.ForceCloseParameters _forceCloseParams) (external)`
+
+- `setMinCollateralParameters(struct OptionGreekCache.MinCollateralParameters _minCollatParams) (external)`
+
+- `addBoard(struct OptionMarket.OptionBoard board, struct OptionMarket.Strike[] strikes) (external)`
 
 - `removeBoard(uint256 boardId) (external)`
 
-- `setBoardIv(uint256 boardId, uint256 newIv) (external)`
+- `addStrikeToBoard(uint256 boardId, uint256 strikeId, uint256 strikePrice, uint256 skew) (external)`
 
-- `setListingSkew(uint256 listingId, uint256 newSkew) (external)`
+- `setBoardIv(uint256 boardId, uint256 newBaseIv) (external)`
 
-- `addListingToBoard(uint256 boardId, uint256 listingId) (external)`
+- `setStrikeSkew(uint256 strikeId, uint256 newSkew) (external)`
 
-- `_addNewListingToListingCache(struct IOptionGreekCache.OptionBoardCache boardCache, uint256 listingId) (internal)`
+- `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 strikeId, uint256 strikePrice, uint256 skew) (internal)`
 
-- `getOptionMarketListing(uint256 listingId) (internal)`
+- `updateStrikeExposureAndGetPrice(struct OptionMarket.Strike strike, struct OptionMarket.TradeParameters trade, uint256 iv, uint256 skew, bool isPostCutoff) (external)`
 
-- `updateAllStaleBoards() (external)`
+- `_updateStrikeExposureAndGetPrice(struct OptionGreekCache.StrikeCache strikeCache, struct OptionGreekCache.OptionBoardCache boardCache, struct OptionMarket.TradeParameters trade, int256 newCallExposure, int256 newPutExposure) (internal)`
 
-- `_updateAllStaleBoards(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals) (internal)`
+- `getPriceForForceClose(struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, uint256 expiry, uint256 newVol, bool isPostCutoff) (public)`
 
-- `updateBoardCachedGreeks(uint256 boardCacheId) (external)`
+- `_getGWAVVolWithOverride(uint256 boardId, uint256 strikeId, uint256 overrideIvPeriod, uint256 overrideSkewPeriod) (internal)`
 
-- `_updateBoardCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 boardCacheId) (internal)`
+- `getMinCollateral(enum OptionMarket.OptionType optionType, uint256 strikePrice, uint256 expiry, uint256 spotPrice, uint256 amount) (external)`
 
-- `updateListingCacheAndGetPrice(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 listingCacheId, int256 newCallExposure, int256 newPutExposure, uint256 iv, uint256 skew) (external)`
+- `getShockVol(uint256 timeToMaturity) (public)`
 
-- `_updateListingCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, struct IOptionGreekCache.OptionListingCache listingCache, struct IOptionGreekCache.OptionBoardCache boardCache, bool returnCallPrice, int256 newCallExposure, int256 newPutExposure) (internal)`
+- `updateBoardCachedGreeks(uint256 boardId) (public)`
 
-- `isGlobalCacheStale() (external)`
+- `_updateBoardCachedGreeks(uint256 spotPrice, uint256 boardId) (internal)`
 
-- `_isGlobalCacheStale(uint256 spotPrice) (internal)`
-
-- `isBoardCacheStale(uint256 boardCacheId) (external)`
-
-- `_isBoardCacheStale(uint256 boardCacheId, uint256 spotPrice) (internal)`
-
-- `isUpdatedAtTimeStale(uint256 updatedAt) (internal)`
-
-- `isPriceMoveAcceptable(uint256 pastPrice, uint256 currentPrice, uint256 timeToExpirySec) (internal)`
-
-- `_updateBoardLastUpdatedAt(struct IOptionGreekCache.OptionBoardCache boardCache) (internal)`
+- `_updateStrikeCachedGreeks(struct OptionGreekCache.StrikeCache strikeCache, struct OptionGreekCache.OptionBoardCache boardCache, uint256 spotPrice, uint256 navGWAVvol) (internal)`
 
 - `_updateGlobalLastUpdatedAt() (internal)`
 
-- `timeToMaturitySeconds(uint256 expiry) (internal)`
+- `_updateBoardIv(struct OptionGreekCache.OptionBoardCache boardCache, uint256 newIv) (internal)`
 
-- `getSecondsTo(uint256 fromTime, uint256 toTime) (internal)`
+- `_updateStrikeSkew(struct OptionGreekCache.OptionBoardCache boardCache, struct OptionGreekCache.StrikeCache strikeCache, uint256 newSkew) (internal)`
 
-- `getCurrentPrice() (internal)`
+- `_updateMaxIvVariance() (internal)`
+
+- `_updateStrikeSkewVariance(struct OptionGreekCache.StrikeCache strikeCache) (internal)`
+
+- `_updateBoardIvVariance(struct OptionGreekCache.OptionBoardCache boardCache) (internal)`
+
+- `_updateMaxSkewVariance(struct OptionGreekCache.OptionBoardCache boardCache) (internal)`
+
+- `isGlobalCacheStale(uint256 spotPrice) (external)`
+
+- `isBoardCacheStale(uint256 boardId) (external)`
+
+- `_isPriceMoveAcceptable(uint256 pastPrice, uint256 currentPrice) (internal)`
+
+- `_isUpdatedAtTimeStale(uint256 updatedAt) (internal)`
 
 - `getGlobalNetDelta() (external)`
 
+- `getGlobalOptionValue() (external)`
+
+- `getBoardGreeksView(uint256 boardId) (external)`
+
+- `getStrikeCache(uint256 strikeId) (external)`
+
+- `getOptionBoardCache(uint256 boardId) (external)`
+
+- `getGlobalCache() (external)`
+
+- `getIvGWAV(uint256 boardId, uint256 secondsAgo) (external)`
+
+- `getSkewGWAV(uint256 strikeId, uint256 secondsAgo) (external)`
+
+- `getGreekCacheParams() (external)`
+
+- `getForceCloseParams() (external)`
+
+- `getMinCollatParams() (external)`
+
+- `_getParity(uint256 strikePrice, uint256 spot, enum OptionMarket.OptionType optionType) (internal)`
+
+- `_timeToMaturitySeconds(uint256 expiry) (internal)`
+
+- `_getSecondsTo(uint256 fromTime, uint256 toTime) (internal)`
+
+- `_min(uint256 x, uint256 y) (internal)`
+
+- `_max(uint256 x, uint256 y) (internal)`
+
 ## Events:
 
-- `StaleCacheParametersUpdated(uint256 priceScalingPeriod, uint256 minAcceptablePercent, uint256 maxAcceptablePercent, uint256 staleUpdateDuration)`
+- `GreekCacheParametersSet(struct OptionGreekCache.GreekCacheParameters params)`
 
-- `ListingGreeksUpdated(uint256 listingId, int256 callDelta, int256 putDelta, uint256 vega, uint256 price, uint256 baseIv, uint256 skew)`
+- `ForceCloseParametersSet(struct OptionGreekCache.ForceCloseParameters params)`
 
-- `ListingExposureUpdated(uint256 listingId, int256 newCallExposure, int256 newPutExposure)`
+- `MinCollateralParametersSet(struct OptionGreekCache.MinCollateralParameters params)`
 
-- `GlobalCacheUpdated(int256 netDelta, int256 netStdVega)`
+- `StrikeCacheUpdated(struct OptionGreekCache.StrikeCache strikeCache)`
+
+- `BoardCacheUpdated(struct OptionGreekCache.OptionBoardCache boardCache)`
+
+- `GlobalCacheUpdated(struct OptionGreekCache.GlobalCache globalCache)`
+
+- `BoardCacheRemoved(uint256 boardId)`
+
+- `StrikeCacheRemoved(uint256 strikeId)`
+
+- `BoardIvUpdated(uint256 boardId, uint256 newIv, uint256 globalMaxIvVariance)`
+
+- `StrikeSkewUpdated(uint256 strikeId, uint256 newSkew, uint256 globalMaxSkewVariance)`
 
 ### Modifier `onlyOptionMarket()`
 
 ### Modifier `onlyOptionMarketPricer()`
 
-### Function `init(contract ILyraGlobals _globals, contract IOptionMarket _optionMarket, contract IOptionMarketPricer _optionPricer, contract IBlackScholes _blackScholes) external`
+### Function `init(contract SynthetixAdapter _synthetixAdapter, contract OptionMarket _optionMarket, address _optionMarketPricer) external`
 
 Initialize the contract.
 
 #### Parameters:
 
-- `_globals`: LyraGlobals address
+- `_synthetixAdapter`: SynthetixAdapter address
 
 - `_optionMarket`: OptionMarket address
 
-- `_optionPricer`: OptionMarketPricer address
+- `_optionMarketPricer`: OptionMarketPricer address
 
-### Function `setStaleCacheParameters(uint256 _staleUpdateDuration, uint256 _priceScalingPeriod, uint256 _maxAcceptablePercent, uint256 _minAcceptablePercent) external`
+### Function `setGreekCacheParameters(struct OptionGreekCache.GreekCacheParameters _greekCacheParams) external`
 
-### Function `addBoard(uint256 boardId) external`
+### Function `setForceCloseParameters(struct OptionGreekCache.ForceCloseParameters _forceCloseParams) external`
 
-Adds a new OptionBoardCache.
+### Function `setMinCollateralParameters(struct OptionGreekCache.MinCollateralParameters _minCollatParams) external`
 
-Called by the OptionMarket when an OptionBoard is added.
+### Function `addBoard(struct OptionMarket.OptionBoard board, struct OptionMarket.Strike[] strikes) external`
+
+Adds a new OptionBoardCache
+
+Called by the OptionMarket whenever a new OptionBoard is added
 
 #### Parameters:
 
-- `boardId`: The id of the OptionBoard.
+- `board`: The new OptionBoard
+
+- `strikes`: The new Strikes for the given board
 
 ### Function `removeBoard(uint256 boardId) external`
 
-Removes an OptionBoardCache.
+After board settlement, remove an OptionBoardCache. Called by OptionMarket
 
-Called by the OptionMarket when an OptionBoard is liquidated.
+### Function `addStrikeToBoard(uint256 boardId, uint256 strikeId, uint256 strikePrice, uint256 skew) external`
 
-#### Parameters:
+Add a new strike to a given boardCache. Only callable by OptionMarket.
 
-- `boardId`: The id of the OptionBoard.
+### Function `setBoardIv(uint256 boardId, uint256 newBaseIv) external`
 
-### Function `setBoardIv(uint256 boardId, uint256 newIv) external`
+Updates an OptionBoard's baseIv. Only callable by OptionMarket.
 
-modifies an OptionBoard's baseIv
+### Function `setStrikeSkew(uint256 strikeId, uint256 newSkew) external`
 
-#### Parameters:
-
-- `boardId`: The id of the OptionBoard.
-
-- `newIv`: The baseIv of the OptionBoard.
-
-### Function `setListingSkew(uint256 listingId, uint256 newSkew) external`
-
-modifies an OptionListing's skew
+Updates a Strike's skew. Only callable by OptionMarket.
 
 #### Parameters:
 
-- `listingId`: The id of the OptionListing.
+- `strikeId`: The id of the Strike
 
-- `newSkew`: The skew of the OptionListing.
+- `newSkew`: The new skew of the given Strike
 
-### Function `addListingToBoard(uint256 boardId, uint256 listingId) external`
+### Function `_addNewStrikeToStrikeCache(struct OptionGreekCache.OptionBoardCache boardCache, uint256 strikeId, uint256 strikePrice, uint256 skew) internal`
 
-Add a new listing to the listingCaches and the listingId to the boardCache
+Adds a new strike to a given board, initialising the skew GWAV
 
-#### Parameters:
+### Function `updateStrikeExposureAndGetPrice(struct OptionMarket.Strike strike, struct OptionMarket.TradeParameters trade, uint256 iv, uint256 skew, bool isPostCutoff) → struct OptionGreekCache.TradePricing pricing external`
 
-- `boardId`: The id of the Board
+During a trade, updates the exposure of the given strike, board and global state. Computes the cost of the
 
-- `listingId`: The id of the OptionListing.
+trade and returns it to the OptionMarketPricer.
 
-### Function `_addNewListingToListingCache(struct IOptionGreekCache.OptionBoardCache boardCache, uint256 listingId) internal`
+#### Return Values:
 
-Add a new listing to the listingCaches
+- pricing The final price of the option to be paid for by the user. This could use marketVol or shockVol,
 
-#### Parameters:
+depending on the trade executed.
 
-- `boardCache`: The OptionBoardCache object the listing is being added to
+### Function `_updateStrikeExposureAndGetPrice(struct OptionGreekCache.StrikeCache strikeCache, struct OptionGreekCache.OptionBoardCache boardCache, struct OptionMarket.TradeParameters trade, int256 newCallExposure, int256 newPutExposure) → struct OptionGreekCache.TradePricing pricing internal`
 
-- `listingId`: The id of the OptionListing.
+Updates the exposure of the strike and computes the market black scholes price
 
-### Function `getOptionMarketListing(uint256 listingId) → struct IOptionMarket.OptionListing internal`
+### Function `getPriceForForceClose(struct OptionMarket.TradeParameters trade, struct OptionMarket.Strike strike, uint256 expiry, uint256 newVol, bool isPostCutoff) → uint256 optionPrice, uint256 forceCloseVol public`
 
-Retrieves an OptionListing from the OptionMarket.
-
-#### Parameters:
-
-- `listingId`: The id of the OptionListing.
-
-### Function `updateAllStaleBoards() → int256 external`
-
-Updates all stale boards.
-
-### Function `_updateAllStaleBoards(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals) internal`
-
-Updates all stale boards.
+Calculate price paid by the user to forceClose an options position
 
 #### Parameters:
 
-- `greekCacheGlobals`: The GreekCacheGlobals.
+- `trade`: TradeParameter as defined in OptionMarket
 
-### Function `updateBoardCachedGreeks(uint256 boardCacheId) external`
+- `strike`: strikes details (including total exposure)
 
-Updates the cached greeks for an OptionBoardCache.
+- `expiry`: expiry of option
 
-#### Parameters:
+- `newVol`: volatility post slippage as determined in `OptionTokOptionMarketPriceren.ivImpactForTrade()`
 
-- `boardCacheId`: The id of the OptionBoardCache.
+- `isPostCutoff`: flag for whether order is closer to expiry than postCutoff param.
 
-### Function `_updateBoardCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 boardCacheId) internal`
+#### Return Values:
 
-Updates the cached greeks for an OptionBoardCache.
+- optionPrice premium to charge for close order (excluding fees added in OptionMarketPricer)
 
-#### Parameters:
+- forceCloseVol volatility used to calculate optionPrice
 
-- `greekCacheGlobals`: The GreekCacheGlobals.
+### Function `_getGWAVVolWithOverride(uint256 boardId, uint256 strikeId, uint256 overrideIvPeriod, uint256 overrideSkewPeriod) → uint256 gwavVol internal`
 
-- `boardCacheId`: The id of the OptionBoardCache.
+### Function `getMinCollateral(enum OptionMarket.OptionType optionType, uint256 strikePrice, uint256 expiry, uint256 spotPrice, uint256 amount) → uint256 minCollateral external`
 
-### Function `updateListingCacheAndGetPrice(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, uint256 listingCacheId, int256 newCallExposure, int256 newPutExposure, uint256 iv, uint256 skew) → struct IOptionMarketPricer.Pricing external`
-
-Updates the OptionListingCache to reflect the new exposure.
+Gets minimum collateral requirement for the specified option
 
 #### Parameters:
 
-- `greekCacheGlobals`: The GreekCacheGlobals.
+- `optionType`: The option type
 
-- `listingCacheId`: The id of the OptionListingCache.
+- `strikePrice`: The strike price of the option
 
-- `newCallExposure`: The new call exposure of the OptionListing.
+- `expiry`: The expiry of the option
 
-- `newPutExposure`: The new put exposure of the OptionListing.
+- `spotPrice`: The price of the underlying asset
 
-- `iv`: The new iv of the OptionBoardCache.
+- `amount`: The size of the option
 
-- `skew`: The new skew of the OptionListingCache.
+### Function `getShockVol(uint256 timeToMaturity) → uint256 public`
 
-### Function `_updateListingCachedGreeks(struct ILyraGlobals.GreekCacheGlobals greekCacheGlobals, struct IOptionGreekCache.OptionListingCache listingCache, struct IOptionGreekCache.OptionBoardCache boardCache, bool returnCallPrice, int256 newCallExposure, int256 newPutExposure) → struct IOptionMarketPricer.Pricing pricing internal`
+Gets shock vol (Vol used to compute the minimum collateral requirements for short positions)
 
-Updates an OptionListingCache.
+### Function `updateBoardCachedGreeks(uint256 boardId) public`
 
-#### Parameters:
+Updates the cached greeks for an OptionBoardCache used to calculate:
 
-- `greekCacheGlobals`: The GreekCacheGlobals.
+- trading fees
 
-- `listingCache`: The OptionListingCache.
+- aggregate AMM option value
 
-- `boardCache`: The OptionBoardCache.
-
-- `returnCallPrice`: If true, return the call price, otherwise return the put price.
-
-### Function `isGlobalCacheStale() → bool external`
-
-Checks if the GlobalCache is stale.
-
-### Function `_isGlobalCacheStale(uint256 spotPrice) → bool internal`
-
-Checks if the GlobalCache is stale.
+- net delta exposure for proper hedging
 
 #### Parameters:
 
-- `spotPrice`: The price of the baseAsset.
+- `boardId`: The id of the OptionBoardCache.
 
-### Function `isBoardCacheStale(uint256 boardCacheId) → bool external`
+### Function `_updateBoardCachedGreeks(uint256 spotPrice, uint256 boardId) internal`
 
-Checks if the OptionBoardCache is stale.
+### Function `_updateStrikeCachedGreeks(struct OptionGreekCache.StrikeCache strikeCache, struct OptionGreekCache.OptionBoardCache boardCache, uint256 spotPrice, uint256 navGWAVvol) internal`
 
-#### Parameters:
+Updates an StrikeCache using TWAP.
 
-- `boardCacheId`: The OptionBoardCache id.
-
-### Function `_isBoardCacheStale(uint256 boardCacheId, uint256 spotPrice) → bool internal`
-
-Checks if the OptionBoardCache is stale.
+Assumes board has been zeroed out before updating all strikes at once
 
 #### Parameters:
 
-- `boardCacheId`: The OptionBoardCache id.
-
-- `spotPrice`: The price of the baseAsset.
-
-### Function `isUpdatedAtTimeStale(uint256 updatedAt) → bool internal`
-
-Checks if `updatedAt` is stale.
-
-#### Parameters:
-
-- `updatedAt`: The time of the last update.
-
-### Function `isPriceMoveAcceptable(uint256 pastPrice, uint256 currentPrice, uint256 timeToExpirySec) → bool internal`
-
-Check if the price move of an asset is acceptable given the time to expiry.
-
-#### Parameters:
-
-- `pastPrice`: The previous price.
-
-- `currentPrice`: The current price.
-
-- `timeToExpirySec`: The time to expiry in seconds.
-
-### Function `_updateBoardLastUpdatedAt(struct IOptionGreekCache.OptionBoardCache boardCache) internal`
-
-Updates `lastUpdatedAt` for an OptionBoardCache.
-
-#### Parameters:
+- `strikeCache`: The StrikeCache.
 
 - `boardCache`: The OptionBoardCache.
 
@@ -288,34 +286,136 @@ Updates `lastUpdatedAt` for an OptionBoardCache.
 
 Updates global `lastUpdatedAt`.
 
-### Function `timeToMaturitySeconds(uint256 expiry) → uint256 internal`
+### Function `_updateBoardIv(struct OptionGreekCache.OptionBoardCache boardCache, uint256 newIv) internal`
 
-Returns time to maturity for a given expiry.
+updates baseIv for a given board, updating the baseIv gwav
 
-### Function `getSecondsTo(uint256 fromTime, uint256 toTime) → uint256 internal`
+### Function `_updateStrikeSkew(struct OptionGreekCache.OptionBoardCache boardCache, struct OptionGreekCache.StrikeCache strikeCache, uint256 newSkew) internal`
 
-Returns the difference in seconds between two dates.
+updates skew for a given strike, updating the skew gwav
 
-### Function `getCurrentPrice() → uint256 internal`
+### Function `_updateMaxIvVariance() internal`
 
-Get the price of the baseAsset for the OptionMarket.
+updates maxIvVariance across all boards
+
+### Function `_updateStrikeSkewVariance(struct OptionGreekCache.StrikeCache strikeCache) internal`
+
+updates skewVariance for strike, used to trigger CBs and charge varianceFees
+
+### Function `_updateBoardIvVariance(struct OptionGreekCache.OptionBoardCache boardCache) internal`
+
+updates ivVariance for board, used to trigger CBs and charge varianceFees
+
+### Function `_updateMaxSkewVariance(struct OptionGreekCache.OptionBoardCache boardCache) internal`
+
+updates maxSkewVariance for the board and across all strikes
+
+### Function `isGlobalCacheStale(uint256 spotPrice) → bool external`
+
+returns `true` if even one board not updated within `staleUpdateDuration` or
+
+        if spot price moves up/down beyond `acceptablePriceMovement`
+
+### Function `isBoardCacheStale(uint256 boardId) → bool external`
+
+returns `true` if board not updated within `staleUpdateDuration` or
+
+        if spot price moves up/down beyond `acceptablePriceMovement`
+
+### Function `_isPriceMoveAcceptable(uint256 pastPrice, uint256 currentPrice) → bool internal`
+
+Check if the price move of base asset renders the cache stale.
+
+#### Parameters:
+
+- `pastPrice`: The previous price.
+
+- `currentPrice`: The current price.
+
+### Function `_isUpdatedAtTimeStale(uint256 updatedAt) → bool internal`
+
+Checks if board updated within `staleUpdateDuration`.
+
+#### Parameters:
+
+- `updatedAt`: The time of the last update.
 
 ### Function `getGlobalNetDelta() → int256 external`
 
-Get the current cached global netDelta value.
+Get the current cached global netDelta exposure.
 
-### Event `StaleCacheParametersUpdated(uint256 priceScalingPeriod, uint256 minAcceptablePercent, uint256 maxAcceptablePercent, uint256 staleUpdateDuration)`
+### Function `getGlobalOptionValue() → int256 external`
 
-Emitted when stale cache parameters are updated.
+Get the current global net option value
 
-### Event `ListingGreeksUpdated(uint256 listingId, int256 callDelta, int256 putDelta, uint256 vega, uint256 price, uint256 baseIv, uint256 skew)`
+### Function `getBoardGreeksView(uint256 boardId) → struct OptionGreekCache.BoardGreeksView external`
 
-Emitted when the cache of an OptionListing is updated.
+Returns the BoardGreeksView struct given a specific boardId
 
-### Event `ListingExposureUpdated(uint256 listingId, int256 newCallExposure, int256 newPutExposure)`
+### Function `getStrikeCache(uint256 strikeId) → struct OptionGreekCache.StrikeCache external`
 
-Emitted when the exposure of an OptionListing is updated.
+Get StrikeCache given a specific strikeId
 
-### Event `GlobalCacheUpdated(int256 netDelta, int256 netStdVega)`
+### Function `getOptionBoardCache(uint256 boardId) → struct OptionGreekCache.OptionBoardCache external`
 
-Emitted when the GlobalCache is updated.
+Get OptionBoardCache given a specific boardId
+
+### Function `getGlobalCache() → struct OptionGreekCache.GlobalCache external`
+
+Get the global cache
+
+### Function `getIvGWAV(uint256 boardId, uint256 secondsAgo) → uint256 ivGWAV external`
+
+Returns ivGWAV for a given boardId and GWAV time interval
+
+### Function `getSkewGWAV(uint256 strikeId, uint256 secondsAgo) → uint256 skewGWAV external`
+
+Returns skewGWAV for a given strikeId and GWAV time interval
+
+### Function `getGreekCacheParams() → struct OptionGreekCache.GreekCacheParameters external`
+
+Get the GreekCacheParameters
+
+### Function `getForceCloseParams() → struct OptionGreekCache.ForceCloseParameters external`
+
+Get the ForceCloseParamters
+
+### Function `getMinCollatParams() → struct OptionGreekCache.MinCollateralParameters external`
+
+Get the MinCollateralParamters
+
+### Function `_getParity(uint256 strikePrice, uint256 spot, enum OptionMarket.OptionType optionType) → uint256 parity internal`
+
+Calculate option payout on expiry given a strikePrice, spot on expiry and optionType.
+
+### Function `_timeToMaturitySeconds(uint256 expiry) → uint256 internal`
+
+Returns time to maturity for a given expiry.
+
+### Function `_getSecondsTo(uint256 fromTime, uint256 toTime) → uint256 internal`
+
+Returns the difference in seconds between two dates.
+
+### Function `_min(uint256 x, uint256 y) → uint256 internal`
+
+### Function `_max(uint256 x, uint256 y) → uint256 internal`
+
+### Event `GreekCacheParametersSet(struct OptionGreekCache.GreekCacheParameters params)`
+
+### Event `ForceCloseParametersSet(struct OptionGreekCache.ForceCloseParameters params)`
+
+### Event `MinCollateralParametersSet(struct OptionGreekCache.MinCollateralParameters params)`
+
+### Event `StrikeCacheUpdated(struct OptionGreekCache.StrikeCache strikeCache)`
+
+### Event `BoardCacheUpdated(struct OptionGreekCache.OptionBoardCache boardCache)`
+
+### Event `GlobalCacheUpdated(struct OptionGreekCache.GlobalCache globalCache)`
+
+### Event `BoardCacheRemoved(uint256 boardId)`
+
+### Event `StrikeCacheRemoved(uint256 strikeId)`
+
+### Event `BoardIvUpdated(uint256 boardId, uint256 newIv, uint256 globalMaxIvVariance)`
+
+### Event `StrikeSkewUpdated(uint256 strikeId, uint256 newSkew, uint256 globalMaxSkewVariance)`

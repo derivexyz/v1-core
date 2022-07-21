@@ -11,10 +11,12 @@
     {
       "files": "*.sol",
       "options": {
+        "printWidth": 120,
+        "tabWidth": 2,
+        "useTabs": false,
         "bracketSpacing": false,
         "explicitTypes": "never",
-        "singleQuote": false,
-        "printWidth": 120
+        "singleQuote": false
       }
     }
   ]
