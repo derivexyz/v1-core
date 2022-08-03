@@ -20,7 +20,7 @@ describe('Basic Testing - KeeperHelper', () => {
   });
 
   it('cannot be init twice', async () => {
-    await expect(hre.f.c.keeperHelper.init(ZERO_ADDRESS, ZERO_ADDRESS)).revertedWith(
+    await expect(hre.f.c.keeperHelper.init(ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS)).revertedWith(
       'Keeper Helper: already initialized',
     );
   });

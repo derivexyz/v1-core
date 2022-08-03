@@ -720,7 +720,11 @@ export async function initMarketTestSystem(
 
   await marketTestSystem.keeperHelper
     .connect(deployer)
-    .init(marketTestSystem.optionMarket.address, marketTestSystem.shortCollateral.address);
+    .init(
+      marketTestSystem.optionMarket.address,
+      marketTestSystem.shortCollateral.address,
+      marketTestSystem.optionGreekCache.address,
+    );
 
   ////////////////////////
   // Lyra Market Params //

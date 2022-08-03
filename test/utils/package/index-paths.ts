@@ -16,6 +16,18 @@ export const lyraContractPaths = [
   '@lyrafinance/protocol/contracts/ShortCollateral.sol',
   '@lyrafinance/protocol/contracts/SynthetixAdapter.sol',
 
+  // interfaces
+  '@lyrafinance/protocol/contracts/interfaces/ILiquidityPool.sol',
+  '@lyrafinance/protocol/contracts/interfaces/IOptionGreekCache.sol',
+  '@lyrafinance/protocol/contracts/interfaces/IOptionMarket.sol',
+  '@lyrafinance/protocol/contracts/interfaces/IOptionMarketPricer.sol',
+  '@lyrafinance/protocol/contracts/interfaces/IOptionToken.sol',
+  '@lyrafinance/protocol/contracts/interfaces/IGWAVOracle.sol',
+  '@lyrafinance/protocol/contracts/interfaces/ICurve.sol',
+  '@lyrafinance/protocol/contracts/interfaces/ILyraRegistry.sol',
+  '@lyrafinance/protocol/contracts/interfaces/IShortCollateral.sol',
+  '@lyrafinance/protocol/contracts/interfaces/ISynthetixAdapter.sol',
+
   // periphery
   '@lyrafinance/protocol/contracts/periphery/LyraAdapter.sol',
   '@lyrafinance/protocol/contracts/periphery/BasicFeeCounter.sol',

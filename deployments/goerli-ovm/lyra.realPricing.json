@@ -3,123 +3,123 @@
     "TestFaucet": {
       "contractName": "TestFaucet",
       "source": "TestFaucet",
-      "address": "0xf0034BD49d548095B7A369bFb456680D3188Cf16",
-      "txn": "0xc64c2bac176cd8362a479080e17ac36db8f3e9332a34c213274d0630a1ff50a2",
-      "blockNumber": 4247909
+      "address": "0x1AccB23202AEe179C8Ac69300A72D6bbc687e069",
+      "txn": "0xdd6891b1ea56aca2c61e33d7cb4ba75aa6b0aae381393538a10f05491d53b7ba",
+      "blockNumber": 173864
     },
     "SynthetixAdapter": {
       "contractName": "SynthetixAdapter",
       "source": "SynthetixAdapter",
-      "address": "0xa64a15E39e717663bB6885a536FA9741DEe08daC",
-      "txn": "0xf94e217cc5aa1a09ddb455c483d1521c9c5aa00c7860ee7850e3db3cf823c7f0",
-      "blockNumber": 4247980
+      "address": "0x573fB076C3D17F23a9B5008678e9194A6a2F8914",
+      "txn": "0xc82e83f62bc456d67d91c031c3fcfc62a6d3202d0b1abe1eaeffee05ea82dbaf",
+      "blockNumber": 173882
     },
     "OptionMarketViewer": {
       "contractName": "OptionMarketViewer",
       "source": "OptionMarketViewer",
-      "address": "0xe5f9B585F3c2fc3E497283CeC078C5FDC10d4B13",
-      "txn": "0x9505ab168616047de4339bf5bf10b16b84902d56e249b210840461bab50385a6",
-      "blockNumber": 4247984
+      "address": "0xd21Ea15DA6732BcFaC3f9390F0A37A1f4ce37acc",
+      "txn": "0x102de8757f3a067b7bfc06290a500e5ac802bc0435069673ad4b12862c30e7a1",
+      "blockNumber": 173883
     },
     "OptionMarketWrapper": {
       "contractName": "OptionMarketWrapper",
       "source": "OptionMarketWrapper",
-      "address": "0xd24955B7AB75FaD5542769105d862FC76A76AF7f",
-      "txn": "0xe042cad115a825c324de8cd731b73134272e8b932166577a1a36c04904f9fd39",
-      "blockNumber": 4247992
+      "address": "0xDbE4b2b5989CcE85EFE28125aB33E1411b639f22",
+      "txn": "0xfbea402fb7c68eb79430a0b3fc1d18586280adb0ec3b81ee9ba6ea924335ba5d",
+      "blockNumber": 173886
     },
     "LyraRegistry": {
       "contractName": "LyraRegistry",
       "source": "LyraRegistry",
-      "address": "0x91a1AB0DDa247CE6D8666c5A49c183f8978a9797",
-      "txn": "0x10371983971170dbfe051984927fecfbd9bed80e935969b2500688819c3576c6",
-      "blockNumber": 4247997
+      "address": "0xabc92540e5D728C7E3E0f53dB2516cf4b8D5B854",
+      "txn": "0xa82231695fa645bb633e3542db48d62fd624e0a93b8ef46f898d642160323b49",
+      "blockNumber": 173889
     },
     "GWAV": {
       "contractName": "GWAV",
       "source": "GWAV",
-      "address": "0x7f5131e07218C744571A352D93629B345e0E33b5",
-      "txn": "0x4e930ff6e9ead6a4683859fd8fccb4d8ed5d62c58f00885a4ea83d66917c6298",
-      "blockNumber": 4248003
+      "address": "0x4871a771404656933bD9d3B7D1A4DFf8787c6f54",
+      "txn": "0x53679578fa5993904f3fe1fd928b8c36a74ff52711de3582eabe7ff4497ca1a7",
+      "blockNumber": 173892
     },
     "BlackScholes": {
       "contractName": "BlackScholes",
       "source": "BlackScholes",
-      "address": "0xaB3390FBA66C75d125be94BBcc5b63088585146F",
-      "txn": "0x2f2ab416540d86ede9f58c2cafb10add31524b9ed05c6262a387c36012373729",
-      "blockNumber": 4248018
+      "address": "0x3AE81479aBEeA6b451e070F955eDDFf1Bc70C00b",
+      "txn": "0x313ca7ef8ceaca8c2eaf4215e92e7dbc8f5fb1546dee133cabbbd5a337dad43b",
+      "blockNumber": 173894
     },
     "markets": {
       "sETH": {
         "OptionMarket": {
           "contractName": "OptionMarket",
           "source": "OptionMarket",
-          "address": "0xDc06D81A68948544A6B453Df55CcD172061c6d6e",
-          "txn": "0x8058a4df9bed1c1015fde13a460ea32a7adeedf094bf08aab93a8063829ea80a",
-          "blockNumber": 4248177
+          "address": "0x797383C9B6Ab622767912C26b7675259A875F449",
+          "txn": "0x758b01c8db5555741476436ce90bf6ea8932d94006d63da2fb7387084c35b9fe",
+          "blockNumber": 174039
         },
         "OptionMarketPricer": {
           "contractName": "OptionMarketPricer",
           "source": "OptionMarketPricer",
-          "address": "0x1befd6C0A8cbD5A8309467925d06A0de5e9ba088",
-          "txn": "0x6b1bec8fa2cca21bacad28e690acacb0b94d01cf548d6cb07f717e12e1551d13",
-          "blockNumber": 4248183
+          "address": "0xF936C0beAf7736fbcb59340A85213aFa9c502795",
+          "txn": "0x8001f18a00c1fe931bad325744f3809594f9ff438b965c16ca8d7fcbd23e874c",
+          "blockNumber": 174040
         },
         "OptionGreekCache": {
           "contractName": "OptionGreekCache",
           "source": "OptionGreekCache",
-          "address": "0x01c5edB5118Fb259633AC37F57e171ec8790632b",
-          "txn": "0xdb1be7bccb725db5a88db815f6c161da1654103d2e81ff5daee0ba02f76bce16",
-          "blockNumber": 4248188
+          "address": "0xE069Ace4b8AD82FdCB50c815D86fb03bb5973D15",
+          "txn": "0x3418f30fba8ce32dc02e13d03137f67efd211076303e449cc1a39086f176bf68",
+          "blockNumber": 174043
         },
         "OptionToken": {
           "contractName": "OptionToken",
           "source": "OptionToken",
-          "address": "0x17977c2220b9964618aD6eE2Ef3839d9478D69bB",
-          "txn": "0xdf31385c8dc0151403e21cbd9e94ed7e50acf3bdc437faedee580cda6aed34da",
-          "blockNumber": 4248201
+          "address": "0x8D754CBf938a6A637bA8f1D62120f2AE07FC1fBb",
+          "txn": "0x0d3f9a8c3612a30ec3b83cdd4abf38c7903204f86c752d912ab7691f72057a19",
+          "blockNumber": 174046
         },
         "LiquidityPool": {
           "contractName": "LiquidityPool",
           "source": "LiquidityPool",
-          "address": "0xceF7a176b8C2e831faf74EBaCe186a0F9d62247d",
-          "txn": "0x33adff76d93b71502a1ae3180212acdb3dfe4416d51a012f2205ad7ad2c51da5",
-          "blockNumber": 4248211
+          "address": "0xa496a0be734427e8ccEEa6E8a4E2c6d2c489966f",
+          "txn": "0x92ba02e22e3c6320528871392a0c706864c2f90ceb8386f507a05498a6f1d619",
+          "blockNumber": 174049
         },
         "LiquidityToken": {
           "contractName": "LiquidityToken",
           "source": "LiquidityToken",
-          "address": "0xA79e74D3769c4862Cb2BB4e327a711dfc6052045",
-          "txn": "0xcf4a5ab100ddde8958801ecbd8cf7b10afc74f9d3322526e642af3637dde310c",
-          "blockNumber": 4248230
+          "address": "0x697E36c3c9C27638F8927669a9322774E7E34D07",
+          "txn": "0xb6ec3c8a98ce08c0286ddcc73cd79e17479d54f3fcf8ce4daa3ae2f9028bb1ab",
+          "blockNumber": 174051
         },
         "ShortCollateral": {
           "contractName": "ShortCollateral",
           "source": "ShortCollateral",
-          "address": "0xd949E0b9ce7eC825fF866002edAC9731A2403999",
-          "txn": "0xe12e7caad47e67dfcdcc8be56333844fc1df050c80c401747083954dfb3a7e08",
-          "blockNumber": 4248251
+          "address": "0x2eF0D9eD9EE711d5Df40De258F6E54be6DCA4192",
+          "txn": "0x82dd55634360bb9cdfd8e77dc046f74a474b2dc2ed028cd88850ebde4fc0bcbe",
+          "blockNumber": 174054
         },
         "ShortPoolHedger": {
           "contractName": "ShortPoolHedger",
           "source": "ShortPoolHedger",
-          "address": "0x6c6E0F313eFff923a379A8B8EEFF5D9Ab7F839f5",
-          "txn": "0x1b8d9e5655dc5cdd7644c2b53cfcb29f9343f3dc84879981530abb55fe552376",
-          "blockNumber": 4248258
+          "address": "0x4Dca235131E967DCb6F165F08F0998B3D2836951",
+          "txn": "0x2fd3178dc0b9319b5b79f1ff539119c5d472d56da0b93130e73f1bd37ad8d644",
+          "blockNumber": 174057
         },
         "KeeperHelper": {
           "contractName": "KeeperHelper",
           "source": "KeeperHelper",
-          "address": "0x8049275800348EA5707dDEDEC15619d6355164a1",
-          "txn": "0x19b59066d59d5d09b635b0f5466cc9acaf95ca0bff48a01856e3803d6d51416e",
-          "blockNumber": 4619372
+          "address": "0xB9f9f4AA06B0CD4ed32d0ad7B4eC12F1d7eFb2bF",
+          "txn": "0x1a2d18c186418c75668cc62cb9686124b871409ebe34f755447da759f51d2a38",
+          "blockNumber": 174060
         },
         "GWAVOracle": {
           "contractName": "GWAVOracle",
           "source": "GWAVOracle",
-          "address": "0x19cA335A07A02896F9a6dd0a406B1C38E31f17B3",
-          "txn": "0x4d3436b9cc4ac1f498d6f9566a0616d00c38bdcbaba5c3dd47efb9b271b072e1",
-          "blockNumber": 4248270
+          "address": "0x598d975c0d899cBBC6B9DADDAaf432C366178C45",
+          "txn": "0xbf56b5a12bf1060d780a5bf1ed5eeca821f6974a94fd94209b32faa07bebeef2",
+          "blockNumber": 174063
         }
       }
     }

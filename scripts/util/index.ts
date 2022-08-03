@@ -204,9 +204,8 @@ export type SystemParams = {
   Seed: SeedParams;
 };
 
-export type AllowedNetworks = 'kovan-ovm' | 'mainnet-ovm' | 'local';
-export const allNetworks = ['kovan-ovm', 'mainnet-ovm', 'local'];
-export const ovmNetworks = ['kovan-ovm', 'mainnet-ovm'];
+export type AllowedNetworks = 'goerli-ovm' | 'mainnet-ovm' | 'local';
+export const allNetworks = ['goerli-ovm', 'mainnet-ovm', 'local'];
 
 export type DeploymentParams = {
   network: AllowedNetworks;
@@ -214,36 +213,3 @@ export type DeploymentParams = {
   realPricing: boolean;
   deployer: Wallet;
 };
-
-export function isOvm(network: string) {
-  return ovmNetworks.includes(network);
-}
-
-export async function getDeployer(envVars: EnvVars) {
-  const provider = new ethers.providers.JsonRpcProvider(envVars.RPC_URL);
-
-  if (envVars.GAS_PRICE) {
-    provider.getGasPrice = async () => {
-      return ethers.BigNumber.from(envVars.GAS_PRICE);
-    };
-  }
-  if (envVars.GAS_LIMIT) {
-    provider.estimateGas = async () => {
-      return ethers.BigNumber.from(envVars.GAS_LIMIT);
-    };
-  }
-  return new ethers.Wallet(envVars.PRIVATE_KEY, provider);
-}
-
-export function getSelectedNetwork(): AllowedNetworks {
-  const network = process.env.HARDHAT_NETWORK;
-  if (network === 'kovan-ovm' || network === 'mainnet-ovm' || network === 'local') {
-    return network;
-  }
-  throw Error('Invalid network ' + network);
-}
-
-export async function getAltSigner(envVars: any) {
-  const provider = new ethers.providers.JsonRpcProvider(envVars.RPC_URL);
-  return new ethers.Wallet(envVars.ALT_SIGNER_KEY, provider);
-}

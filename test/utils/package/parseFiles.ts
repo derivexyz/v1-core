@@ -76,8 +76,8 @@ export type lyraDeployment = {
 export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
   const deploymentParams = {
     network: network,
-    mockSnx: network == 'mainnet-ovm' ? false : true,
-    realPricing: network == 'kovan-ovm' ? true : false,
+    mockSnx: network != 'mainnet-ovm',
+    realPricing: network == 'goerli-ovm',
     deployer: {} as Wallet,
   };
 
@@ -100,8 +100,8 @@ export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
 export function getMarketDeploys(network: AllowedNetworks, market: string): LyraMarket {
   const deploymentParams = {
     network: network,
-    mockSnx: network == 'mainnet-ovm' ? false : true,
-    realPricing: network == 'kovan-ovm' ? true : false,
+    mockSnx: network != 'mainnet-ovm',
+    realPricing: network != 'goerli-ovm',
     deployer: {} as Wallet,
   };
 
@@ -215,8 +215,8 @@ export function assignMarketArtifact(
 export function getLyraDeploymentDir(network: AllowedNetworks) {
   if (network == 'local') {
     return resolve(path.join('.lyra', 'local', 'lyra.json'));
-  } else if (network == 'kovan-ovm') {
-    return path.join(__dirname, '../../../deployments/', 'kovan-ovm', 'lyra.realPricing.json');
+  } else if (network == 'goerli-ovm') {
+    return path.join(__dirname, '../../../deployments/', 'goerli-ovm', 'lyra.realPricing.json');
   } else if (network == 'mainnet-ovm') {
     try {
       return path.join(__dirname, '../../../deployments/', 'mainnet-ovm', 'lyra.json');
@@ -229,8 +229,8 @@ export function getLyraDeploymentDir(network: AllowedNetworks) {
 export function getSNXDeploymentDir(network: AllowedNetworks) {
   if (network == 'local') {
     return resolve(path.join('.lyra', 'local', 'synthetix.mocked.json'));
-  } else if (network == 'kovan-ovm') {
-    return path.join(__dirname, '../../../deployments/', 'kovan-ovm', 'synthetix.mocked.json');
+  } else if (network == 'goerli-ovm') {
+    return path.join(__dirname, '../../../deployments/', 'goerli-ovm', 'synthetix.mocked.json');
   } else if (network == 'mainnet-ovm') {
     try {
       return path.join(__dirname, '../../../deployments/', 'mainnet-ovm', 'synthetix.json');

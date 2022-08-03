@@ -220,7 +220,7 @@ export async function deployContract(
   if (!(global as any).pending) {
     (global as any).pending = [];
   }
-  (global as any).pending.push(etherscanVerification(contract.address, [...args]));
+  // (global as any).pending.push(etherscanVerification(contract.address, [...args]));
   return contract;
 }
 
