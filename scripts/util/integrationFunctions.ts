@@ -5,14 +5,15 @@ import { fastForward } from '../../test/utils/evm';
 import { expect } from '../../test/utils/testSetup';
 import { TradeInputParametersStruct } from '../../typechain-types/OptionMarket';
 import { currentTime, fromBN, getEventArgs, MAX_UINT128, OptionType } from './web3utils';
+import { TestSystemContractsTypeGMX } from '../../test/utils/deployTestSystemGMX';
 
 export function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export async function openPosition(
-  testSystem: TestSystemContractsType,
-  market: string,
+  testSystem: TestSystemContractsType | TestSystemContractsTypeGMX,
+  _: string,
   openParams: {
     strikeId: BigNumberish;
     optionType: OptionType;
@@ -32,7 +33,7 @@ export async function openPosition(
 }
 
 export async function closePosition(
-  testSystem: TestSystemContractsType,
+  testSystem: TestSystemContractsType | TestSystemContractsTypeGMX,
   market: string,
   closeParams: {
     strikeId: BigNumberish;
@@ -109,6 +110,11 @@ export async function printDelta(testSystem: TestSystemContractsType) {
   console.log(`Current hedged position: ${fromBN(await testSystem.poolHedger.getCurrentHedgedNetDelta())} `);
 }
 
+export async function printFuturesDelta(testSystem: TestSystemContractsType) {
+  console.log(`Expected hedge position: ${fromBN(await testSystem.poolHedger.getCappedExpectedHedge())} `);
+  console.log(`Current hedged position: ${fromBN(await testSystem.poolHedger.getCurrentHedgedNetDelta())} `);
+}
+
 export async function updateCaches(testSystem: TestSystemContractsType) {
   const liveBoards = await testSystem.optionMarket.getLiveBoards();
   for (const boardId of liveBoards) {
@@ -119,4 +125,44 @@ export async function updateCaches(testSystem: TestSystemContractsType) {
 export async function expectHedgeEqualTo(testSystem: TestSystemContractsType, expectedHedge: BigNumber) {
   const currentHedgedNetDelta = await testSystem.poolHedger.getCurrentHedgedNetDelta();
   expect(assertCloseToPercentage(currentHedgedNetDelta, expectedHedge));
+}
+
+export async function expectFuturesHedgeEqualTo(testSystem: TestSystemContractsType, expectedHedge: BigNumber) {
+  const currentHedgedNetDelta = await testSystem.poolHedger.getCurrentHedgedNetDelta();
+  expect(assertCloseToPercentage(currentHedgedNetDelta, expectedHedge));
+}
+
+export async function forceUpdateFuturesHedgePosition(testSetup: TestSystemContractsType) {
+  const expectedHedge = await testSetup.poolHedger.getCappedExpectedHedge();
+  const currentHedge = await testSetup.poolHedger.getCurrentHedgedNetDelta();
+
+  if (expectedHedge.eq(currentHedge)) {
+    console.log(`Expected == current`);
+    return;
+  }
+
+  const interactionDelay = (await testSetup.poolHedger.getPoolHedgerParams()).interactionDelay;
+
+  // TODO: why would this work.
+  // tries to hedge immediatley after
+  if (currentHedge.eq(0)) {
+    console.log('expected hedge', expectedHedge);
+    if (!expectedHedge.eq(0)) {
+      console.log('hedges delta with out adjusting timestamp');
+      await testSetup.poolHedger.hedgeDelta();
+    }
+    await printFuturesDelta(testSetup);
+    return;
+  }
+
+  const lastInteraction = await testSetup.poolHedger.lastInteraction();
+  const currentBlockTime = BigNumber.from(await currentTime());
+  const timeSinceLastUpdate = currentBlockTime.sub(lastInteraction);
+
+  if (timeSinceLastUpdate.lt(interactionDelay)) {
+    console.log('fast forwarding');
+    await fastForward(interactionDelay.sub(timeSinceLastUpdate).add(3).toNumber());
+  }
+
+  await testSetup.poolHedger.hedgeDelta();
 }

@@ -1,37 +1,7 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
-interface AggregatorV2V3Interface {
-  function latestRound() external view returns (uint);
-
-  function decimals() external view returns (uint8);
-
-  function getAnswer(uint roundId) external view returns (int);
-
-  function getTimestamp(uint roundId) external view returns (uint);
-
-  function getRoundData(uint80 _roundId)
-    external
-    view
-    returns (
-      uint80 roundId,
-      int answer,
-      uint startedAt,
-      uint updatedAt,
-      uint80 answeredInRound
-    );
-
-  function latestRoundData()
-    external
-    view
-    returns (
-      uint80 roundId,
-      int answer,
-      uint startedAt,
-      uint updatedAt,
-      uint80 answeredInRound
-    );
-}
+import "../interfaces/IAggregatorV3.sol";
 
 contract MockAggregatorV2V3 is AggregatorV2V3Interface {
   uint80 public roundId = 0;
@@ -64,11 +34,7 @@ contract MockAggregatorV2V3 is AggregatorV2V3Interface {
     });
   }
 
-  function setLatestAnswerWithRound(
-    int answer,
-    uint timestamp,
-    uint80 _roundId
-  ) external {
+  function setLatestAnswerWithRound(int answer, uint timestamp, uint80 _roundId) external {
     roundId = _roundId;
     entries[roundId] = Entry({
       roundId: roundId,
@@ -91,17 +57,7 @@ contract MockAggregatorV2V3 is AggregatorV2V3Interface {
     keyDecimals = _decimals;
   }
 
-  function latestRoundData()
-    external
-    view
-    returns (
-      uint80,
-      int,
-      uint,
-      uint,
-      uint80
-    )
-  {
+  function latestRoundData() external view returns (uint80, int, uint, uint, uint80) {
     if (latestRoundDataShouldRevert) {
       revert("latestRoundData reverted");
     }
@@ -121,22 +77,17 @@ contract MockAggregatorV2V3 is AggregatorV2V3Interface {
     return entry.answer;
   }
 
+  function latestAnswer() external view returns (int) {
+    Entry memory entry = entries[roundId];
+    return entry.answer;
+  }
+
   function getTimestamp(uint _roundId) external view returns (uint) {
     Entry memory entry = entries[_roundId];
     return entry.updatedAt;
   }
 
-  function getRoundData(uint80 _roundId)
-    public
-    view
-    returns (
-      uint80,
-      int,
-      uint,
-      uint,
-      uint80
-    )
-  {
+  function getRoundData(uint80 _roundId) public view returns (uint80, int, uint, uint, uint80) {
     if (allRoundDataShouldRevert) {
       revert("getRoundData reverted");
     }

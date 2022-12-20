@@ -22,12 +22,15 @@ import {
   openLongCallAndGetLiquidity,
   openLongPutAndGetLiquidity,
   openPositionWithOverrides,
+  openShortCallBaseAndGetLiquidity,
+  setETHPrice,
 } from '../../utils/contractHelpers';
 import {
   DEFAULT_BASE_PRICE,
   DEFAULT_BOARD_PARAMS,
   DEFAULT_LIQUIDITY_POOL_PARAMS,
   DEFAULT_POOL_HEDGER_PARAMS,
+  DEFAULT_PRICING_PARAMS,
   DEFAULT_SHORT_BUFFER,
 } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
@@ -49,13 +52,13 @@ describe('Liquidity Accounting', async () => {
       const positionId = await openDefaultLongCall();
       let liquidity = await getLiquidity();
       const spotPrice = await getSpotPrice();
-      assertCloseTo(liquidity.usedCollatLiquidity, spotPrice.div(UNIT).mul(DEFAULT_LONG_CALL.amount), toBN('0.1'));
+      assertCloseTo(liquidity.reservedCollatLiquidity, spotPrice.div(UNIT).mul(DEFAULT_LONG_CALL.amount), toBN('0.1'));
 
       await closeLongCall(positionId);
 
       await fastForward(WEEK_SEC);
       liquidity = await getLiquidity();
-      assertCloseTo(liquidity.usedCollatLiquidity, toBN('0'), toBN('0.1'));
+      assertCloseTo(liquidity.reservedCollatLiquidity, toBN('0'), toBN('0.1'));
     });
 
     it('updates when quote collateral locked/freed', async () => {
@@ -63,7 +66,7 @@ describe('Liquidity Accounting', async () => {
       let liquidity = await getLiquidity();
       const strikeAndExpiry = await hre.f.c.optionMarket.getStrikeAndExpiry(hre.f.strike.strikeId);
       assertCloseTo(
-        liquidity.usedCollatLiquidity,
+        liquidity.reservedCollatLiquidity,
         strikeAndExpiry.strikePrice.div(UNIT).mul(DEFAULT_LONG_PUT.amount),
         toBN('0.1'),
       );
@@ -72,23 +75,24 @@ describe('Liquidity Accounting', async () => {
 
       await fastForward(WEEK_SEC);
       liquidity = await getLiquidity();
-      assertCloseTo(liquidity.usedCollatLiquidity, toBN('0'), toBN('0.1'));
+      assertCloseTo(liquidity.reservedCollatLiquidity, toBN('0'), toBN('0.1'));
     });
 
     it('updates pending delta when long call open', async () => {
       await openDefaultLongCall();
       const liquidity = await getLiquidity();
-      const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
+      const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInLongDirection();
       assertCloseTo(liquidity.pendingDeltaLiquidity, preLiquidityExpectedPendingDelta, toBN('0.01'));
-      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.027'), toBN('0.01'));
-      assertCloseTo(liquidity.freeLiquidity, toBN('497782.24'), toBN('0.01'));
+      assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('1341.999'), toBN('0.01'));
+      assertCloseTo(liquidity.freeLiquidity, toBN('497249.03'), toBN('0.01'));
     });
 
-    it('uses whole pool for pendingDelta if large long call open', async () => {
+    it('uses collateral for pendingDelta if large long call open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithLongCall();
-      const expectedPendingDelta = await estimatePendingDeltaInShortDirection();
+      const expectedPendingDelta = await estimatePendingDeltaInLongDirection();
       assertCloseToPercentage(liquidity.pendingDeltaLiquidity, availableQuoteForHedge, toBN('0.0001'));
-      expect(liquidity.pendingDeltaLiquidity).to.lt(expectedPendingDelta);
+      expect(liquidity.pendingDeltaLiquidity).to.eq(expectedPendingDelta);
+      expect(liquidity.reservedCollatLiquidity).to.lt((await getSpotPrice()).mul(toBN('250'))); // pending delta using collateral to hedge
       expect(liquidity.freeLiquidity).to.eq(0);
     });
 
@@ -100,11 +104,12 @@ describe('Liquidity Accounting', async () => {
       assertCloseTo(liquidity.pendingDeltaLiquidity, toBN('800.027'), toBN('0.01'));
       assertCloseTo(liquidity.freeLiquidity, toBN('497783.03'), toBN('0.01'));
     });
-    it('uses whole pool for pendingDelta if large long put open', async () => {
+    it('uses collateral for pendingDelta if large long put open', async () => {
       const [availableQuoteForHedge, liquidity] = await fillLiquidityWithLongPut();
       const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
       assertCloseToPercentage(liquidity.pendingDeltaLiquidity, availableQuoteForHedge, toBN('0.0001'));
-      expect(liquidity.pendingDeltaLiquidity).to.lt(preLiquidityExpectedPendingDelta);
+      expect(liquidity.pendingDeltaLiquidity).to.eq(preLiquidityExpectedPendingDelta);
+      expect(liquidity.reservedCollatLiquidity).to.lt(toBN('2000').mul(toBN('200'))); // pending delta using collateral to hedge
       expect(liquidity.freeLiquidity).to.eq(0);
     });
 
@@ -153,43 +158,14 @@ describe('Liquidity Accounting', async () => {
   });
 
   describe('SettleLiquidity', async () => {
-    it('updates when board settled', async () => {
-      const [, oldLiquidity] = await openLongCallAndGetLiquidity(toBN('10'));
-      expect(oldLiquidity.usedCollatLiquidity).eq(DEFAULT_BASE_PRICE.mul(10));
-
-      await mockPrice('sETH', toBN('2500'));
-      await fastForward(MONTH_SEC + 1);
-      const preSettlePendingDeltaLiquidity = (await getLiquidity()).pendingDeltaLiquidity;
-      await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
-
-      // longs settle ITM, so the pool owes value to the trader.
-      // however, until exchangeBase happens the used will remain
-      const preExchangeLiquidity = await getLiquidity();
-      expect(preExchangeLiquidity.usedCollatLiquidity).eq(toBN('2500').mul(10));
-      // freeLiq goes down since base not unlocked but profits paid to trader
-      expect(
-        preExchangeLiquidity.freeLiquidity
-          .add(preExchangeLiquidity.pendingDeltaLiquidity)
-          .sub(preSettlePendingDeltaLiquidity),
-      ).to.be.lt(oldLiquidity.freeLiquidity);
-      expect(preExchangeLiquidity.NAV).to.be.gt(oldLiquidity.NAV); // fees greater than payout
-
-      await hre.f.c.liquidityPool.exchangeBase();
-      const newLiquidity = await getLiquidity();
-
-      expect(newLiquidity.freeLiquidity).to.be.gt(oldLiquidity.freeLiquidity);
-      expect(newLiquidity.usedCollatLiquidity).to.be.eq(toBN('0'));
-      expect(newLiquidity.NAV).to.be.gt(oldLiquidity.NAV); //expired OTM
-    });
-
     it('updates when position closed', async () => {
       const [, oldLiquidity, position] = await openLongCallAndGetLiquidity(toBN('10'));
       await fullyClosePosition(position);
       const newLiquidity = await getLiquidity();
 
       expect(newLiquidity.freeLiquidity).to.be.gt(oldLiquidity.freeLiquidity);
-      expect(oldLiquidity.usedCollatLiquidity).to.be.gt(toBN('0'));
-      expect(newLiquidity.usedCollatLiquidity).to.be.eq(toBN('0'));
+      expect(oldLiquidity.reservedCollatLiquidity).to.be.gt(toBN('0'));
+      expect(newLiquidity.reservedCollatLiquidity).to.be.eq(toBN('0'));
     });
 
     it('updates when insolvency reimbursed', async () => {
@@ -255,8 +231,18 @@ describe('Liquidity Accounting', async () => {
         ...DEFAULT_POOL_HEDGER_PARAMS,
         interactionDelay: 0, // set interaction delay to 0 sec
       });
-      const [, preHedgeLiquidity] = await fillLiquidityWithLongPut();
-      const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection();
+      await hre.f.c.optionMarketPricer.setPricingParams({
+        ...DEFAULT_PRICING_PARAMS,
+        standardSize: toBN('240'),
+      });
+
+      await openShortCallBaseAndGetLiquidity(toBN('200'), toBN('200'));
+
+      // spot Down to increase shorting amount
+      await setETHPrice(toBN('4000'));
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      const preLiquidityExpectedPendingDelta = await estimatePendingDeltaInShortDirection(); // $48k?
+      const preHedgeLiquidity = await getLiquidity();
       expect(preHedgeLiquidity.freeLiquidity).to.eq(0);
 
       // when freeLiq fully clogged with pendingDelta, need to call multiple times

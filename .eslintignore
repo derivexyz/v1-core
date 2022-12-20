@@ -12,6 +12,7 @@ test-old/
 contracts/interfaces/
 contracts/synthetix/
 contracts/test-helpers/
+random-scripts/
 
 # files
 .solcover.js

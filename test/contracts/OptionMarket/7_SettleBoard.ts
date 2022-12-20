@@ -119,7 +119,6 @@ describe('OptionMarket - SettleBoard', () => {
 
   describe('Base conversions', async () => {
     // consider other quote collateral situations
-
     it('sells base collateral when settling both long and short call correctly', async () => {
       await openPosition({
         strikeId: hre.f.board.strikes[1].strikeId,
@@ -132,8 +131,9 @@ describe('OptionMarket - SettleBoard', () => {
         amount: toBN('1'),
         setCollateralTo: toBN('1'),
       });
+      const currentCollateral = await hre.f.c.liquidityPool.lockedCollateral();
 
-      expect(await getBaseBalance(hre.f.c.liquidityPool.address)).to.eq(toBN('1'));
+      expect(currentCollateral.base).to.eq(toBN('1'));
       expect(await getBaseBalance(hre.f.c.shortCollateral.address)).to.eq(toBN('1'));
 
       await fastForward(MONTH_SEC);
@@ -141,8 +141,8 @@ describe('OptionMarket - SettleBoard', () => {
 
       // collects premiums in base from short call base
       expect(await getBaseBalance(hre.f.c.liquidityPool.address))
-        .gt(toBN('1'))
-        .lt(toBN('1.2'));
+        .gt(toBN('0'))
+        .lt(toBN('0.2'));
 
       await exchangeBase();
 
@@ -168,19 +168,18 @@ describe('OptionMarket - SettleBoard', () => {
         optionType: OptionType.LONG_CALL,
         amount: toBN('1'),
       });
-      expect(await getBaseBalance(hre.f.c.liquidityPool.address)).to.eq(toBN('1'));
+      let currentCollateral = await hre.f.c.liquidityPool.lockedCollateral();
+      expect(currentCollateral.base).to.eq(toBN('1'));
       await fastForward(MONTH_SEC);
       // Liquidate the board with no exposure
       await settleBoard();
-      await exchangeBase();
+      currentCollateral = await hre.f.c.liquidityPool.lockedCollateral();
       // The pool should still hold 1 eth of collateral
-      expect(await getBaseBalance(hre.f.c.liquidityPool.address)).to.eq(toBN('1'));
+      expect(currentCollateral.base).to.eq(toBN('1'));
       // Liquidate the board with exposure
       await hre.f.c.optionMarket.settleExpiredBoard(newBoardId);
-      // Base balance is now 0
-      expect(await getBaseBalance(hre.f.c.liquidityPool.address)).to.eq(toBN('1'));
-      await exchangeBase();
-      expect(await getBaseBalance(hre.f.c.liquidityPool.address)).to.eq(0);
+      currentCollateral = await hre.f.c.liquidityPool.lockedCollateral();
+      expect(currentCollateral.base).to.eq(0);
     });
 
     describe('long call exposure', async () => {

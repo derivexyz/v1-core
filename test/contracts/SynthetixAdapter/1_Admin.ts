@@ -42,7 +42,7 @@ describe('Admin', async () => {
           ZERO_ADDRESS,
           toBytes32('null'),
         ),
-      ).revertedWith('InvalidRewardAddress');
+      ).revertedWith('InvalidAddress');
     });
     it('sets address resolver and synthetix addresses', async () => {
       expect(await hre.f.c.synthetixAdapter.synthetix()).to.eq(hre.f.c.snx.synthetix.address);

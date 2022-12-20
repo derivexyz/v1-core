@@ -1,9 +1,19 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 import "../ShortPoolHedger.sol";
 
 contract TestShortPoolHedger is ShortPoolHedger {
+  bool public canPoolHedge = true;
+
+  function setCanHedge(bool _canHedge) public {
+    canPoolHedge = _canHedge;
+  }
+
+  function canHedge(uint, bool) external view override returns (bool) {
+    return canPoolHedge;
+  }
+
   function hedgeDeltaExt(int expectedHedge) external {
     _hedgeDelta(expectedHedge);
   }
@@ -18,16 +28,11 @@ contract TestShortPoolHedger is ShortPoolHedger {
     _decreaseLong(amount, 0);
   }
 
-  function callTransferQuoteToHedge(uint spotPrice, uint amount) external {
-    liquidityPool.transferQuoteToHedge(spotPrice, amount);
+  function callTransferQuoteToHedge(uint amount) external {
+    liquidityPool.transferQuoteToHedge(amount);
   }
 
-  function setShortToExt(
-    uint spotPrice,
-    uint desiredShort,
-    uint currentShort,
-    uint currentCollateral
-  ) external {
+  function setShortToExt(uint spotPrice, uint desiredShort, uint currentShort, uint currentCollateral) external {
     _setShortTo(spotPrice, desiredShort, currentShort, currentCollateral);
   }
 

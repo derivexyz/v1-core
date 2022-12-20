@@ -1,22 +1,22 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
+import "./libraries/ConvertDecimals.sol";
 import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializable.sol";
 import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 
 // Interfaces
-import "openzeppelin-contracts-4.4.1/token/ERC20/IERC20.sol";
-import "./SynthetixAdapter.sol";
+import "./interfaces/IERC20Decimals.sol";
+import "./BaseExchangeAdapter.sol";
 import "./LiquidityPool.sol";
 import "./OptionToken.sol";
 import "./OptionGreekCache.sol";
-import "./SynthetixAdapter.sol";
 import "./ShortCollateral.sol";
 import "./OptionMarketPricer.sol";
 
@@ -26,7 +26,7 @@ import "./OptionMarketPricer.sol";
  * @dev An AMM which allows users to trade options. Supports both buying and selling options. Also handles liquidating
  * short positions.
  */
-contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
+contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
   using DecimalMath for uint;
 
   enum TradeDirection {
@@ -132,8 +132,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint amount;
     uint expiry;
     uint strikePrice;
+    uint spotPrice;
     LiquidityPool.Liquidity liquidity;
-    SynthetixAdapter.ExchangeParams exchangeParams;
   }
 
   struct TradeEventData {
@@ -170,14 +170,14 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   // Variables //
   ///////////////
 
-  SynthetixAdapter internal synthetixAdapter;
+  BaseExchangeAdapter internal exchangeAdapter;
   LiquidityPool internal liquidityPool;
   OptionMarketPricer internal optionPricer;
   OptionGreekCache internal greekCache;
   ShortCollateral internal shortCollateral;
   OptionToken internal optionToken;
-  IERC20 internal quoteAsset;
-  IERC20 internal baseAsset;
+  IERC20Decimals public quoteAsset;
+  IERC20Decimals public baseAsset;
 
   uint internal nextStrikeId = 1;
   uint internal nextBoardId = 1;
@@ -189,6 +189,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   mapping(uint => Strike) internal strikes;
   mapping(uint => uint) public boardToPriceAtExpiry;
   mapping(uint => uint) internal strikeToBaseReturnedRatio;
+  mapping(uint => uint) public scaledLongsForBoard; // calculated at expiry, used for contract adjustments
 
   constructor() Owned() {}
 
@@ -196,16 +197,16 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    * @dev Initialize the contract.
    */
   function init(
-    SynthetixAdapter _synthetixAdapter,
+    BaseExchangeAdapter _exchangeAdapter,
     LiquidityPool _liquidityPool,
     OptionMarketPricer _optionPricer,
     OptionGreekCache _greekCache,
     ShortCollateral _shortCollateral,
     OptionToken _optionToken,
-    IERC20 _quoteAsset,
-    IERC20 _baseAsset
+    IERC20Decimals _quoteAsset,
+    IERC20Decimals _baseAsset
   ) external onlyOwner initializer {
-    synthetixAdapter = _synthetixAdapter;
+    exchangeAdapter = _exchangeAdapter;
     liquidityPool = _liquidityPool;
     optionPricer = _optionPricer;
     greekCache = _greekCache;
@@ -339,11 +340,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param strikePrice The strike price of the strike being added
    * @param skew Skew of the Strike
    */
-  function addStrikeToBoard(
-    uint boardId,
-    uint strikePrice,
-    uint skew
-  ) external onlyOwner {
+  function addStrikeToBoard(uint boardId, uint strikePrice, uint skew) external onlyOwner {
     OptionBoard storage board = optionBoards[boardId];
     if (board.id != boardId || board.id == 0) {
       revert InvalidBoardId(address(this), boardId);
@@ -353,11 +350,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /// @dev Add a strike to an existing board.
-  function _addStrikeToBoard(
-    OptionBoard storage board,
-    uint strikePrice,
-    uint skew
-  ) internal returns (Strike memory) {
+  function _addStrikeToBoard(OptionBoard storage board, uint strikePrice, uint skew) internal returns (Strike memory) {
     if (strikePrice == 0) {
       revert ExpectedNonZeroValue(address(this), NonZeroValues.STRIKE_PRICE);
     }
@@ -478,21 +471,15 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   /**
    * @notice Returns board and strike details given a boardId
    *
-   * @return OptionBoard the OptionBoard struct
-   * @return Strike[] the list of board strikes
-   * @return uint[] the list of strike to base returned ratios
-   * @return uint the board to price at expiry
+   * @return board
+   * @return boardStrikes
+   * @return strikeToBaseReturnedRatios For each strike, the ratio of full base collateral to return to the trader
+   * @return priceAtExpiry
+   * @return longScaleFactor The amount to scale payouts for long options
    */
-  function getBoardAndStrikeDetails(uint boardId)
-    external
-    view
-    returns (
-      OptionBoard memory,
-      Strike[] memory,
-      uint[] memory,
-      uint
-    )
-  {
+  function getBoardAndStrikeDetails(
+    uint boardId
+  ) external view returns (OptionBoard memory, Strike[] memory, uint[] memory, uint, uint) {
     OptionBoard memory board = optionBoards[boardId];
 
     uint strikesLen = board.strikeIds.length;
@@ -502,7 +489,13 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       boardStrikes[i] = strikes[board.strikeIds[i]];
       strikeToBaseReturnedRatios[i] = strikeToBaseReturnedRatio[board.strikeIds[i]];
     }
-    return (board, boardStrikes, strikeToBaseReturnedRatios, boardToPriceAtExpiry[boardId]);
+    return (
+      board,
+      boardStrikes,
+      strikeToBaseReturnedRatios,
+      boardToPriceAtExpiry[boardId],
+      scaledLongsForBoard[boardId]
+    );
   }
 
   ////////////////////
@@ -554,11 +547,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     _routeUserCollateral(optionType, pendingCollateral);
   }
 
-  function _checkCostInBounds(
-    uint totalCost,
-    uint minCost,
-    uint maxCost
-  ) internal view {
+  function _checkCostInBounds(uint totalCost, uint minCost, uint maxCost) internal view {
     if (totalCost < minCost || totalCost > maxCost) {
       revert TotalCostOutsideOfSpecifiedBounds(address(this), totalCost, minCost, maxCost);
     }
@@ -619,12 +608,13 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
         amount: trade.amount,
         setCollateralTo: params.setCollateralTo,
         isForceClose: false,
-        spotPrice: trade.exchangeParams.spotPrice,
+        spotPrice: trade.spotPrice,
         reservedFee: reservedFee,
         totalCost: result.totalCost
       }),
       tradeResults,
       LiquidationEventData(address(0), address(0), 0, 0, 0, 0, 0, 0),
+      trade.liquidity.longScaleFactor,
       block.timestamp
     );
   }
@@ -683,11 +673,12 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
         setCollateralTo: params.setCollateralTo,
         isForceClose: forceClose,
         reservedFee: reservedFee,
-        spotPrice: trade.exchangeParams.spotPrice,
+        spotPrice: trade.spotPrice,
         totalCost: result.totalCost
       }),
       tradeResults,
       LiquidationEventData(address(0), address(0), 0, 0, 0, 0, 0, 0),
+      trade.liquidity.longScaleFactor,
       block.timestamp
     );
   }
@@ -702,15 +693,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     TradeDirection _tradeDirection,
     uint iterations,
     bool isForceClose
-  )
-    internal
-    view
-    returns (
-      TradeParameters memory trade,
-      Strike storage strike,
-      OptionBoard storage board
-    )
-  {
+  ) internal view returns (TradeParameters memory trade, Strike storage strike, OptionBoard storage board) {
     if (strikeId == 0) {
       revert ExpectedNonZeroValue(address(this), NonZeroValues.STRIKE_ID);
     }
@@ -730,7 +713,18 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     bool isBuy = (_tradeDirection == TradeDirection.OPEN) ? _isLong(optionType) : !_isLong(optionType);
 
-    SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(this));
+    BaseExchangeAdapter.PriceType pricing;
+    if (_tradeDirection == TradeDirection.LIQUIDATE) {
+      pricing = BaseExchangeAdapter.PriceType.REFERENCE;
+    } else if (optionType == OptionType.LONG_CALL || optionType == OptionType.SHORT_PUT_QUOTE) {
+      pricing = _tradeDirection == TradeDirection.OPEN
+        ? BaseExchangeAdapter.PriceType.MAX_PRICE
+        : BaseExchangeAdapter.PriceType.MIN_PRICE;
+    } else {
+      pricing = _tradeDirection == TradeDirection.OPEN
+        ? BaseExchangeAdapter.PriceType.MIN_PRICE
+        : BaseExchangeAdapter.PriceType.MAX_PRICE;
+    }
 
     trade = TradeParameters({
       isBuy: isBuy,
@@ -740,8 +734,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       amount: amount / iterations,
       expiry: board.expiry,
       strikePrice: strike.strikePrice,
-      exchangeParams: exchangeParams,
-      liquidity: liquidityPool.getLiquidity(exchangeParams.spotPrice)
+      liquidity: liquidityPool.getLiquidity(), // NOTE: uses PriceType.LATEST
+      spotPrice: exchangeAdapter.getSpotPriceForMarket(address(this), pricing)
     });
   }
 
@@ -764,12 +758,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint expectedAmount
   )
     internal
-    returns (
-      uint totalAmount,
-      uint totalCost,
-      uint totalFee,
-      OptionMarketPricer.TradeResult[] memory tradeResults
-    )
+    returns (uint totalAmount, uint totalCost, uint totalFee, OptionMarketPricer.TradeResult[] memory tradeResults)
   {
     // don't engage AMM if only collateral is added/removed
     if (trade.amount == 0) {
@@ -866,7 +855,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
         amount: position.amount,
         setCollateralTo: 0,
         isForceClose: true,
-        spotPrice: trade.exchangeParams.spotPrice,
+        spotPrice: trade.spotPrice,
         reservedFee: 0,
         totalCost: totalCost
       }),
@@ -881,6 +870,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
         smFee: liquidationFees.smFee,
         insolventAmount: liquidationFees.insolventAmount
       }),
+      trade.liquidity.longScaleFactor,
       block.timestamp
     );
   }
@@ -890,49 +880,62 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   //////////////////
 
   /// @dev send/receive quote or base to/from LiquidityPool on position open
-  function _routeLPFundsOnOpen(
-    TradeParameters memory trade,
-    uint totalCost,
-    uint feePortion
-  ) internal {
+  function _routeLPFundsOnOpen(TradeParameters memory trade, uint totalCost, uint feePortion) internal {
     if (trade.amount == 0) {
       return;
     }
 
     if (trade.optionType == OptionType.LONG_CALL) {
-      liquidityPool.lockBase(trade.amount, trade.exchangeParams, trade.liquidity.freeLiquidity);
+      liquidityPool.lockCallCollateral(trade.amount, trade.spotPrice, trade.liquidity.freeLiquidity);
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.LONG_PUT) {
-      liquidityPool.lockQuote(trade.amount.multiplyDecimal(trade.strikePrice), trade.liquidity.freeLiquidity);
+      liquidityPool.lockPutCollateral(trade.amount.multiplyDecimal(trade.strikePrice), trade.liquidity.freeLiquidity);
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.SHORT_CALL_BASE) {
-      liquidityPool.sendShortPremium(msg.sender, totalCost, trade.liquidity.freeLiquidity, feePortion);
+      liquidityPool.sendShortPremium(
+        msg.sender,
+        trade.amount,
+        totalCost,
+        trade.liquidity.freeLiquidity,
+        feePortion,
+        true
+      );
     } else {
       // OptionType.SHORT_CALL_QUOTE || OptionType.SHORT_PUT_QUOTE
-      liquidityPool.sendShortPremium(address(shortCollateral), totalCost, trade.liquidity.freeLiquidity, feePortion);
+      liquidityPool.sendShortPremium(
+        address(shortCollateral),
+        trade.amount,
+        totalCost,
+        trade.liquidity.freeLiquidity,
+        feePortion,
+        false
+      );
     }
   }
 
   /// @dev send/receive quote or base to/from LiquidityPool on position close
-  function _routeLPFundsOnClose(
-    TradeParameters memory trade,
-    uint totalCost,
-    uint reservedFee
-  ) internal {
+  function _routeLPFundsOnClose(TradeParameters memory trade, uint totalCost, uint reservedFee) internal {
     if (trade.amount == 0) {
       return;
     }
 
     if (trade.optionType == OptionType.LONG_CALL) {
-      liquidityPool.liquidateBaseAndSendPremium(trade.amount, msg.sender, totalCost, reservedFee);
+      liquidityPool.freeCallCollateralAndSendPremium(
+        trade.amount,
+        msg.sender,
+        totalCost,
+        reservedFee,
+        trade.liquidity.longScaleFactor
+      );
     } else if (trade.optionType == OptionType.LONG_PUT) {
-      liquidityPool.freeQuoteCollateralAndSendPremium(
+      liquidityPool.freePutCollateralAndSendPremium(
         trade.amount.multiplyDecimal(trade.strikePrice),
         msg.sender,
         totalCost,
-        reservedFee
+        reservedFee,
+        trade.liquidity.longScaleFactor
       );
     } else if (trade.optionType == OptionType.SHORT_CALL_BASE) {
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - reservedFee);
@@ -952,8 +955,17 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
 
     if (optionType == OptionType.SHORT_CALL_BASE) {
       if (pendingCollateral > 0) {
-        if (!baseAsset.transferFrom(msg.sender, address(shortCollateral), uint(pendingCollateral))) {
-          revert BaseTransferFailed(address(this), msg.sender, address(shortCollateral), uint(pendingCollateral));
+        uint pendingCollateralConverted = ConvertDecimals.convertFrom18AndRoundUp(
+          uint(pendingCollateral),
+          baseAsset.decimals()
+        );
+        if (!baseAsset.transferFrom(msg.sender, address(shortCollateral), uint(pendingCollateralConverted))) {
+          revert BaseTransferFailed(
+            address(this),
+            msg.sender,
+            address(shortCollateral),
+            uint(pendingCollateralConverted)
+          );
         }
       } else {
         shortCollateral.sendBaseCollateral(msg.sender, uint(-pendingCollateral));
@@ -969,12 +981,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /// @dev update all exposures per strike and optionType
-  function _updateExposure(
-    uint amount,
-    OptionType optionType,
-    Strike storage strike,
-    bool isOpen
-  ) internal {
+  function _updateExposure(uint amount, OptionType optionType, Strike storage strike, bool isOpen) internal {
     int exposure = isOpen ? SafeCast.toInt256(amount) : -SafeCast.toInt256(amount);
 
     if (optionType == OptionType.LONG_CALL) {
@@ -1042,20 +1049,19 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   function _settleExpiredBoard(OptionBoard memory board) internal {
-    uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(this));
+    uint spotPrice = exchangeAdapter.getSettlementPriceForMarket(address(this), board.expiry);
 
-    uint totalUserLongProfitQuote;
-    uint totalBoardLongCallCollateral;
-    uint totalBoardLongPutCollateral;
-    uint totalAMMShortCallProfitBase;
-    uint totalAMMShortCallProfitQuote;
-    uint totalAMMShortPutProfitQuote;
+    uint totalUserLongProfitQuote = 0;
+    uint totalBoardLongCallCollateral = 0;
+    uint totalBoardLongPutCollateral = 0;
+    uint totalAMMShortCallProfitBase = 0;
+    uint totalAMMShortCallProfitQuote = 0;
+    uint totalAMMShortPutProfitQuote = 0;
 
     // Store the price now for when users come to settle their options
     boardToPriceAtExpiry[board.id] = spotPrice;
-    uint strikesLen = board.strikeIds.length;
 
-    for (uint i = 0; i < strikesLen; ++i) {
+    for (uint i = 0; i < board.strikeIds.length; ++i) {
       Strike memory strike = strikes[board.strikeIds[i]];
 
       totalBoardLongCallCollateral += strike.longCall;
@@ -1089,12 +1095,13 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     );
 
     // This will batch all base we want to convert to quote and sell it in one transaction
-    liquidityPool.boardSettlement(
+    uint longScaleFactor = liquidityPool.boardSettlement(
       lpQuoteInsolvency + lpBaseInsolvency.multiplyDecimal(spotPrice),
       totalBoardLongPutCollateral,
       totalUserLongProfitQuote,
       totalBoardLongCallCollateral
     );
+    scaledLongsForBoard[board.id] = longScaleFactor;
 
     emit BoardSettled(
       board.id,
@@ -1104,24 +1111,20 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
       totalBoardLongPutCollateral,
       totalAMMShortCallProfitBase,
       totalAMMShortCallProfitQuote,
-      totalAMMShortPutProfitQuote
+      totalAMMShortPutProfitQuote,
+      longScaleFactor
     );
   }
 
   /// @dev Returns the strike price, price at expiry, and profit ratio for user shorts post expiry
-  function getSettlementParameters(uint strikeId)
-    external
-    view
-    returns (
-      uint strikePrice,
-      uint priceAtExpiry,
-      uint strikeToBaseReturned
-    )
-  {
+  function getSettlementParameters(
+    uint strikeId
+  ) external view returns (uint strikePrice, uint priceAtExpiry, uint strikeToBaseReturned, uint longScaleFactor) {
     return (
       strikes[strikeId].strikePrice,
       boardToPriceAtExpiry[strikes[strikeId].boardId],
-      strikeToBaseReturnedRatio[strikeId]
+      strikeToBaseReturnedRatio[strikeId],
+      scaledLongsForBoard[strikes[strikeId].boardId]
     );
   }
 
@@ -1129,11 +1132,9 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   // Misc //
   //////////
 
-  function _transferFromQuote(
-    address from,
-    address to,
-    uint amount
-  ) internal {
+  /// @dev Transfers the amount from 18dp to the quoteAsset's decimals ensuring any precision loss is rounded up
+  function _transferFromQuote(address from, address to, uint amount) internal {
+    amount = ConvertDecimals.convertFrom18AndRoundUp(amount, quoteAsset.decimals());
     if (!quoteAsset.transferFrom(from, to, amount)) {
       revert QuoteTransferFailed(address(this), from, to, amount);
     }
@@ -1144,7 +1145,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
   ///////////////
 
   modifier notGlobalPaused() {
-    synthetixAdapter.requireNotGlobalPaused(address(this));
+    exchangeAdapter.requireNotGlobalPaused(address(this));
     _;
   }
 
@@ -1197,6 +1198,7 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     TradeEventData trade,
     OptionMarketPricer.TradeResult[] tradeResults,
     LiquidationEventData liquidation,
+    uint longScaleFactor,
     uint timestamp
   );
 
@@ -1211,7 +1213,8 @@ contract OptionMarket is Owned, SimpleInitializeable, ReentrancyGuard {
     uint totalBoardLongPutCollateral,
     uint totalAMMShortCallProfitBase,
     uint totalAMMShortCallProfitQuote,
-    uint totalAMMShortPutProfitQuote
+    uint totalAMMShortPutProfitQuote,
+    uint longScaleFactor
   );
 
   ////////////

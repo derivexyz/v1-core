@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.9;
+//SPDX-License-Identifier: ISC
+pragma solidity 0.8.16;
 
 // Slightly modified version of:
 // - https://github.com/recmo/experiment-solexp/blob/605738f3ed72d6c67a414e992be58262fbc9bb80/src/FixedPointMathLib.sol
@@ -114,12 +114,12 @@ library FixedPointMathLib {
       // x is now in the range (-42, 136) * 1e18. Convert to (-42, 136) * 2**96
       // for more intermediate precision and a binary basis. This base conversion
       // is a multiplication by 1e18 / 2**96 = 5**18 / 2**78.
-      x = (x << 78) / 5**18;
+      x = (x << 78) / 5 ** 18;
 
       // Reduce range of x to (-½ ln 2, ½ ln 2) * 2**96 by factoring out powers of two
       // such that exp(x) = exp(x') * 2**k, where k is an integer.
       // Solving this gives k = round(x / log(2)) and x' = x - k * log(2).
-      int k = ((x << 96) / 54916777467707473351141471128 + 2**95) >> 96;
+      int k = ((x << 96) / 54916777467707473351141471128 + 2 ** 95) >> 96;
       x = x - k * 54916777467707473351141471128;
       // k is in the range [-61, 195].
 

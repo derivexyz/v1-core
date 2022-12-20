@@ -19,8 +19,9 @@ import {
   openDefaultLongCall,
   openLongPutAndGetLiquidity,
   openPosition,
+  setETHPrice,
 } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { createDefaultBoardWithOverrides } from '../../utils/seedTestSystem';
@@ -37,6 +38,7 @@ const manualIvVarianceCBTimeout = DAY_SEC;
 const manualSkewVarianceCBTimeout = WEEK_SEC;
 const manualBoardSettlementTimeout = HOUR_SEC;
 const manualLiquidityTimeout = MONTH_SEC;
+const manualContractAdjustmentTimeout = MONTH_SEC * 2;
 
 const guardianDelay: number = WEEK_SEC;
 let guardian: SignerWithAddress;
@@ -69,9 +71,10 @@ describe('Guardian, Settle Board and Combo Circuit Breakers', async () => {
       // confirm CB turned on
       await openPosition({
         optionType: OptionType.SHORT_CALL_QUOTE,
-        amount: toBN('40'),
-        setCollateralTo: toBN('60000'),
+        amount: toBN('60'),
+        setCollateralTo: toBN('80000'),
       });
+      console.log(`Current time ${await currentTime()}`);
       expect(await currentTime()).lt(await hre.f.c.liquidityPool.CBTimestamp());
       await revertProcessDepositAndWithdraw(hre.f.signers[0], hre.f.signers[0]); // ensures dep/with not processed
 
@@ -88,8 +91,8 @@ describe('Guardian, Settle Board and Combo Circuit Breakers', async () => {
       // confirm CB + minDelay turned on
       await openPosition({
         optionType: OptionType.SHORT_CALL_QUOTE,
-        amount: toBN('40'),
-        setCollateralTo: toBN('60000'),
+        amount: toBN('120'),
+        setCollateralTo: toBN('160000'),
       });
       await revertProcessDepositAndWithdraw(hre.f.signers[0], hre.f.signers[0]); // ensures dep/with not processed
       expect(await currentTime()).lt(await hre.f.c.liquidityPool.CBTimestamp());
@@ -107,8 +110,8 @@ describe('Guardian, Settle Board and Combo Circuit Breakers', async () => {
       // confirm CB + minDelay turned on
       await openPosition({
         optionType: OptionType.SHORT_CALL_QUOTE,
-        amount: toBN('40'),
-        setCollateralTo: toBN('60000'),
+        amount: toBN('60'),
+        setCollateralTo: toBN('80000'),
       });
       await revertProcessDepositAndWithdraw(hre.f.signers[0], hre.f.signers[0], false); // ensures dep/with not processed
       expect(await currentTime()).lt(await hre.f.c.liquidityPool.CBTimestamp());
@@ -136,13 +139,13 @@ describe('Guardian, Settle Board and Combo Circuit Breakers', async () => {
       expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(manualBoardSettlementTimeout + currentTimestamp);
     });
 
-    it('does not increase of longer CB already triggered', async () => {
+    it('does not increase if longer CB already triggered', async () => {
       // trigger IV/skew CB
       await fastForward(MONTH_SEC - DAY_SEC);
       await openPosition({
         optionType: OptionType.SHORT_CALL_QUOTE,
-        amount: toBN('40'),
-        setCollateralTo: toBN('60000'),
+        amount: toBN('60'),
+        setCollateralTo: toBN('80000'),
       });
       const triggerTime = await currentTime();
       await fastForward(DAY_SEC + 1);
@@ -177,8 +180,8 @@ describe('Guardian, Settle Board and Combo Circuit Breakers', async () => {
 
     it('bypasses CB updates if no open options (except settlement)', async () => {
       await seedFixture();
-      await hre.f.c.liquidityPool.setLiquidityPoolParameters({
-        ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+      await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+        ...DEFAULT_CB_PARAMS,
         skewVarianceCBThreshold: toBN('0.001'),
       });
       // fire CB by opening trade
@@ -228,6 +231,11 @@ describe('Guardian, Settle Board and Combo Circuit Breakers', async () => {
     });
 
     it('trigger all CBs: shortest to longest', async () => {
+      await hre.f.c.liquidityPool.setLiquidityPoolParameters({
+        ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+        putCollatScalingFactor: toBN('0.1'),
+      });
+
       // Trigger settleBoard CB + confirm CB not moved
       await fastForward(HOUR_SEC);
       await hre.f.c.optionMarket.settleExpiredBoard(2);
@@ -245,12 +253,21 @@ describe('Guardian, Settle Board and Combo Circuit Breakers', async () => {
       expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(manualSkewVarianceCBTimeout + skewCBTimestamp);
 
       // Trigger Liquidity CB and free up some liquidity for next actions
-      await openLongPutAndGetLiquidity(toBN('150'));
+      await openLongPutAndGetLiquidity(toBN('500'));
       const liquidityTimestamp = await currentTime();
       expect((await getLiquidity()).freeLiquidity).to.eq(0);
       expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(manualLiquidityTimeout + liquidityTimestamp);
-      const expectedCB = boardSettlementTimestamp + manualLiquidityTimeout + HOUR_SEC;
+      let expectedCB = boardSettlementTimestamp + manualLiquidityTimeout + HOUR_SEC;
+      expect(await hre.f.c.liquidityPool.CBTimestamp()).to.be.within(expectedCB - 5, expectedCB + 5);
 
+      // Trigger contract adjustment event and make longer than liquidity CB
+      await setETHPrice(toBN('100'));
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(1);
+      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('1000'));
+      await hre.f.c.liquidityPool.processWithdrawalQueue(1); // trigger contractAdjustment CB
+      const contractAdjustmentTimestamp = await currentTime();
+      expect((await getLiquidity()).longScaleFactor).to.lt(toBN('1'));
+      expectedCB = manualContractAdjustmentTimeout + contractAdjustmentTimestamp;
       expect(await hre.f.c.liquidityPool.CBTimestamp()).to.be.within(expectedCB - 5, expectedCB + 5);
     });
   });
@@ -266,8 +283,8 @@ export async function setGuardianParams(delay: number, guardianAddress: string) 
 }
 
 export async function setManualParams() {
-  await hre.f.c.liquidityPool.setLiquidityPoolParameters({
-    ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+  await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+    ...DEFAULT_CB_PARAMS,
     ...MANUAL_PARAMS,
   });
 }
@@ -279,6 +296,7 @@ export const MANUAL_PARAMS = {
   skewVarianceCBTimeout: manualSkewVarianceCBTimeout,
   boardSettlementCBTimeout: manualBoardSettlementTimeout,
   liquidityCBTimeout: manualLiquidityTimeout, // set high to be obvious if accidentally triggered
+  contractAdjustmentCBTimeout: manualContractAdjustmentTimeout,
 };
 
 export async function successfullyProcessDepositAndWithdraw(

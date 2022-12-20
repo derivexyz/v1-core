@@ -143,9 +143,7 @@ describe('Reverted Open', async () => {
 
       it('no liquidity', async () => {
         let error;
-        if (optionType == OptionType.LONG_CALL) {
-          error = 'QuoteBaseExchangeExceedsLimit';
-        } else if (optionType == OptionType.LONG_PUT) {
+        if (optionType == OptionType.LONG_CALL || optionType == OptionType.LONG_PUT) {
           error = 'LockingMoreQuoteThanIsFree';
         } else {
           error = 'SendPremiumNotEnoughCollateral';

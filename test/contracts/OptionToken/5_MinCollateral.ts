@@ -395,25 +395,7 @@ export async function expectPosition(
   state: PositionState,
   finalCollateral: BigNumber,
 ) {
-  let position;
-  try {
-    position = await hre.f.c.optionToken.getPositionWithOwner(positionId);
-    expect(position.owner).eq(hre.f.deployer.address);
-  } catch (error) {
-    if (error instanceof Error) {
-      if (
-        error.message ==
-        "VM Exception while processing transaction: reverted with reason string 'ERC721: owner query for nonexistent token'"
-      ) {
-        position = await hre.f.c.optionToken.getOptionPosition(positionId);
-      } else {
-        console.log(error.message);
-        throw error;
-      }
-    } else {
-      throw error;
-    }
-  }
+  const position = await hre.f.c.optionToken.getOptionPosition(positionId);
   expect(position.strikeId).eq(hre.f.strike.strikeId);
   expect(position.optionType).eq(optionType);
   expect(position.amount).eq(amount);

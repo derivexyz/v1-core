@@ -10,12 +10,12 @@ import {
   WEEK_SEC,
 } from '../../../scripts/util/web3utils';
 import { TestBlackScholes } from '../../../typechain-types';
-import { ExchangeParamsStruct, LiquidityStruct } from '../../../typechain-types/LiquidityPool';
+import { LiquidityStruct } from '../../../typechain-types/LiquidityPool';
 import { StrikeStruct } from '../../../typechain-types/OptionGreekCache';
 import { TradeParametersStruct } from '../../../typechain-types/OptionToken';
 import { ALL_TYPES, getSpotPrice } from '../../utils/contractHelpers';
 import {
-  DEFAULT_BASE_PRICE,
+  DEFAULT_RATE_AND_CARRY,
   DEFAULT_BOARD_PARAMS,
   DEFAULT_FORCE_CLOSE_PARAMS,
   DEFAULT_GREEK_CACHE_PARAMS,
@@ -44,10 +44,11 @@ describe('OptionGreekCache - Pricing', () => {
       boardId = id;
       strikeId = (await hre.f.c.optionMarket.getBoardStrikes(boardId))[0];
 
-      const liquidity = await hre.f.c.liquidityPool.getLiquidity(DEFAULT_BASE_PRICE);
-      const exchangeParams = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
+      const spotPrice = await getSpotPrice();
 
-      [strikeStruct, tradeStruct] = await getDefaults(strikeId, boardId, exchangeParams, liquidity);
+      const liquidity = await hre.f.c.liquidityPool.getLiquidity();
+
+      [strikeStruct, tradeStruct] = await getDefaults(strikeId, boardId, spotPrice, liquidity);
     });
 
     const preCutoffVolShock = [
@@ -166,7 +167,7 @@ describe('OptionGreekCache - Pricing', () => {
                 isBuy: isBuy[i],
                 tradeDirection: TradeDirection.CLOSE,
                 optionType: optionType,
-                exchangeParams: await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address),
+                spotPrice: ITM[i],
               },
               strikeStruct,
               tradeStruct.expiry,
@@ -199,7 +200,7 @@ describe('OptionGreekCache - Pricing', () => {
                 isBuy: isBuy[i],
                 tradeDirection: TradeDirection.CLOSE,
                 optionType: optionType,
-                exchangeParams: await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address),
+                spotPrice: OTM[i],
               },
               strikeStruct,
               tradeStruct.expiry,
@@ -309,7 +310,7 @@ async function calcPriceWithParity(
   isClose: boolean,
 ) {
   const premiums = await testBlackScholes.optionPrices_pub({
-    rateDecimal: DEFAULT_GREEK_CACHE_PARAMS.rateAndCarry,
+    rateDecimal: DEFAULT_RATE_AND_CARRY,
     spotDecimal: await getSpotPrice(),
     strikePriceDecimal: strike.strikePrice,
     timeToExpirySec: DEFAULT_BOARD_PARAMS.expiresIn,
@@ -352,7 +353,7 @@ async function addToParity(parity: BigNumber, isClose: boolean) {
 async function getDefaults(
   strikeId: BigNumberish,
   boardId: BigNumberish,
-  exchangeParams: ExchangeParamsStruct,
+  spotPrice: BigNumberish,
   liquidity: LiquidityStruct,
 ): Promise<[StrikeStruct, TradeParametersStruct]> {
   const strikeStruct = {
@@ -369,7 +370,7 @@ async function getDefaults(
 
   const tradeStruct = {
     amount: toBN('1'),
-    exchangeParams,
+    spotPrice,
     expiry: (await currentTime()) + MONTH_SEC,
     isBuy: true,
     liquidity,

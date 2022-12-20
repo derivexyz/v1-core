@@ -1,4 +1,4 @@
-import { BigNumber } from '@ethersproject/contracts/node_modules/@ethersproject/bignumber';
+import { BigNumber } from 'ethers';
 import { expect } from 'chai';
 import { DAY_SEC, getEventArgs, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
 import { TradePricingStruct } from '../../../typechain-types/OptionGreekCache';

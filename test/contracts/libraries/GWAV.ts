@@ -169,10 +169,28 @@ describe('Oracle - unit test', async () => {
   describe('edge cases / coverage', () => {
     // exp/ln are tested thoroughly in BlackScholes
 
-    it('can get gwav for period where timeA == timeB', async () => {
+    it('can get exact gwav for period where timeA == timeB', async () => {
       const startTimestamp = await currentTime();
       await oracle.initialize(toBN('0.96'), startTimestamp - DAY_SEC);
-      assertCloseToPercentage(await oracle.getGWAVBetween(DAY_SEC, DAY_SEC), toBN('0.96'));
+      expect((await oracle.getGWAVBetween(DAY_SEC, DAY_SEC)).eq(toBN('0.96'))).to.be.true;
+    });
+
+    it('can current gwav for seconds ago = 0', async () => {
+      const startTimestamp = await currentTime();
+      await oracle.initialize(toBN('0.95'), startTimestamp - 2 * DAY_SEC);
+      await oracle.recordObservation(toBN('1.2'), startTimestamp - DAY_SEC);
+
+      assertCloseToPercentage(await oracle.getGWAVBetween(DAY_SEC, 0), toBN('1.2'));
+      assertCloseToPercentage(await oracle.getGWAVBetween(1, 0), toBN('1.2'));
+    });
+
+    it('can get spot vol timeA == timeB == 0', async () => {
+      const startTimestamp = await currentTime();
+      await oracle.initialize(toBN('0.95'), startTimestamp - 2 * DAY_SEC);
+      await oracle.recordObservation(toBN('1.2'), startTimestamp - DAY_SEC);
+
+      const currentVol = await oracle.getGWAVBetween(0, 0);
+      expect(currentVol.eq(toBN('1.2'))).to.be.true;
     });
 
     it('cannot record values in the past', async () => {
@@ -200,7 +218,7 @@ describe('Oracle - unit test', async () => {
 
     it('queries empty', async () => {
       await expect(oracle.observe([DAY_SEC * 2, DAY_SEC])).revertedWith(
-        'Array accessed at an out-of-bounds or negative index',
+        'call revert exception', // array out of bounds
       );
     });
 

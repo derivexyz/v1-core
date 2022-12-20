@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity ^0.8.9;
+pragma solidity 0.8.16;
 
 interface ICurve {
   function exchange_with_best_rate(
@@ -17,9 +17,5 @@ interface ICurve {
     uint _expected
   ) external payable returns (uint amountOut);
 
-  function get_best_rate(
-    address _from,
-    address _to,
-    uint _amount
-  ) external view returns (address pool, uint amountOut);
+  function get_best_rate(address _from, address _to, uint _amount) external view returns (address pool, uint amountOut);
 }

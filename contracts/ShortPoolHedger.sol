@@ -1,18 +1,28 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+
+//
+//  ___    _____     _   _  _____  _____     ___    ___    _   _  _  ___    _       _
+// (  _`\ (  _  )   ( ) ( )(  _  )(_   _)   |  _`\ (  _`\ ( ) ( )(_)(  _`\ ( )  _  ( )
+// | | ) || ( ) |   | `\| || ( ) |  | |     | (_) )| (_(_)| | | || || (_(_)| | ( ) | |
+// | | | )| | | |   | , ` || | | |  | |     | ,  / |  _)_ | | | || ||  _)_ | | | | | |
+// | |_) || (_) |   | |`\ || (_) |  | |     | |\ \ | (_( )| \_/ || || (_( )| (_/ \_) |
+// (____/'(_____)   (_) (_)(_____)  (_)     (_) (_)(____/'`\___/'(_)(____/'`\___x___/'
+//
+
+pragma solidity 0.8.16;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
 import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
+import "./libraries/ConvertDecimals.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializable.sol";
 import "./libraries/PoolHedger.sol";
 import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 
 // Interfaces
-import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 import "./LiquidityPool.sol";
 import "./interfaces/ISynthetix.sol";
 import "./interfaces/ICollateralShort.sol";
@@ -26,7 +36,7 @@ import "./OptionGreekCache.sol";
  * @dev Uses the delta hedging funds from the LiquidityPool to hedge option deltas, so LPs are minimally exposed to
  * movements in the underlying asset price.
  */
-contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyGuard {
+contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializable, ReentrancyGuard {
   using DecimalMath for uint;
 
   bytes32 private constant CONTRACT_COLLATERAL_SHORT = "CollateralShort";
@@ -34,14 +44,16 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
   SynthetixAdapter internal synthetixAdapter;
   OptionMarket internal optionMarket;
   OptionGreekCache internal optionGreekCache;
-  ERC20 internal quoteAsset;
-  ERC20 internal baseAsset;
+  IERC20Decimals internal quoteAsset;
+  IERC20Decimals internal baseAsset;
 
   ICollateralShort public collateralShort;
 
   /// @dev The ID of our short that is opened when we open short account.
   uint public shortId;
   uint public shortBuffer;
+
+  uint public deltaThresold = 100; // initial delta threshold.
 
   ///////////
   // Setup //
@@ -63,8 +75,8 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
     OptionMarket _optionMarket,
     OptionGreekCache _optionGreekCache,
     LiquidityPool _liquidityPool,
-    ERC20 _quoteAsset,
-    ERC20 _baseAsset
+    IERC20Decimals _quoteAsset,
+    IERC20Decimals _baseAsset
   ) external onlyOwner initializer {
     synthetixAdapter = _synthetixAdapter;
     optionMarket = _optionMarket;
@@ -109,6 +121,10 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
     synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
   }
 
+  function canHedge(uint, bool) external view virtual override returns (bool) {
+    return true;
+  }
+
   ///////////////////
   // Opening Short //
   ///////////////////
@@ -141,9 +157,9 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
     }
 
     // Open a short with min collateral and 0 amount, to get a static Id for this contract to use.
-    liquidityPool.transferQuoteToHedge(exchangeParams.spotPrice, minCollateral);
+    liquidityPool.transferQuoteToHedge(minCollateral);
 
-    uint currentBalance = quoteAsset.balanceOf(address(this));
+    uint currentBalance = ConvertDecimals.convertTo18(quoteAsset.balanceOf(address(this)), quoteAsset.decimals());
     if (currentBalance < minCollateral) {
       revert NotEnoughQuoteForMinCollateral(address(this), currentBalance, minCollateral);
     }
@@ -181,12 +197,9 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
 
   /// @notice Returns pending delta hedge liquidity and used delta hedge liquidity
   /// @dev include funds potentially transferred to the contract
-  function getHedgingLiquidity(uint spotPrice)
-    external
-    view
-    override
-    returns (uint pendingDeltaLiquidity, uint usedDeltaLiquidity)
-  {
+  function getHedgingLiquidity(
+    uint spotPrice
+  ) external view override returns (uint pendingDeltaLiquidity, uint usedDeltaLiquidity) {
     // Get capped expected hedge
     int expectedHedge = getCappedExpectedHedge();
 
@@ -205,12 +218,12 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
 
     // Estimate value of desired hedge
     if (expectedHedge > 0) {
-      if (_abs(expectedHedge) > totalBal) {
-        pendingDeltaLiquidity = (_abs(expectedHedge) - totalBal).multiplyDecimal(spotPrice);
+      if (Math.abs(expectedHedge) > totalBal) {
+        pendingDeltaLiquidity = (Math.abs(expectedHedge) - totalBal).multiplyDecimal(spotPrice);
       }
     } else if (expectedHedge < 0) {
-      if (_abs(expectedHedge) > totalBal) {
-        pendingDeltaLiquidity = (_abs(expectedHedge) - totalBal).multiplyDecimal(spotPrice).multiplyDecimal(
+      if (Math.abs(expectedHedge) > totalBal) {
+        pendingDeltaLiquidity = (Math.abs(expectedHedge) - totalBal).multiplyDecimal(spotPrice).multiplyDecimal(
           shortBuffer
         );
       }
@@ -225,7 +238,7 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
    * @dev Retrieves the netDelta from the OptionGreekCache and updates the hedge position based off base
    *      asset balance of the liquidityPool minus netDelta (from OptionGreekCache)
    */
-  function hedgeDelta() external override nonReentrant {
+  function hedgeDelta() external payable override nonReentrant {
     // Subtract the baseAsset balance from netDelta, to account for the variance from collateral held by LP.
     int expectedHedge = getCappedExpectedHedge();
 
@@ -248,8 +261,11 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
    * @dev Updates the collateral held in the short to prevent liquidations and
    * return excess collateral without checking/triggering the interaction delay.
    */
-  function updateCollateral() external override nonReentrant {
-    uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
+  function updateCollateral() external payable override nonReentrant {
+    uint spotPrice = synthetixAdapter.getSpotPriceForMarket(
+      address(optionMarket),
+      BaseExchangeAdapter.PriceType.REFERENCE
+    );
     (uint shortBalance, uint startCollateral) = getShortPosition();
 
     // do not change shortBalance
@@ -327,6 +343,7 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
       if (longBalance > 0) {
         _decreaseLong(longBalance, longBalance);
       }
+
       return -SafeCast.toInt256(_setShortTo(exchangeParams.spotPrice, expectedShort, shortBalance, collateral));
     }
   }
@@ -344,13 +361,14 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
   ) internal returns (uint newBalance) {
     uint base = amount.divideDecimal(DecimalMath.UNIT - exchangeParams.quoteBaseFeeRate);
     uint purchaseAmount = base.multiplyDecimal(exchangeParams.spotPrice);
-    uint receivedQuote = liquidityPool.transferQuoteToHedge(exchangeParams.spotPrice, purchaseAmount);
+    uint receivedQuote = liquidityPool.transferQuoteToHedge(purchaseAmount);
 
     // We buy as much as is possible with the quote given
     if (receivedQuote < purchaseAmount) {
       purchaseAmount = receivedQuote;
     }
     // buy the base asset.
+    quoteAsset.approve(address(synthetixAdapter), purchaseAmount);
     synthetixAdapter.exchangeFromExactQuote(address(optionMarket), purchaseAmount);
     newBalance = baseAsset.balanceOf(address(this));
     emit LongSetTo(currentBalance, newBalance);
@@ -362,6 +380,7 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
    * @param amount The amount of baseAsset to sell.
    */
   function _decreaseLong(uint amount, uint currentBalance) internal returns (uint newBalance) {
+    baseAsset.approve(address(synthetixAdapter), amount);
     // assumption here is that we have enough to sell, will throw if not
     synthetixAdapter.exchangeFromExactBase(address(optionMarket), amount);
     newBalance = baseAsset.balanceOf(address(this));
@@ -388,18 +407,28 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
     uint newCollateral;
     if (startShort <= desiredShort) {
       newCollateral = _updateCollateral(spotPrice, desiredShort, startCollateral);
+      newCollateral = ConvertDecimals.convertFrom18(newCollateral, quoteAsset.decimals());
       uint maxPossibleShort = newCollateral.divideDecimal(spotPrice).divideDecimal(shortBuffer);
 
       if (maxPossibleShort > startShort) {
-        collateralShort.draw(shortId, maxPossibleShort - startShort);
+        collateralShort.draw(
+          shortId,
+          ConvertDecimals.convertFrom18(maxPossibleShort - startShort, quoteAsset.decimals())
+        );
       } else if (maxPossibleShort < startShort) {
-        collateralShort.repayWithCollateral(shortId, startShort - maxPossibleShort);
+        collateralShort.repayWithCollateral(
+          shortId,
+          ConvertDecimals.convertFrom18(startShort - maxPossibleShort, quoteAsset.decimals())
+        );
       } else {
         newShort = startShort;
       }
       (newShort, ) = getShortPosition();
     } else {
-      collateralShort.repayWithCollateral(shortId, startShort - desiredShort);
+      collateralShort.repayWithCollateral(
+        shortId,
+        ConvertDecimals.convertFrom18(startShort - desiredShort, quoteAsset.decimals())
+      );
       (newShort, newCollateral) = getShortPosition();
 
       newCollateral = _updateCollateral(spotPrice, newShort, newCollateral);
@@ -415,16 +444,18 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
     uint startCollateral
   ) internal returns (uint newCollateral) {
     uint desiredCollateral = shortBalance.multiplyDecimal(spotPrice).multiplyDecimal(shortBuffer);
-
+    startCollateral = ConvertDecimals.convertFrom18(startCollateral, quoteAsset.decimals());
     if (startCollateral < desiredCollateral) {
-      uint received = liquidityPool.transferQuoteToHedge(spotPrice, desiredCollateral - startCollateral);
+      uint received = liquidityPool.transferQuoteToHedge(desiredCollateral - startCollateral);
       if (received > 0) {
         collateralShort.deposit(address(this), shortId, received);
       }
     } else if (startCollateral > desiredCollateral) {
-      collateralShort.withdraw(shortId, startCollateral - desiredCollateral);
+      collateralShort.withdraw(
+        shortId,
+        ConvertDecimals.convertFrom18(startCollateral - desiredCollateral, quoteAsset.decimals())
+      );
     }
-
     (, newCollateral) = getShortPosition();
   }
 
@@ -434,13 +465,10 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
    */
   function getCappedExpectedHedge() public view override returns (int cappedExpectedHedge) {
     // Update any stale boards to get an accurate netDelta value
-    int netOptionDelta = optionGreekCache.getGlobalNetDelta();
+    // LPs only hold quote as collateral
+    int expectedHedge = optionGreekCache.getGlobalNetDelta();
 
-    // Subtract the locked base collateral from netDelta, to account for the exposure from collateral held by LP.
-    // If exchange fees > LiquidityPool.maxFeePaid, actual baseBalance != lockedCollateral.base
-    (, uint lpLockedBase) = liquidityPool.lockedCollateral();
-    int expectedHedge = netOptionDelta - int(lpLockedBase);
-    bool exceedsCap = _abs(expectedHedge) > poolHedgerParams.hedgeCap;
+    bool exceedsCap = Math.abs(expectedHedge) > poolHedgerParams.hedgeCap;
 
     // Cap expected hedge
     if (expectedHedge < 0 && exceedsCap) {
@@ -472,15 +500,6 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializeable, ReentrancyG
     returns (PoolHedgerParameters memory _poolHedgerParams, uint _shortBuffer)
   {
     return (poolHedgerParams, shortBuffer);
-  }
-
-  /**
-   * @dev Compute the absolute value of `val`.
-   *
-   * @param val The number to absolute value.
-   */
-  function _abs(int val) internal pure returns (uint) {
-    return uint(val < 0 ? -val : val);
   }
 
   ////////////

@@ -59,7 +59,7 @@ export function getBatches(positions: BigNumberish[]) {
   const batches = [];
 
   for (let i = 0; i < numBatches; i++) {
-    let pids: BigNumberish[] = [];
+    const pids: BigNumberish[] = [];
     for (let j = i * 8; j < (i + 1) * 8; j++) {
       if (positions[j] == undefined) continue;
       pids[j] = positions[j];

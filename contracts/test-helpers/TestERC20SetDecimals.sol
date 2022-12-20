@@ -1,20 +1,15 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 
 import "./ITestERC20.sol";
 
-// This test may need to be depricated as decimals are overridden hardcoded in decimals() now
 contract TestERC20SetDecimals is ITestERC20, ERC20 {
   mapping(address => bool) public permitted;
   uint8 private _decimals;
 
-  constructor(
-    string memory name_,
-    string memory symbol_,
-    uint8 decimals_
-  ) ERC20(name_, symbol_) {
+  constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
     permitted[msg.sender] = true;
     _setupDecimals(decimals_);
   }
@@ -27,6 +22,11 @@ contract TestERC20SetDecimals is ITestERC20, ERC20 {
 
   function _setupDecimals(uint8 decimals_) internal {
     _decimals = decimals_;
+  }
+
+  function setDecimals(uint8 newDecimals) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
+    _decimals = newDecimals;
   }
 
   function permitMint(address user, bool permit) external {

@@ -1,19 +1,20 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
+import "./libraries/ConvertDecimals.sol";
+import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
 
 // Inherited
 import "openzeppelin-contracts-4.4.1/token/ERC721/extensions/ERC721Enumerable.sol";
 import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializable.sol";
 import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
-import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
 
 // Interfaces
 import "./OptionMarket.sol";
-import "./SynthetixAdapter.sol";
+import "./BaseExchangeAdapter.sol";
 import "./OptionGreekCache.sol";
 
 /**
@@ -21,7 +22,7 @@ import "./OptionGreekCache.sol";
  * @author Lyra
  * @dev Provides a tokenized representation of each trade position including amount of options and collateral.
  */
-contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enumerable {
+contract OptionToken is Owned, SimpleInitializable, ReentrancyGuard, ERC721Enumerable {
   using DecimalMath for uint;
 
   enum PositionState {
@@ -98,7 +99,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   OptionMarket internal optionMarket;
   OptionGreekCache internal greekCache;
   address internal shortCollateral;
-  SynthetixAdapter internal synthetixAdapter;
+  BaseExchangeAdapter internal exchangeAdapter;
 
   mapping(uint => OptionPosition) public positions;
   uint public nextId = 1;
@@ -122,12 +123,12 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     OptionMarket _optionMarket,
     OptionGreekCache _greekCache,
     address _shortCollateral,
-    SynthetixAdapter _synthetixAdapter
+    BaseExchangeAdapter _exchangeAdapter
   ) external onlyOwner initializer {
     optionMarket = _optionMarket;
     greekCache = _greekCache;
     shortCollateral = _shortCollateral;
-    synthetixAdapter = _synthetixAdapter;
+    exchangeAdapter = _exchangeAdapter;
   }
 
   ///////////
@@ -271,8 +272,8 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
       }
       pendingCollateral = SafeCast.toInt256(setCollateralTo) - SafeCast.toInt256(preCollateral);
       position.collateral = setCollateralTo;
-      if (canLiquidate(position, trade.expiry, trade.strikePrice, trade.exchangeParams.spotPrice)) {
-        revert AdjustmentResultsInMinimumCollateralNotBeingMet(address(this), position, trade.exchangeParams.spotPrice);
+      if (canLiquidate(position, trade.expiry, trade.strikePrice, trade.spotPrice)) {
+        revert AdjustmentResultsInMinimumCollateralNotBeingMet(address(this), position, trade.spotPrice);
       }
     }
     // if long, pendingCollateral is 0 - ignore
@@ -296,11 +297,10 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
    *
    * @return optionType OptionType of adjusted position
    */
-  function addCollateral(uint positionId, uint amountCollateral)
-    external
-    onlyOptionMarket
-    returns (OptionMarket.OptionType optionType)
-  {
+  function addCollateral(
+    uint positionId,
+    uint amountCollateral
+  ) external onlyOptionMarket returns (OptionMarket.OptionType optionType) {
     OptionPosition storage position = positions[positionId];
 
     if (position.positionId == 0 || position.state != PositionState.ACTIVE || !_isShort(position.optionType)) {
@@ -370,16 +370,16 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   ) external onlyOptionMarket returns (LiquidationFees memory liquidationFees) {
     OptionPosition storage position = positions[positionId];
 
-    if (!canLiquidate(position, trade.expiry, trade.strikePrice, trade.exchangeParams.spotPrice)) {
-      revert PositionNotLiquidatable(address(this), position, trade.exchangeParams.spotPrice);
+    if (!canLiquidate(position, trade.expiry, trade.strikePrice, trade.spotPrice)) {
+      revert PositionNotLiquidatable(address(this), position, trade.spotPrice);
     }
 
     uint convertedMinLiquidationFee = partialCollatParams.minLiquidationFee;
     uint insolvencyMultiplier = DecimalMath.UNIT;
     if (trade.optionType == OptionMarket.OptionType.SHORT_CALL_BASE) {
-      totalCost = synthetixAdapter.estimateExchangeToExactQuote(trade.exchangeParams, totalCost);
-      convertedMinLiquidationFee = partialCollatParams.minLiquidationFee.divideDecimal(trade.exchangeParams.spotPrice);
-      insolvencyMultiplier = trade.exchangeParams.spotPrice;
+      totalCost = exchangeAdapter.estimateExchangeToExactQuote(address(optionMarket), totalCost);
+      convertedMinLiquidationFee = partialCollatParams.minLiquidationFee.divideDecimal(trade.spotPrice);
+      insolvencyMultiplier = trade.spotPrice;
     }
 
     position.state = PositionState.LIQUIDATED;
@@ -531,7 +531,10 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
       newPosition.collateral = newCollateral;
 
       (uint strikePrice, uint expiry) = optionMarket.getStrikeAndExpiry(originalPosition.strikeId);
-      uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
+      uint spotPrice = exchangeAdapter.getSpotPriceForMarket(
+        address(optionMarket),
+        BaseExchangeAdapter.PriceType.REFERENCE
+      );
 
       if (canLiquidate(originalPosition, expiry, strikePrice, spotPrice)) {
         revert ResultingOriginalPositionLiquidatable(address(this), originalPosition, spotPrice);
@@ -623,7 +626,10 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
     // make sure final position is not liquidatable
     if (_isShort(firstPosition.optionType)) {
       (uint strikePrice, uint expiry) = optionMarket.getStrikeAndExpiry(firstPosition.strikeId);
-      uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
+      uint spotPrice = exchangeAdapter.getSpotPriceForMarket(
+        address(optionMarket),
+        BaseExchangeAdapter.PriceType.REFERENCE
+      );
       if (canLiquidate(firstPosition, expiry, strikePrice, spotPrice)) {
         revert ResultingNewPositionLiquidatable(address(this), firstPosition, spotPrice);
       }
@@ -715,7 +721,7 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   }
 
   function _requireStrikeNotExpired(uint strikeId) internal view {
-    (, uint priceAtExpiry, ) = optionMarket.getSettlementParameters(strikeId);
+    (, uint priceAtExpiry, , ) = optionMarket.getSettlementParameters(strikeId);
     if (priceAtExpiry != 0) {
       revert StrikeIsSettled(address(this), strikeId);
     }
@@ -739,15 +745,11 @@ contract OptionToken is Owned, SimpleInitializeable, ReentrancyGuard, ERC721Enum
   }
 
   modifier notGlobalPaused() {
-    synthetixAdapter.requireNotGlobalPaused(address(optionMarket));
+    exchangeAdapter.requireNotGlobalPaused(address(optionMarket));
     _;
   }
 
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint tokenId
-  ) internal override {
+  function _beforeTokenTransfer(address from, address to, uint tokenId) internal override {
     super._beforeTokenTransfer(from, to, tokenId);
 
     if (from != address(0) && to != address(0)) {

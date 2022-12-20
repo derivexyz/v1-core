@@ -9,7 +9,19 @@
     "resolveJsonModule": true,
     "declaration": true
   },
-  "include": ["./scripts", "./test", "./types", "./simulation", "test-old/SynthetixAdapter.ts"],
+  "include": [
+    "./scripts", 
+    "./test", 
+    "./types", 
+    "./simulation", 
+    "test-old/SynthetixAdapter.ts",
+    "./deployments/kovan-ovm/lyra.realPricing.json",
+    "./deployments/kovan-ovm/synthetix.json",
+    "./deployments/kovan-ovm/synthetix.mocked.json",
+    "./deployments/mainnet-ovm/lyra.json",
+    "./deployments/mainnet-ovm/synthetix.json",
+    "./examples"
+  ],
   "exclude": [
     "node_modules",
     "artifacts",

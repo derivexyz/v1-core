@@ -1,4 +1,4 @@
-import { BigNumber } from '@ethersproject/contracts/node_modules/@ethersproject/bignumber';
+import { BigNumber } from 'ethers';
 import { expect } from 'chai';
 import { toBN } from '../../../scripts/util/web3utils';
 import { DEFAULT_PRICING_PARAMS } from '../../utils/defaultParams';
@@ -91,12 +91,12 @@ describe('IvImpact', async () => {
       skewAdjustmentFactor: toBN('2'),
     });
 
-    let result = await getIvImpactForTrade(false, toBN('10'), toBN('1'), toBN('0.2'));
+    const result = await getIvImpactForTrade(false, toBN('10'), toBN('1'), toBN('0.2'));
     expect(result.newBase).to.eq(toBN('0.9'));
     expect(result.newSkew).to.eq(toBN('0'));
 
     await expect(getIvImpactForTrade(false, toBN('20'), toBN('1'), toBN('0.2'))).to.be.revertedWith(
-      'reverted with panic code 0x11',
+      'reverted with panic code 17',
     );
   });
 
@@ -107,12 +107,12 @@ describe('IvImpact', async () => {
       skewAdjustmentFactor: toBN('0'),
     });
 
-    let result = await getIvImpactForTrade(false, toBN('10'), toBN('0.1'), toBN('1'));
+    const result = await getIvImpactForTrade(false, toBN('10'), toBN('0.1'), toBN('1'));
     expect(result.newBase).to.eq(toBN('0'));
     expect(result.newSkew).to.eq(toBN('1'));
 
     await expect(getIvImpactForTrade(false, toBN('20'), toBN('0.15'), toBN('1'))).to.be.revertedWith(
-      'reverted with panic code 0x11',
+      'reverted with panic code 17',
     );
   });
 });

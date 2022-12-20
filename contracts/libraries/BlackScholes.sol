@@ -1,10 +1,11 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "../synthetix/SignedDecimalMath.sol";
 import "../synthetix/DecimalMath.sol";
 import "./FixedPointMathLib.sol";
+import "./Math.sol";
 
 /**
  * @title BlackScholes
@@ -45,10 +46,6 @@ library BlackScholes {
   /// @dev Internally this library uses 27 decimals of precision
   uint private constant PRECISE_UNIT = 1e27;
   uint private constant SQRT_TWOPI = 2506628274631000502415765285;
-  /// @dev Below this value, return 0
-  int private constant MIN_CDF_STD_DIST_INPUT = (int(PRECISE_UNIT) * -45) / 10; // -4.5
-  /// @dev Above this value, return 1
-  int private constant MAX_CDF_STD_DIST_INPUT = int(PRECISE_UNIT) * 10;
   /// @dev Value to use to avoid any division by 0 or values near 0
   uint private constant MIN_T_ANNUALISED = PRECISE_UNIT / SECONDS_PER_YEAR; // 1 second
   uint private constant MIN_VOLATILITY = PRECISE_UNIT / 10000; // 0.001%
@@ -252,11 +249,7 @@ library BlackScholes {
    * @param tAnnualised Number of years to expiry
    * @param spot The current price of the base asset
    */
-  function _vega(
-    uint tAnnualised,
-    uint spot,
-    int d1
-  ) internal pure returns (uint) {
+  function _vega(uint tAnnualised, uint spot, int d1) internal pure returns (uint) {
     return _sqrtPrecise(tAnnualised).multiplyDecimalRoundPrecise(_stdNormal(d1).multiplyDecimalRoundPrecise(spot));
   }
 
@@ -266,11 +259,7 @@ library BlackScholes {
    * @param spot The current price of the base asset
    * @param timeToExpirySec Number of seconds to expiry
    */
-  function _standardVega(
-    int d1,
-    uint spot,
-    uint timeToExpirySec
-  ) internal pure returns (uint, uint) {
+  function _standardVega(int d1, uint spot, uint timeToExpirySec) internal pure returns (uint, uint) {
     uint tAnnualised = _annualise(timeToExpirySec);
     uint normalisationFactor = _getVegaNormalisationFactorPrecise(timeToExpirySec);
     uint vegaPrecise = _vega(tAnnualised, spot, d1);
@@ -287,15 +276,6 @@ library BlackScholes {
   /////////////////////
   // Math Operations //
   /////////////////////
-
-  /**
-   * @dev Compute the absolute value of `val`.
-   *
-   * @param val The number to absolute value.
-   */
-  function _abs(int val) internal pure returns (uint) {
-    return uint(val < 0 ? -val : val);
-  }
 
   /// @notice Calculates the square root of x, rounding down (borrowed from https://github.com/paulrberg/prb-math)
   /// @dev Uses the Babylonian method https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method.
@@ -373,8 +353,8 @@ library BlackScholes {
    * borrowed from a C++ implementation https://stackoverflow.com/a/23119456
    */
   function _stdNormalCDF(int x) public pure returns (uint) {
-    uint z = _abs(x);
-    int c;
+    uint z = Math.abs(x);
+    int c = 0;
 
     if (z <= 37 * PRECISE_UNIT) {
       uint e = FixedPointMathLib.expPrecise(-int(z.multiplyDecimalRoundPrecise(z / 2)));

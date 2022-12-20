@@ -1,8 +1,13 @@
 import { ethers } from 'hardhat';
 import { toBN, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
-import { ShortPoolHedger } from '../../../typechain-types';
+import { ShortPoolHedger, TestShortPoolHedger } from '../../../typechain-types';
 import { assertCloseToPercentage } from '../../utils/assert';
-import { getLiquidity, setNegativeExpectedHedge, setPositiveExpectedHedge } from '../../utils/contractHelpers';
+import {
+  getLiquidity,
+  openDefaultLongPut,
+  setNegativeExpectedHedge,
+  setPositiveExpectedHedge,
+} from '../../utils/contractHelpers';
 import { DEFAULT_POOL_HEDGER_PARAMS, DEFAULT_SHORT_BUFFER } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
@@ -25,6 +30,30 @@ describe('Swap Hedger', async () => {
     );
     await poolHedgerV2.setPoolHedgerParams(DEFAULT_POOL_HEDGER_PARAMS);
     await poolHedgerV2.setShortBuffer(DEFAULT_SHORT_BUFFER);
+  });
+
+  it('gracefully reverts if poolHedger returns canHedge == false', async () => {
+    // prepare canHedge = false pool hedger
+    const failingPoolHedger = (await (await ethers.getContractFactory('TestShortPoolHedger'))
+      .connect(hre.f.signers[0])
+      .deploy()) as TestShortPoolHedger;
+    await failingPoolHedger.init(
+      hre.f.c.synthetixAdapter.address,
+      hre.f.c.optionMarket.address,
+      hre.f.c.optionGreekCache.address,
+      hre.f.c.liquidityPool.address,
+      hre.f.c.snx.quoteAsset.address,
+      hre.f.c.snx.baseAsset.address,
+    );
+    await failingPoolHedger.setPoolHedgerParams(DEFAULT_POOL_HEDGER_PARAMS);
+    await failingPoolHedger.setShortBuffer(DEFAULT_SHORT_BUFFER);
+    await failingPoolHedger.setCanHedge(false);
+
+    // swap to failing hedger
+    await hre.f.c.liquidityPool.setPoolHedger(failingPoolHedger.address);
+
+    // expect reverted call due to _checkCanHedge == false
+    await expect(openDefaultLongPut()).to.revertedWith('UnableToHedgeDelta');
   });
 
   it('will return zero hedging liquidity if no poolHedger set', async () => {

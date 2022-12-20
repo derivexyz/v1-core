@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "../synthetix/DecimalMath.sol";
@@ -59,6 +59,8 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
   mapping(address => bytes32) public baseKey;
   mapping(address => address) public rewardAddress;
   mapping(address => bytes32) public trackingCode;
+
+  mapping(address => int256) public rateAndCarry;
 
   function initialize() external initializer {
     __Ownable_init();
@@ -160,12 +162,9 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
    *
    * @param _contractAddress The address of the OptionMarket.
    */
-  function getExchangeParams(address _contractAddress)
-    public
-    view
-    notPaused(_contractAddress)
-    returns (ExchangeParams memory exchangeParams)
-  {
+  function getExchangeParams(
+    address _contractAddress
+  ) public view notPaused(_contractAddress) returns (ExchangeParams memory exchangeParams) {
     exchangeParams = ExchangeParams({
       spotPrice: 0,
       quoteKey: quoteKey[_contractAddress],
@@ -253,22 +252,20 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     emit BaseSwappedForQuote(optionMarket, msg.sender, amountBase, received);
   }
 
-  function estimateExchangeForExactBase(ExchangeParams memory exchangeParams, uint amountBase)
-    public
-    pure
-    returns (uint quoteNeeded)
-  {
+  function estimateExchangeForExactBase(
+    ExchangeParams memory exchangeParams,
+    uint amountBase
+  ) public pure returns (uint quoteNeeded) {
     return
       amountBase.divideDecimalRound(DecimalMath.UNIT - exchangeParams.quoteBaseFeeRate).multiplyDecimalRound(
         exchangeParams.spotPrice
       );
   }
 
-  function estimateExchangeForExactQuote(ExchangeParams memory exchangeParams, uint amountQuote)
-    public
-    pure
-    returns (uint baseNeeded)
-  {
+  function estimateExchangeForExactQuote(
+    ExchangeParams memory exchangeParams,
+    uint amountQuote
+  ) public pure returns (uint baseNeeded) {
     return
       amountQuote.divideDecimalRound(DecimalMath.UNIT - exchangeParams.baseQuoteFeeRate).divideDecimalRound(
         exchangeParams.spotPrice

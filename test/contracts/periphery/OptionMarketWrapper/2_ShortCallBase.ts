@@ -170,6 +170,7 @@ describe('OptionMarketWrapper SHORT CALL BASE trading tests', () => {
   describe('USDC short opens', async () => {
     it('USDC using openShortParams - SHORT CALL BASE', async () => {
       // Open short call for premium
+      console.log(`abt to open wrapper short`);
       let positionId = await wrapperOpenShort({
         token: STABLE_IDS.USDC,
         optionType: OptionType.SHORT_CALL_BASE,
@@ -205,6 +206,7 @@ describe('OptionMarketWrapper SHORT CALL BASE trading tests', () => {
       // console.log(`Position collateral ${result1.collateral}`);
       await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
+      console.log(`x2 abt to open wrapper short`);
       // Adds to the position descreasing collateral
       positionId = await wrapperAddShort({
         token: STABLE_IDS.USDC,
@@ -259,6 +261,7 @@ describe('OptionMarketWrapper SHORT CALL BASE trading tests', () => {
       // console.log(`Position collateral ${result1.collateral}`);
       await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
+      console.log(`x2 reduce short`);
       // Removes from the position decreasing collateral
       positionId = await wrapperReduceShort({
         token: STABLE_IDS.USDC,
@@ -295,6 +298,7 @@ describe('OptionMarketWrapper SHORT CALL BASE trading tests', () => {
       // console.log(`Position collateral ${result1.collateral}`);
       await checkContractFunds(hre.f.c.optionMarketWrapper.address);
 
+      console.log(`final reduce position`);
       // Close position fully
       positionId = await wrapperCloseShort({
         token: STABLE_IDS.USDC,
@@ -303,6 +307,7 @@ describe('OptionMarketWrapper SHORT CALL BASE trading tests', () => {
         maxCost: 380,
       });
 
+      console.log(`wrapper close short`);
       await expect(hre.f.c.optionToken.getPositionWithOwner(positionId)).revertedWith(
         'ERC721: owner query for nonexistent token',
       );

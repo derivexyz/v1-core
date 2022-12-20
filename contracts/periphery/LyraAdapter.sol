@@ -1,5 +1,5 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "../libraries/GWAV.sol";
@@ -8,19 +8,20 @@ import "../synthetix/DecimalMath.sol";
 
 // Inherited
 import "openzeppelin-contracts-4.4.1/access/Ownable.sol";
-import "openzeppelin-contracts-4.4.1/token/ERC20/IERC20.sol";
 
 // Interfaces
-import "../OptionToken.sol";
-import "../OptionMarket.sol";
-import "../LiquidityPool.sol";
-import "../ShortCollateral.sol";
-import "../OptionGreekCache.sol";
-import "../SynthetixAdapter.sol";
+import "openzeppelin-contracts-4.4.1/token/ERC20/IERC20.sol";
+import "../interfaces/IOptionToken.sol";
+import "../interfaces/IOptionMarket.sol";
+import "../interfaces/ILiquidityPool.sol";
+import "../interfaces/IShortCollateral.sol";
+import "../interfaces/IOptionGreekCache.sol";
+import "../interfaces/ISynthetixAdapter.sol";
+import "../interfaces/IDelegateApprovals.sol";
 import "../interfaces/ICurve.sol";
-import "./GWAVOracle.sol";
+import "../interfaces/IGWAVOracle.sol";
+import "../interfaces/ILyraRegistry.sol";
 import "./BasicFeeCounter.sol";
-import "./LyraRegistry.sol";
 
 /**
  * @title LyraAdapter
@@ -128,7 +129,7 @@ contract LyraAdapter is Ownable {
     // Amount of liquidity available for withdrawals - different to freeLiquidity
     uint burnableLiquidity;
     // Amount of liquidity reserved for long options sold to traders
-    uint usedCollatLiquidity;
+    uint reservedCollatLiquidity;
     // Portion of liquidity reserved for delta hedging (quote outstanding)
     uint pendingDeltaLiquidity;
     // Current value of delta hedge
@@ -165,15 +166,15 @@ contract LyraAdapter is Ownable {
   // Variables //
   ///////////////
 
-  LyraRegistry public lyraRegistry;
-  SynthetixAdapter internal synthetixAdapter;
-  OptionMarket public optionMarket;
-  OptionToken public optionToken;
-  LiquidityPool public liquidityPool;
-  ShortCollateral public shortCollateral;
-  GWAVOracle public gwavOracle;
-  OptionMarketPricer public optionPricer;
-  OptionGreekCache public greekCache;
+  ILyraRegistry public lyraRegistry;
+  ISynthetixAdapter internal synthetixAdapter;
+  IOptionMarket public optionMarket;
+  IOptionToken public optionToken;
+  ILiquidityPool public liquidityPool;
+  IShortCollateral public shortCollateral;
+  IGWAVOracle public gwavOracle;
+  IOptionMarketPricer public optionPricer;
+  IOptionGreekCache public greekCache;
   IERC20 public quoteAsset;
   IERC20 public baseAsset;
 
@@ -210,11 +211,11 @@ contract LyraAdapter is Ownable {
       baseAsset.approve(address(optionMarket), 0);
     }
 
-    optionMarket = OptionMarket(_optionMarket);
+    optionMarket = IOptionMarket(_optionMarket);
 
     // Get market & global addresses via LyraRegistry
-    lyraRegistry = LyraRegistry(_lyraRegistry);
-    synthetixAdapter = SynthetixAdapter(lyraRegistry.getGlobalAddress(SNX_ADAPTER));
+    lyraRegistry = ILyraRegistry(_lyraRegistry);
+    synthetixAdapter = ISynthetixAdapter(lyraRegistry.getGlobalAddress(SNX_ADAPTER));
     _assignLyraRegistryMarketAddresses();
 
     // assign curve and Lyra reward counter
@@ -222,14 +223,14 @@ contract LyraAdapter is Ownable {
     feeCounter = BasicFeeCounter(_feeCounter);
 
     // Do approvals
-    synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
+    IDelegateApprovals(synthetixAdapter.delegateApprovals()).approveExchangeOnBehalf(address(synthetixAdapter));
     quoteAsset.approve(address(optionMarket), type(uint).max);
     baseAsset.approve(address(optionMarket), type(uint).max);
   }
 
   /// @notice In case of an update to the synthetix contract that revokes the approval
   function updateDelegateApproval() external onlyOwner {
-    synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
+    IDelegateApprovals(synthetixAdapter.delegateApprovals()).approveExchangeOnBehalf(address(synthetixAdapter));
   }
 
   ////////////////////
@@ -244,7 +245,7 @@ contract LyraAdapter is Ownable {
    * @param params The parameters for the requested trade
    */
   function _openPosition(TradeInputParameters memory params) internal returns (TradeResult memory tradeResult) {
-    OptionMarket.Result memory result = optionMarket.openPosition(_convertParams(params));
+    IOptionMarket.Result memory result = optionMarket.openPosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
       feeCounter.trackFee(
         address(optionMarket),
@@ -263,10 +264,9 @@ contract LyraAdapter is Ownable {
    *
    * @param params The parameters for the requested trade
    */
-  function _closeOrForceClosePosition(TradeInputParameters memory params)
-    internal
-    returns (TradeResult memory tradeResult)
-  {
+  function _closeOrForceClosePosition(
+    TradeInputParameters memory params
+  ) internal returns (TradeResult memory tradeResult) {
     if (!_isOutsideDeltaCutoff(params.strikeId) && !_isWithinTradingCutoff(params.strikeId)) {
       return _closePosition(params);
     } else {
@@ -283,7 +283,7 @@ contract LyraAdapter is Ownable {
    * @param params The parameters for the requested trade
    */
   function _closePosition(TradeInputParameters memory params) internal returns (TradeResult memory tradeResult) {
-    OptionMarket.Result memory result = optionMarket.closePosition(_convertParams(params));
+    IOptionMarket.Result memory result = optionMarket.closePosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
       feeCounter.trackFee(
         address(optionMarket),
@@ -303,7 +303,7 @@ contract LyraAdapter is Ownable {
    * @param params The parameters for the requested trade
    */
   function _forceClosePosition(TradeInputParameters memory params) internal returns (TradeResult memory tradeResult) {
-    OptionMarket.Result memory result = optionMarket.forceClosePosition(_convertParams(params));
+    IOptionMarket.Result memory result = optionMarket.forceClosePosition(_convertParams(params));
     if (params.rewardRecipient != address(0)) {
       feeCounter.trackFee(
         address(optionMarket),
@@ -330,7 +330,7 @@ contract LyraAdapter is Ownable {
 
   /// @notice Exchange to an exact amount of quote for a maximum amount of base (revert otherwise)
   function _exchangeToExactQuote(uint amountQuote, uint maxBaseUsed) internal returns (uint quoteReceived) {
-    SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
+    ISynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     (, quoteReceived) = synthetixAdapter.exchangeToExactQuoteWithLimit(
       exchangeParams,
       address(optionMarket),
@@ -349,7 +349,7 @@ contract LyraAdapter is Ownable {
 
   /// @notice Exchange to an exact amount of base for a maximum amount of quote (revert otherwise)
   function _exchangeToExactBase(uint amountBase, uint maxQuoteUsed) internal returns (uint baseReceived) {
-    SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
+    ISynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
     (, baseReceived) = synthetixAdapter.exchangeToExactBaseWithLimit(
       exchangeParams,
       address(optionMarket),
@@ -360,7 +360,7 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns the ExchangeParams for current market.
   function _getExchangeParams() internal view returns (ExchangeRateParams memory) {
-    SynthetixAdapter.ExchangeParams memory params = synthetixAdapter.getExchangeParams(address(optionMarket));
+    ISynthetixAdapter.ExchangeParams memory params = synthetixAdapter.getExchangeParams(address(optionMarket));
     return
       ExchangeRateParams({
         spotPrice: params.spotPrice,
@@ -397,7 +397,7 @@ contract LyraAdapter is Ownable {
 
   /// @notice Get position info for given positionIds
   function _getPositions(uint[] memory positionIds) internal view returns (OptionPosition[] memory) {
-    OptionToken.OptionPosition[] memory positions = optionToken.getOptionPositions(positionIds);
+    IOptionToken.OptionPosition[] memory positions = optionToken.getOptionPositions(positionIds);
 
     uint positionsLen = positions.length;
     OptionPosition[] memory convertedPositions = new OptionPosition[](positionsLen);
@@ -457,7 +457,7 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns Board struct for a given boardId
   function _getBoard(uint boardId) internal view returns (Board memory) {
-    OptionMarket.OptionBoard memory board = optionMarket.getOptionBoard(boardId);
+    IOptionMarket.OptionBoard memory board = optionMarket.getOptionBoard(boardId);
     return Board({id: board.id, expiry: board.expiry, boardIv: board.iv, strikeIds: board.strikeIds});
   }
 
@@ -467,7 +467,7 @@ contract LyraAdapter is Ownable {
 
     allStrikes = new Strike[](strikesLen);
     for (uint i = 0; i < strikesLen; ++i) {
-      (OptionMarket.Strike memory strike, OptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
+      (IOptionMarket.Strike memory strike, IOptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
         strikeIds[i]
       );
 
@@ -488,7 +488,7 @@ contract LyraAdapter is Ownable {
 
     vols = new uint[](strikesLen);
     for (uint i = 0; i < strikesLen; ++i) {
-      (OptionMarket.Strike memory strike, OptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
+      (IOptionMarket.Strike memory strike, IOptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
         strikeIds[i]
       );
 
@@ -531,7 +531,7 @@ contract LyraAdapter is Ownable {
       volatilityDecimal: vol,
       spotDecimal: spotPrice,
       strikePriceDecimal: strikePrice,
-      rateDecimal: greekCache.getGreekCacheParams().rateAndCarry
+      rateDecimal: synthetixAdapter.rateAndCarry(address(optionMarket))
     });
     (call, put) = BlackScholes.optionPrices(bsInput);
   }
@@ -545,12 +545,12 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns the breakdown of current liquidity usage (see Liquidity struct)
   function _getLiquidity() internal view returns (Liquidity memory) {
-    LiquidityPool.Liquidity memory liquidity = liquidityPool.getCurrentLiquidity();
+    ILiquidityPool.Liquidity memory liquidity = liquidityPool.getLiquidity();
     return
       Liquidity({
         freeLiquidity: liquidity.freeLiquidity,
         burnableLiquidity: liquidity.burnableLiquidity,
-        usedCollatLiquidity: liquidity.usedCollatLiquidity,
+        reservedCollatLiquidity: liquidity.reservedCollatLiquidity,
         pendingDeltaLiquidity: liquidity.pendingDeltaLiquidity,
         usedDeltaLiquidity: liquidity.usedDeltaLiquidity,
         NAV: liquidity.NAV
@@ -559,18 +559,18 @@ contract LyraAdapter is Ownable {
 
   /// @notice Returns the amount of liquidity available for trading
   function _getFreeLiquidity() internal view returns (uint freeLiquidity) {
-    freeLiquidity = liquidityPool.getCurrentLiquidity().freeLiquidity;
+    freeLiquidity = liquidityPool.getLiquidity().freeLiquidity;
   }
 
   /// @notice Returns the most critical Lyra market trading parameters that determine pricing/slippage/trading restrictions
   function _getMarketParams() internal view returns (MarketParams memory) {
-    OptionMarketPricer.PricingParameters memory pricingParams = optionPricer.getPricingParams();
-    OptionMarketPricer.TradeLimitParameters memory tradeLimitParams = optionPricer.getTradeLimitParams();
+    IOptionMarketPricer.PricingParameters memory pricingParams = optionPricer.getPricingParams();
+    IOptionMarketPricer.TradeLimitParameters memory tradeLimitParams = optionPricer.getTradeLimitParams();
     return
       MarketParams({
         standardSize: pricingParams.standardSize,
         skewAdjustmentParam: pricingParams.skewAdjustmentFactor,
-        rateAndCarry: greekCache.getGreekCacheParams().rateAndCarry,
+        rateAndCarry: synthetixAdapter.rateAndCarry(address(optionMarket)),
         deltaCutOff: tradeLimitParams.minDelta,
         tradingCutoff: tradeLimitParams.tradingCutoff,
         minForceCloseDelta: tradeLimitParams.minForceCloseDelta
@@ -611,12 +611,12 @@ contract LyraAdapter is Ownable {
     uint amount
   ) internal view returns (uint) {
     return
-      greekCache.getMinCollateral(OptionMarket.OptionType(uint(optionType)), strikePrice, expiry, spotPrice, amount);
+      greekCache.getMinCollateral(IOptionMarket.OptionType(uint(optionType)), strikePrice, expiry, spotPrice, amount);
   }
 
   /// @notice Estimate minimum collateral required for an existing position
   function _getMinCollateralForPosition(uint positionId) internal view returns (uint) {
-    OptionToken.PositionWithOwner memory position = optionToken.getPositionWithOwner(positionId);
+    IOptionToken.PositionWithOwner memory position = optionToken.getPositionWithOwner(positionId);
     if (_isLong(OptionType(uint(position.optionType)))) return 0;
 
     uint strikePrice;
@@ -634,11 +634,7 @@ contract LyraAdapter is Ownable {
   }
 
   /// @notice Estimate minimum collateral required for a given strike with manual amount
-  function _getMinCollateralForStrike(
-    OptionType optionType,
-    uint strikeId,
-    uint amount
-  ) internal view returns (uint) {
+  function _getMinCollateralForStrike(OptionType optionType, uint strikeId, uint amount) internal view returns (uint) {
     if (_isLong(optionType)) return 0;
 
     uint strikePrice;
@@ -695,7 +691,7 @@ contract LyraAdapter is Ownable {
 
   /// @dev format all strike related params before input into BlackScholes
   function _getBsInput(uint strikeId) internal view returns (BlackScholes.BlackScholesInputs memory bsInput) {
-    (OptionMarket.Strike memory strike, OptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
+    (IOptionMarket.Strike memory strike, IOptionMarket.OptionBoard memory board) = optionMarket.getStrikeAndBoard(
       strikeId
     );
     bsInput = BlackScholes.BlackScholesInputs({
@@ -703,7 +699,7 @@ contract LyraAdapter is Ownable {
       volatilityDecimal: board.iv.multiplyDecimal(strike.skew),
       spotDecimal: synthetixAdapter.getSpotPriceForMarket(address(optionMarket)),
       strikePriceDecimal: strike.strikePrice,
-      rateDecimal: greekCache.getGreekCacheParams().rateAndCarry
+      rateDecimal: synthetixAdapter.rateAndCarry(address(optionMarket))
     });
   }
 
@@ -713,17 +709,15 @@ contract LyraAdapter is Ownable {
   }
 
   /// @dev Convert LyraAdapter.TradeInputParameters into OptionMarket.TradeInputParameters
-  function _convertParams(TradeInputParameters memory _params)
-    internal
-    pure
-    returns (OptionMarket.TradeInputParameters memory)
-  {
+  function _convertParams(
+    TradeInputParameters memory _params
+  ) internal pure returns (IOptionMarket.TradeInputParameters memory) {
     return
-      OptionMarket.TradeInputParameters({
+      IOptionMarket.TradeInputParameters({
         strikeId: _params.strikeId,
         positionId: _params.positionId,
         iterations: _params.iterations,
-        optionType: OptionMarket.OptionType(uint(_params.optionType)),
+        optionType: IOptionMarket.OptionType(uint(_params.optionType)),
         amount: _params.amount,
         setCollateralTo: _params.setCollateralTo,
         minTotalCost: _params.minTotalCost,
@@ -733,14 +727,14 @@ contract LyraAdapter is Ownable {
 
   /// @dev get lyra market addresses from LyraRegistry
   function _assignLyraRegistryMarketAddresses() internal {
-    LyraRegistry.OptionMarketAddresses memory addresses = lyraRegistry.getMarketAddresses(optionMarket);
+    ILyraRegistry.OptionMarketAddresses memory addresses = lyraRegistry.getMarketAddresses(address(optionMarket));
 
-    liquidityPool = addresses.liquidityPool;
-    greekCache = addresses.greekCache;
-    optionPricer = addresses.optionMarketPricer;
-    optionToken = addresses.optionToken;
-    shortCollateral = addresses.shortCollateral;
-    gwavOracle = addresses.gwavOracle;
+    liquidityPool = ILiquidityPool(addresses.liquidityPool);
+    greekCache = IOptionGreekCache(addresses.greekCache);
+    optionPricer = IOptionMarketPricer(addresses.optionMarketPricer);
+    optionToken = IOptionToken(addresses.optionToken);
+    shortCollateral = IShortCollateral(addresses.shortCollateral);
+    gwavOracle = IGWAVOracle(addresses.gwavOracle);
     quoteAsset = addresses.quoteAsset;
     baseAsset = addresses.baseAsset;
   }

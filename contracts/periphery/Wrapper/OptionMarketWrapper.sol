@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Inherited
 import "./OptionMarketWrapperWithSwaps.sol";
@@ -29,7 +29,7 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
    * Total 192 bits
    */
   function openLong(uint params) external returns (uint totalCost) {
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
 
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: idToMarket[uint8(params)],
@@ -67,7 +67,7 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
     OptionMarket optionMarket = idToMarket[uint8(params)];
     OptionMarketContracts memory c = marketContracts[optionMarket];
     OptionToken.PositionWithOwner memory position = c.optionToken.getPositionWithOwner(uint(uint32(params >> 24)));
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
 
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: optionMarket,
@@ -106,7 +106,7 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
     OptionMarket optionMarket = idToMarket[uint8(params)];
     OptionMarketContracts memory c = marketContracts[optionMarket];
     OptionToken.PositionWithOwner memory position = c.optionToken.getPositionWithOwner(uint(uint32(params >> 32)));
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
 
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: optionMarket,
@@ -144,7 +144,7 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
     OptionMarket optionMarket = idToMarket[uint8(params)];
     OptionMarketContracts memory c = marketContracts[optionMarket];
     OptionToken.PositionWithOwner memory position = c.optionToken.getPositionWithOwner(uint(uint32(params >> 32)));
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
 
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: optionMarket,
@@ -180,8 +180,8 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
    * 192 | uint64 | collateral   | The amount of collateral used for the position
    * Total 256 bits
    */
-  function openShort(uint params) external returns (uint totalReceived) {
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+  function openShort(uint params) external payable returns (uint totalReceived) {
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
 
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: idToMarket[uint8(params)],
@@ -220,11 +220,11 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
    * 184 | uint64 | collateral   | The amount of absolute collateral used for the total position
    * Total 248 bits
    */
-  function addShort(uint params) external returns (uint totalReceived) {
+  function addShort(uint params) external payable returns (uint totalReceived) {
     OptionMarket optionMarket = idToMarket[uint8(params)];
     OptionMarketContracts memory c = marketContracts[optionMarket];
     OptionToken.PositionWithOwner memory position = c.optionToken.getPositionWithOwner(uint(uint32(params >> 24)));
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
 
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: optionMarket,
@@ -260,11 +260,11 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
    * 196 | uint64 | collateral   | The amount of absolute collateral used for the total position
    * Total 256 bits
    */
-  function reduceShort(uint params) external returns (uint totalCost) {
+  function reduceShort(uint params) external payable returns (uint totalCost) {
     OptionMarket optionMarket = idToMarket[uint8(params)];
     OptionMarketContracts memory c = marketContracts[optionMarket];
     OptionToken.PositionWithOwner memory position = c.optionToken.getPositionWithOwner(uint(uint32(params >> 32)));
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
 
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: optionMarket,
@@ -298,12 +298,12 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
    * 96  | uint32 | maxCost      | The maximum amount the user will pay for all the options closed
    * Total 128 bits
    */
-  function closeShort(uint params) external returns (uint totalCost) {
+  function closeShort(uint params) external payable returns (uint totalCost) {
     OptionMarket optionMarket = idToMarket[uint8(params)];
     OptionMarketContracts memory c = marketContracts[optionMarket];
     OptionToken.PositionWithOwner memory position = c.optionToken.getPositionWithOwner(uint(uint32(params >> 32)));
 
-    ERC20 inputAsset = idToERC[uint8(params >> 8)];
+    IERC20Decimals inputAsset = idToERC[uint8(params >> 8)];
     OptionPositionParams memory positionParams = OptionPositionParams({
       optionMarket: optionMarket,
       strikeId: position.strikeId,
@@ -343,8 +343,11 @@ contract OptionMarketWrapper is OptionMarketWrapperWithSwaps {
     return uint(uint64(inp)) * 1e10;
   }
 
-  function _convertDecimal(uint amount, ERC20 inputAsset) internal view returns (uint newAmount) {
-    newAmount = amount * (10**(cachedDecimals[inputAsset] - 2)); // 2 dp
+  function _convertDecimal(uint amount, IERC20Decimals inputAsset) internal view returns (uint newAmount) {
+    if (amount == 0) {
+      return 0;
+    }
+    newAmount = amount * (10 ** (cachedDecimals[inputAsset] - 2)); // 2 dp
   }
 
   ////////////

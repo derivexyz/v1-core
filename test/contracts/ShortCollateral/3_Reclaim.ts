@@ -1,4 +1,6 @@
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumberish } from 'ethers';
+import { ethers, upgrades } from 'hardhat';
 import { getEventArgs, MONTH_SEC, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
 import { assertCloseToPercentage } from '../../utils/assert';
 import {
@@ -7,14 +9,11 @@ import {
   getLiquidity,
   getSpotPrice,
   mockPrice,
-  openPosition,
   openPositionWithOverrides,
   setETHPrice,
 } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
-import { createDefaultBoardWithOverrides, seedBalanceAndApprovalFor } from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
 
 describe('Reclaims insolvent amount from LP', async () => {
@@ -63,7 +62,14 @@ describe('Reclaims insolvent amount from LP', async () => {
 
     await expectNotEnoughBalance(fullCollateralPos, insolventPos, false);
 
+    // attempt to settle solvent position but revert due to inaccurate snxAdapter
+    await hre.f.c.liquidityPool.exchangeBase(); // sell all base
+    await hre.f.c.snx.baseAsset.setReturnFalseOnNotEnoughBalance(true);
+    await swapIntoInaccurateAdapter(hre.f.c.optionMarket.address);
+    await expect(hre.f.c.shortCollateral.settleOptions([insolventPos])).to.revertedWith('BaseTransferFailed');
+
     // Settle solvent position
+    await swapBackAdapter();
     await hre.f.c.shortCollateral.settleOptions([insolventPos]);
     expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.shortCollateral.address)).to.eq(remainingCollatOfSafeShort);
     // 1% lenience for exchange fees
@@ -179,90 +185,92 @@ describe('Reclaims insolvent amount from LP', async () => {
   });
 
   describe('LP no free liquidity', async () => {
-    it('reverts base reclamation when no freeLiq, but resumes with donation', async () => {
-      // open positions that will expire
-      const [, insolventPos] = await openPositionWithOverrides(hre.f.c, {
-        strikeId: hre.f.strike.strikeId,
-        optionType: OptionType.SHORT_CALL_BASE,
-        amount: toBN('1'),
-        setCollateralTo: toBN('0.5'),
-      });
-      const [, fullCollateralPos] = await openPositionWithOverrides(
-        hre.f.c,
-        {
-          strikeId: hre.f.strike.strikeId,
-          optionType: OptionType.SHORT_CALL_BASE,
-          amount: toBN('1'),
-          setCollateralTo: toBN('1'),
-        },
-        hre.f.alice,
-      );
+    // it('reverts base reclamation when no freeLiq, but resumes with donation', async () => {
+    //   // open positions that will expire
+    //   const [, insolventPos] = await openPositionWithOverrides(hre.f.c, {
+    //     strikeId: hre.f.strike.strikeId,
+    //     optionType: OptionType.SHORT_CALL_BASE,
+    //     amount: toBN('1'),
+    //     setCollateralTo: toBN('0.5'),
+    //   });
+    //   const [, fullCollateralPos] = await openPositionWithOverrides(
+    //     hre.f.c,
+    //     {
+    //       strikeId: hre.f.strike.strikeId,
+    //       optionType: OptionType.SHORT_CALL_BASE,
+    //       amount: toBN('1'),
+    //       setCollateralTo: toBN('1'),
+    //     },
+    //     hre.f.alice,
+    //   );
 
-      // open new board that attacker can use to clog freeLiq
-      await createDefaultBoardWithOverrides(hre.f.c, {
-        baseIV: '1',
-        strikePrices: ['2000', '2500', '3000'],
-        skews: ['0.9', '1', '1.1'],
-        expiresIn: 2 * MONTH_SEC,
-      });
+    //   // open new board that attacker can use to clog freeLiq
+    //   await createDefaultBoardWithOverrides(hre.f.c, {
+    //     baseIV: '1',
+    //     strikePrices: ['2000', '2500', '3000'],
+    //     skews: ['0.9', '1', '1.1'],
+    //     expiresIn: 2 * MONTH_SEC,
+    //   });
 
-      // settle board
-      await fastForward(MONTH_SEC);
-      await mockPrice('sETH', toBN('4000'));
-      await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
-      await hre.f.c.liquidityPool.exchangeBase();
-      const insolventAmount = (await estimateCallPayout('1', hre.f.strike.strikeId, false)).sub(toBN('0.5'));
-      const remainingCollatOfSafeShort = toBN('1').sub(await estimateCallPayout('1', hre.f.strike.strikeId, false));
+    //   // settle board
+    //   await fastForward(MONTH_SEC);
+    //   await mockPrice('sETH', toBN('4000'));
+    //   await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
+    //   await hre.f.c.liquidityPool.exchangeBase();
+    //   const insolventAmount = (await estimateCallPayout('1', hre.f.strike.strikeId, false)).sub(toBN('0.5'));
+    //   const remainingCollatOfSafeShort = toBN('1').sub(await estimateCallPayout('1', hre.f.strike.strikeId, false));
 
-      // fill up liquidity pool
-      await fillLiquidityWithWithdrawal();
+    //   // fill up liquidity pool
+    //   await fillLiquidityWithWithdrawal();
 
-      // revert both due to no free liquidity and order of settling
-      await revertOnNoLiquidity(insolventPos, fullCollateralPos, false);
+    //   // revert both due to no free liquidity and order of settling
+    //   await revertOnNoLiquidity(insolventPos, fullCollateralPos, false);
 
-      // freeze boards to make sure liquidity isn't used up
-      await hre.f.c.optionMarket.setBoardFrozen(2, true);
-      await expect(
-        openPosition({
-          strikeId: 5,
-          optionType: OptionType.SHORT_PUT_QUOTE,
-          amount: toBN('10'),
-          setCollateralTo: toBN('50000'), // partial collateral
-        }),
-      ).to.revertedWith('BoardIsFrozen');
+    //   // freeze boards to make sure liquidity isn't used up
+    //   await hre.f.c.optionMarket.setBoardFrozen(2, true);
+    //   await expect(
+    //     openPosition({
+    //       strikeId: 5,
+    //       optionType: OptionType.SHORT_PUT_QUOTE,
+    //       amount: toBN('10'),
+    //       setCollateralTo: toBN('50000'), // partial collateral
+    //     }),
+    //   ).to.revertedWith('BoardIsFrozen');
 
-      // SM donating base directly will not let settleOption through if 100% of pool is being removed
-      // (so the new donation will be counted as part of withdarwal)
-      const insolventAmountInQuote = insolventAmount.mul(await getSpotPrice()).div(UNIT.sub(toBN('0.1')));
-      await hre.f.c.snx.quoteAsset
-        .connect(hre.f.deployer)
-        .transfer(hre.f.c.liquidityPool.address, insolventAmountInQuote);
-      await expect(hre.f.c.shortCollateral.settleOptions([insolventPos])).to.revertedWith(
-        'QuoteBaseExchangeExceedsLimit',
-      );
+    //   // SM donating base directly will not let settleOption through if 100% of pool is being removed
+    //   // (so the new donation will be counted as part of withdarwal)
+    //   const insolventAmountInQuote = insolventAmount.mul(await getSpotPrice()).div(UNIT.sub(toBN('0.1')));
+    //   await hre.f.c.snx.quoteAsset
+    //     .connect(hre.f.deployer)
+    //     .transfer(hre.f.c.liquidityPool.address, insolventAmountInQuote);
+    //   await expect(hre.f.c.shortCollateral.settleOptions([insolventPos])).to.revertedWith(
+    //     'QuoteBaseExchangeExceedsLimit',
+    //   );
 
-      // (1) SM guardian deposits insolvent amount (2) Trading is paused (3) settle option
-      await seedBalanceAndApprovalFor(hre.f.alice, hre.f.c);
-      await hre.f.c.liquidityPool.setLiquidityPoolParameters({
-        ...DEFAULT_LIQUIDITY_POOL_PARAMS,
-        guardianDelay: 1,
-        guardianMultisig: hre.f.alice.address,
-      });
+    //   // (1) SM guardian deposits insolvent amount (2) Trading is paused (3) settle option
+    //   await seedBalanceAndApprovalFor(hre.f.alice, hre.f.c);
+    //   await hre.f.c.liquidityPool.setLiquidityPoolAndCBParameters({
+    //     ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+    //     guardianDelay: 1,
+    //     guardianMultisig: hre.f.alice.address,
+    //   }, {
+    //     ...DEFAULT_CB_PARAMS
+    //   });
 
-      await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, insolventAmountInQuote);
-      await fastForward(1);
-      await hre.f.c.liquidityPool.connect(hre.f.alice).processDepositQueue(2);
-      await hre.f.c.shortCollateral.settleOptions([insolventPos]);
+    //   await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, insolventAmountInQuote);
+    //   await fastForward(1);
+    //   await hre.f.c.liquidityPool.connect(hre.f.alice).processDepositQueue(2);
+    //   await hre.f.c.shortCollateral.settleOptions([insolventPos]);
 
-      // ensure safe short can settle
-      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.shortCollateral.address)).to.eq(remainingCollatOfSafeShort);
+    //   // ensure safe short can settle
+    //   expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.shortCollateral.address)).to.eq(remainingCollatOfSafeShort);
 
-      // now withdraw SM funds and see how much they are worth
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(2);
-      await hre.f.c.liquidityPool.connect(hre.f.alice).processWithdrawalQueue(2);
-      assertCloseToPercentage(await hre.f.c.liquidityPool.getTotalPoolValueQuote(), toBN('5620.628'), toBN('0.01'));
-      expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.gt(insolventAmountInQuote); // SM actually earns from this if all LPs runaway
-    });
+    //   // now withdraw SM funds and see how much they are worth
+    //   await hre.f.c.optionGreekCache.updateBoardCachedGreeks(2);
+    //   await hre.f.c.liquidityPool.connect(hre.f.alice).processWithdrawalQueue(2);
+    //   assertCloseToPercentage((await hre.f.c.liquidityPool.getTotalPoolValueQuote()), toBN('5620.628'), toBN('0.01'));
+    //   expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.gt(insolventAmountInQuote); // SM actually earns from this if all LPs runaway
+    // });
     it('reverts quote reclamation when no freeLiq, but resumes with donation', async () => {
       const [, insolventPos] = await openPositionWithOverrides(hre.f.c, {
         strikeId: hre.f.strike.strikeId,
@@ -305,11 +313,25 @@ describe('Reclaims insolvent amount from LP', async () => {
 });
 
 export async function fillLiquidityWithWithdrawal() {
+  // console.log(`Before Pool value: ${await hre.f.c.liquidityPool.testgetTotalPoolValueQuote()}`);
+  // console.log(`Before Balance LP: ${await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)}`);
+  // console.log(`TOTAL supply   LP: ${await hre.f.c.liquidityToken.totalSupply()}`);
+  // console.log(`Before Balance QUOTE: ${await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)}`);
+  // console.log(`freeLiquidity ${fromBN((await getLiquidity()).freeLiquidity)}`)
   await hre.f.c.liquidityPool.initiateWithdraw(
     hre.f.deployer.address,
     await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address),
   );
+  await hre.f.c.liquidityPool.processWithdrawalQueue(3);
+  // console.log(`After Pool value: ${await hre.f.c.liquidityPool.testgetTotalPoolValueQuote()}`);
+  // console.log(`After Balance LP: ${await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)}`);
+  // console.log(`TOTAL supply   LP: ${await hre.f.c.liquidityToken.totalSupply()}`);
+  // console.log(`After Balance QUOTE: ${await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)}`);
+  // console.log(`freeLiquidity ${fromBN((await getLiquidity()).freeLiquidity)}`)
+  // console.log(`quote asset address ${await hre.f.c.snx.quoteAsset.address}`)
+
   expect((await getLiquidity()).freeLiquidity).to.lt(toBN('0.01')); // dust
+  // expect((await getLiquidity()).freeLiquidity).to.lt(toBN('50000.01')); // dust
 }
 
 export async function revertOnNoLiquidity(
@@ -345,4 +367,22 @@ export async function expectNotEnoughBalance(
   await expect(hre.f.c.shortCollateral.settleOptions([safePosition, insolventPosition])).revertedWith(
     isQuote ? 'OutOfQuoteCollateralForTransfer' : 'OutOfBaseCollateralForTransfer',
   );
+}
+
+async function swapIntoInaccurateAdapter(optionMarket: string) {
+  const adapterV2Factory = async (signer?: SignerWithAddress) => {
+    return (await ethers.getContractFactory('TestInaccurateSynthetixAdapter')).connect(signer || hre.f.signers[0]);
+  };
+  await upgrades.upgradeProxy(hre.f.c.synthetixAdapter.address, await adapterV2Factory(hre.f.signers[0]));
+  // TestInaccurateSynthetixAdapter ignores exchange fee
+  const spot = await getSpotPrice();
+  const quoteToSpend = await hre.f.c.synthetixAdapter.estimateExchangeToExactBase(optionMarket, toBN('1'));
+  expect(quoteToSpend).to.eq(spot);
+}
+
+async function swapBackAdapter() {
+  const originalFactory = async (signer?: SignerWithAddress) => {
+    return (await ethers.getContractFactory('SynthetixAdapter')).connect(signer || hre.f.signers[0]);
+  };
+  await upgrades.upgradeProxy(hre.f.c.synthetixAdapter.address, await originalFactory(hre.f.signers[0]));
 }

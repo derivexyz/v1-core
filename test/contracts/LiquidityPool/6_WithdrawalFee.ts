@@ -9,7 +9,7 @@ import {
   openAllTrades,
   openPosition,
 } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { createDefaultBoardWithOverrides } from '../../utils/seedTestSystem';
@@ -118,7 +118,7 @@ describe('Withdrawal Fees', async () => {
     await fastForward(MONTH_SEC + 1);
 
     await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
-    await fastForward(BigNumber.from(DEFAULT_LIQUIDITY_POOL_PARAMS.boardSettlementCBTimeout).add(1).toNumber());
+    await fastForward(BigNumber.from(DEFAULT_CB_PARAMS.boardSettlementCBTimeout).add(1).toNumber());
 
     // process withdrawal now that liveBoards == 0
     expect(await hre.f.c.optionMarket.getNumLiveBoards()).to.eq(0);

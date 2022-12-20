@@ -3,7 +3,7 @@ import { currentTime, MAX_UINT, MONTH_SEC, OptionType, toBN, UNIT, YEAR_SEC } fr
 import { TestBlackScholes } from '../../../typechain-types';
 import { assertCloseToPercentage } from '../../utils/assert';
 import { getSpotPrice, resetMinCollateralParameters } from '../../utils/contractHelpers';
-import { DEFAULT_GREEK_CACHE_PARAMS, DEFAULT_MIN_COLLATERAL_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_RATE_AND_CARRY, DEFAULT_MIN_COLLATERAL_PARAMS } from '../../utils/defaultParams';
 import { seedFixture } from '../../utils/fixture';
 import { mockPrice } from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
@@ -237,7 +237,7 @@ async function getBSPremium(
   amount: BigNumber,
 ) {
   const premiums = await testBlackScholes.optionPrices_pub({
-    rateDecimal: DEFAULT_GREEK_CACHE_PARAMS.rateAndCarry,
+    rateDecimal: DEFAULT_RATE_AND_CARRY,
     spotDecimal: spotPrice,
     strikePriceDecimal: strikePrice,
     timeToExpirySec: expiry,

@@ -1,16 +1,19 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
+import "./libraries/ConvertDecimals.sol";
+
 // Inherited
 import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializable.sol";
 import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
+
 // Interfaces
-import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
+import "./interfaces/IERC20Decimals.sol";
 import "./libraries/PoolHedger.sol";
-import "./SynthetixAdapter.sol";
+import "./BaseExchangeAdapter.sol";
 import "./LiquidityPool.sol";
 import "./OptionMarket.sol";
 import "./OptionToken.sol";
@@ -20,15 +23,15 @@ import "./OptionToken.sol";
  * @author Lyra
  * @dev Holds collateral from users who are selling (shorting) options to the OptionMarket.
  */
-contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
+contract ShortCollateral is Owned, SimpleInitializable, ReentrancyGuard {
   using DecimalMath for uint;
 
   OptionMarket internal optionMarket;
   LiquidityPool internal liquidityPool;
   OptionToken internal optionToken;
-  SynthetixAdapter internal synthetixAdapter;
-  ERC20 internal quoteAsset;
-  ERC20 internal baseAsset;
+  BaseExchangeAdapter internal exchangeAdapter;
+  IERC20Decimals internal quoteAsset;
+  IERC20Decimals internal baseAsset;
 
   // The amount the SC underpaid the LP due to insolvency.
   // The SC will take this much less from the LP when settling insolvent positions.
@@ -48,27 +51,16 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     OptionMarket _optionMarket,
     LiquidityPool _liquidityPool,
     OptionToken _optionToken,
-    SynthetixAdapter _synthetixAdapter,
-    ERC20 _quoteAsset,
-    ERC20 _baseAsset
+    BaseExchangeAdapter _exchangeAdapter,
+    IERC20Decimals _quoteAsset,
+    IERC20Decimals _baseAsset
   ) external onlyOwner initializer {
     optionMarket = _optionMarket;
     liquidityPool = _liquidityPool;
     optionToken = _optionToken;
-    synthetixAdapter = _synthetixAdapter;
+    exchangeAdapter = _exchangeAdapter;
     quoteAsset = _quoteAsset;
     baseAsset = _baseAsset;
-
-    synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
-  }
-
-  ///////////
-  // Admin //
-  ///////////
-
-  /// @dev In case of an update to the synthetix contract that revokes the approval
-  function updateDelegateApproval() external onlyOwner {
-    synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
   }
 
   ////////////////////////////////
@@ -119,8 +111,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     if (optionType == OptionMarket.OptionType.SHORT_CALL_BASE) {
       _sendBaseCollateral(trader, liquidationFees.returnCollateral);
       _sendBaseCollateral(liquidator, liquidationFees.liquidatorFee);
-      _exchangeAndSendBaseCollateral(address(optionMarket), liquidationFees.smFee);
-      _exchangeAndSendBaseCollateral(address(liquidityPool), liquidationFees.lpFee + liquidationFees.lpPremiums);
+      _sendBaseCollateral(address(optionMarket), liquidationFees.smFee);
+      _sendBaseCollateral(address(liquidityPool), liquidationFees.lpFee + liquidationFees.lpPremiums);
     } else {
       // quote collateral
       _sendQuoteCollateral(trader, liquidationFees.returnCollateral);
@@ -142,19 +134,18 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
    * @return lpBaseInsolvency total base amount owed to LP but not sent due to large amount of user insolvencies
    * @return lpQuoteInsolvency total quote amount owed to LP but not sent due to large amount of user insolvencies
    */
-  function boardSettlement(uint amountBase, uint amountQuote)
-    external
-    onlyOptionMarket
-    returns (uint lpBaseInsolvency, uint lpQuoteInsolvency)
-  {
-    uint currentBaseBalance = baseAsset.balanceOf(address(this));
+  function boardSettlement(
+    uint amountBase,
+    uint amountQuote
+  ) external onlyOptionMarket returns (uint lpBaseInsolvency, uint lpQuoteInsolvency) {
+    uint currentBaseBalance = ConvertDecimals.convertTo18(baseAsset.balanceOf(address(this)), baseAsset.decimals());
     if (amountBase > currentBaseBalance) {
       lpBaseInsolvency = amountBase - currentBaseBalance;
       amountBase = currentBaseBalance;
       LPBaseExcess += lpBaseInsolvency;
     }
 
-    uint currentQuoteBalance = quoteAsset.balanceOf(address(this));
+    uint currentQuoteBalance = ConvertDecimals.convertTo18(quoteAsset.balanceOf(address(this)), quoteAsset.decimals());
     if (amountQuote > currentQuoteBalance) {
       lpQuoteInsolvency = amountQuote - currentQuoteBalance;
       amountQuote = currentQuoteBalance;
@@ -188,8 +179,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   function settleOptions(uint[] memory positionIds) external nonReentrant notGlobalPaused {
     // This is how much is missing from the ShortCollateral contract that was claimed by LPs at board expiry
     // We want to take it back when we know how much was missing.
-    uint baseInsolventAmount;
-    uint quoteInsolventAmount;
+    uint baseInsolventAmount = 0;
+    uint quoteInsolventAmount = 0;
 
     OptionToken.PositionWithOwner[] memory optionPositions = optionToken.getPositionsWithOwner(positionIds);
     optionToken.settlePositions(positionIds);
@@ -197,20 +188,29 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     uint positionsLength = optionPositions.length;
     for (uint i = 0; i < positionsLength; ++i) {
       OptionToken.PositionWithOwner memory position = optionPositions[i];
-      uint settlementAmount;
-      uint insolventAmount;
-      (uint strikePrice, uint priceAtExpiry, uint ammShortCallBaseProfitRatio) = optionMarket.getSettlementParameters(
-        position.strikeId
-      );
+      uint settlementAmount = 0;
+      uint insolventAmount = 0;
+      (uint strikePrice, uint priceAtExpiry, uint ammShortCallBaseProfitRatio, uint longScaleFactor) = optionMarket
+        .getSettlementParameters(position.strikeId);
 
       if (priceAtExpiry == 0) {
         revert BoardMustBeSettled(address(this), position);
       }
 
       if (position.optionType == OptionMarket.OptionType.LONG_CALL) {
-        settlementAmount = _sendLongCallProceeds(position.owner, position.amount, strikePrice, priceAtExpiry);
+        settlementAmount = _sendLongCallProceeds(
+          position.owner,
+          position.amount.multiplyDecimal(longScaleFactor),
+          strikePrice,
+          priceAtExpiry
+        );
       } else if (position.optionType == OptionMarket.OptionType.LONG_PUT) {
-        settlementAmount = _sendLongPutProceeds(position.owner, position.amount, strikePrice, priceAtExpiry);
+        settlementAmount = _sendLongPutProceeds(
+          position.owner,
+          position.amount.multiplyDecimal(longScaleFactor),
+          strikePrice,
+          priceAtExpiry
+        );
       } else if (position.optionType == OptionMarket.OptionType.SHORT_CALL_BASE) {
         (settlementAmount, insolventAmount) = _sendShortCallBaseProceeds(
           position.owner,
@@ -240,6 +240,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         quoteInsolventAmount += insolventAmount;
       }
 
+      // Emit event
       emit PositionSettled(
         position.positionId,
         msg.sender,
@@ -249,7 +250,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
         position.optionType,
         position.amount,
         settlementAmount,
-        insolventAmount
+        insolventAmount,
+        longScaleFactor
       );
     }
 
@@ -258,14 +260,12 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
 
   /// @dev Send quote or base owed to LiquidityPool due to large number of insolvencies
   function _reclaimInsolvency(uint baseInsolventAmount, uint quoteInsolventAmount) internal {
-    SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(address(optionMarket));
-
     if (LPBaseExcess > baseInsolventAmount) {
       LPBaseExcess -= baseInsolventAmount;
     } else if (baseInsolventAmount > 0) {
       baseInsolventAmount -= LPBaseExcess;
       LPBaseExcess = 0;
-      liquidityPool.reclaimInsolventBase(exchangeParams, baseInsolventAmount);
+      liquidityPool.reclaimInsolventBase(baseInsolventAmount);
     }
 
     if (LPQuoteExcess > quoteInsolventAmount) {
@@ -273,7 +273,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     } else if (quoteInsolventAmount > 0) {
       quoteInsolventAmount -= LPQuoteExcess;
       LPQuoteExcess = 0;
-      liquidityPool.reclaimInsolventQuote(exchangeParams.spotPrice, quoteInsolventAmount);
+      liquidityPool.reclaimInsolventQuote(quoteInsolventAmount);
     }
   }
 
@@ -337,11 +337,10 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     return (settlementAmount, insolvency);
   }
 
-  function _getInsolvency(uint userCollateral, uint ammProfit)
-    internal
-    pure
-    returns (uint returnCollateral, uint insolvency)
-  {
+  function _getInsolvency(
+    uint userCollateral,
+    uint ammProfit
+  ) internal pure returns (uint returnCollateral, uint insolvency) {
     if (userCollateral >= ammProfit) {
       returnCollateral = userCollateral - ammProfit;
     } else {
@@ -357,6 +356,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     if (amount == 0) {
       return;
     }
+    // Convert amount to same dp as quoteAsset
+    amount = ConvertDecimals.convertFrom18(amount, quoteAsset.decimals());
 
     uint currentBalance = quoteAsset.balanceOf(address(this));
 
@@ -375,6 +376,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
       return;
     }
 
+    amount = ConvertDecimals.convertFrom18(amount, baseAsset.decimals());
     uint currentBalance = baseAsset.balanceOf(address(this));
 
     if (amount > currentBalance) {
@@ -385,25 +387,6 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
       revert BaseTransferFailed(address(this), address(this), recipient, amount);
     }
     emit BaseSent(recipient, amount);
-  }
-
-  function _exchangeAndSendBaseCollateral(address recipient, uint amountBase) internal {
-    if (amountBase == 0) {
-      return;
-    }
-
-    uint currentBalance = baseAsset.balanceOf(address(this));
-    if (amountBase > currentBalance) {
-      revert OutOfBaseCollateralForExchangeAndTransfer(address(this), currentBalance, amountBase);
-    }
-
-    uint quoteReceived = synthetixAdapter.exchangeFromExactBase(address(optionMarket), amountBase);
-
-    if (!quoteAsset.transfer(recipient, quoteReceived)) {
-      revert QuoteTransferFailed(address(this), address(this), recipient, quoteReceived);
-    }
-
-    emit BaseExchangedAndQuoteSent(recipient, amountBase, quoteReceived);
   }
 
   ///////////////
@@ -418,7 +401,7 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   modifier notGlobalPaused() {
-    synthetixAdapter.requireNotGlobalPaused(address(optionMarket));
+    exchangeAdapter.requireNotMarketPaused(address(optionMarket));
     _;
   }
 
@@ -448,7 +431,8 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
     OptionMarket.OptionType optionType,
     uint amount,
     uint settlementAmount,
-    uint insolventAmount
+    uint insolventAmount,
+    uint longScaleFactor
   );
 
   /**
@@ -469,7 +453,6 @@ contract ShortCollateral is Owned, SimpleInitializeable, ReentrancyGuard {
   // Collateral transfers
   error OutOfQuoteCollateralForTransfer(address thrower, uint balance, uint amount);
   error OutOfBaseCollateralForTransfer(address thrower, uint balance, uint amount);
-  error OutOfBaseCollateralForExchangeAndTransfer(address thrower, uint balance, uint amount);
 
   // Token transfers
   error BaseTransferFailed(address thrower, address from, address to, uint amount);

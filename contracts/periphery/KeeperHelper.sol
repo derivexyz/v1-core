@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
-//Interfaces
+// Interfaces
 import "../OptionMarket.sol";
 
 /**
@@ -17,11 +17,7 @@ contract KeeperHelper {
 
   constructor() {}
 
-  function init(
-    OptionMarket _optionMarket,
-    ShortCollateral _shortCollateral,
-    OptionGreekCache _greekCache
-  ) external {
+  function init(OptionMarket _optionMarket, ShortCollateral _shortCollateral, OptionGreekCache _greekCache) external {
     require(!initialized, "Keeper Helper: already initialized");
 
     optionMarket = _optionMarket;
@@ -133,11 +129,7 @@ contract KeeperHelper {
    *
    * @param batch1 Is a compressed uint which contains up to 8 positionIds (uint32)
    */
-  function settle24(
-    uint batch1,
-    uint batch2,
-    uint batch3
-  ) external {
+  function settle24(uint batch1, uint batch2, uint batch3) external {
     uint[] memory pids = new uint[](24);
 
     for (uint i = 0; i < 24; ++i) {
@@ -167,12 +159,7 @@ contract KeeperHelper {
    *
    * @param batch1 Is a compressed uint which contains up to 8 positionIds (uint32)
    */
-  function settle32(
-    uint batch1,
-    uint batch2,
-    uint batch3,
-    uint batch4
-  ) external {
+  function settle32(uint batch1, uint batch2, uint batch3, uint batch4) external {
     uint[] memory pids = new uint[](32);
 
     for (uint i = 0; i < 32; ++i) {
@@ -204,13 +191,7 @@ contract KeeperHelper {
    *
    * @param batch1 Is a compressed uint which contains up to 8 positionIds (uint32)
    */
-  function settle40(
-    uint batch1,
-    uint batch2,
-    uint batch3,
-    uint batch4,
-    uint batch5
-  ) external {
+  function settle40(uint batch1, uint batch2, uint batch3, uint batch4, uint batch5) external {
     uint[] memory pids = new uint[](40);
 
     for (uint i = 0; i < 40; ++i) {

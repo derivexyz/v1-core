@@ -1,4 +1,4 @@
-import { currentTime, getEventArgs, MONTH_SEC, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { currentTime, getEventArgs, MONTH_SEC, toBN, toBN18, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { closeLongCall, openDefaultLongCall } from '../../utils/contractHelpers';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
@@ -61,8 +61,8 @@ describe('OptionMarket - Admin', () => {
         hre.f.c.optionMarket.createOptionBoard(
           (await currentTime()) + MONTH_SEC,
           toBN('1'),
-          ['1000', '1500', '2000', '2500', '3000'].map(toBN),
-          ['1', '1', '1', '1'].map(toBN),
+          ['1000', '1500', '2000', '2500', '3000'].map(toBN18),
+          ['1', '1', '1', '1'].map(toBN18),
           false,
         ),
       ).to.revertedWith('StrikeSkewLengthMismatch');
@@ -72,8 +72,8 @@ describe('OptionMarket - Admin', () => {
         hre.f.c.optionMarket.createOptionBoard(
           (await currentTime()) + MONTH_SEC,
           toBN('1'),
-          ['1000'].map(toBN),
-          ['0'].map(toBN),
+          ['1000'].map(toBN18),
+          ['0'].map(toBN18),
           false,
         ),
       ).to.revertedWith('ExpectedNonZeroValue');
@@ -83,8 +83,8 @@ describe('OptionMarket - Admin', () => {
         hre.f.c.optionMarket.createOptionBoard(
           (await currentTime()) + MONTH_SEC,
           toBN('1'),
-          ['0'].map(toBN),
-          ['1'].map(toBN),
+          ['0'].map(toBN18),
+          ['1'].map(toBN18),
           false,
         ),
       ).to.revertedWith('ExpectedNonZeroValue');
@@ -94,8 +94,8 @@ describe('OptionMarket - Admin', () => {
       await hre.f.c.optionMarket.createOptionBoard(
         (await currentTime()) + MONTH_SEC,
         toBN('1'),
-        ['1000', '1500', '2000', '2500', '3000'].map(toBN),
-        ['1', '1', '1', '1', '1'].map(toBN),
+        ['1000', '1500', '2000', '2500', '3000'].map(toBN18),
+        ['1', '1', '1', '1', '1'].map(toBN18),
         false,
       );
 
@@ -107,8 +107,8 @@ describe('OptionMarket - Admin', () => {
     it('board and strikes are updated and greek values are added', async () => {
       const expiry = (await currentTime()) + MONTH_SEC;
       const baseIv = toBN('1');
-      const strikePrices = ['1000', '1500', '2000', '2500', '3000'].map(toBN);
-      const skews = ['1', '1', '1', '1', '1'].map(toBN);
+      const strikePrices = ['1000', '1500', '2000', '2500', '3000'].map(toBN18);
+      const skews = ['1', '1', '1', '1', '1'].map(toBN18);
       await hre.f.c.optionMarket.createOptionBoard(expiry, baseIv, strikePrices, skews, false);
 
       const boardData = await hre.f.c.optionMarket.getOptionBoard((await hre.f.c.optionMarket.getLiveBoards())[1]);
@@ -152,8 +152,8 @@ describe('OptionMarket - Admin', () => {
     it('can add multiple boards', async () => {
       const expiry = (await currentTime()) + MONTH_SEC;
       const baseIv = toBN('1');
-      const strikePrices = ['1000', '1500', '2000', '2500', '3000'].map(toBN);
-      const skews = ['1', '1', '1', '1', '1'].map(toBN);
+      const strikePrices = ['1000', '1500', '2000', '2500', '3000'].map(toBN18);
+      const skews = ['1', '1', '1', '1', '1'].map(toBN18);
       await hre.f.c.optionMarket.createOptionBoard(expiry, baseIv, strikePrices, skews, false);
 
       await hre.f.c.optionMarket.createOptionBoard(expiry - WEEK_SEC, baseIv, strikePrices, skews, false);

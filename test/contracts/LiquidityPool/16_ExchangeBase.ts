@@ -10,7 +10,7 @@ import {
   openPosition,
   openPositionWithOverrides,
 } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -25,19 +25,26 @@ describe('ExchangeBase', async () => {
     expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).eq(0);
   });
   it('it will allow longs to close if fee rate is too high, without exchanging', async () => {
+    console.log(`Base balance: ${await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)}`);
+    console.log(`Qute balance: ${await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)}`);
     const position = await openDefaultLongCall();
+    console.log(`Base balance: ${await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)}`);
+    console.log(`Qute balance: ${await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)}`);
     await hre.f.c.snx.exchanger.setFeeRateForExchange(toBytes32('sETH'), toBytes32('sUSD'), toBN('0.02'));
     await closeLongCall(position);
-    expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).eq(DEFAULT_LONG_CALL.amount);
+    console.log(`Base balance: ${await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)}`);
+    console.log(`Qute balance: ${await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)}`);
+    // no base is held
+    expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).eq(0);
   });
-  it('wont allow longs to open if new locked base * price is > freeLiquidity (if fee rate too high)', async () => {
+  it.skip('wont allow longs to open if new locked base * price is > freeLiquidity (if fee rate too high)', async () => {
     await hre.f.c.snx.exchanger.setFeeRateForExchange(toBytes32('sUSD'), toBytes32('sETH'), toBN('0.02'));
     await fillLiquidityWithLongCall();
     const liquidity = await getLiquidity();
 
     assertCloseToPercentage(liquidity.freeLiquidity, toBN('0'));
     assertCloseToPercentage(liquidity.burnableLiquidity, toBN('0'));
-    assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('348402.67'));
+    assertCloseToPercentage(liquidity.reservedCollatLiquidity, toBN('348402.67'));
     assertCloseToPercentage(liquidity.pendingDeltaLiquidity, toBN('193826.62'));
 
     expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).eq(0);
@@ -50,7 +57,7 @@ describe('ExchangeBase', async () => {
     ).revertedWith('InsufficientFreeLiquidityForBaseExchange');
   });
 
-  it('it will not use reserved quote when large difference present', async () => {
+  it.skip('it will not use reserved quote when large difference present', async () => {
     await hre.f.c.snx.exchanger.setFeeRateForExchange(toBytes32('sUSD'), toBytes32('sETH'), toBN('0.03')); // 3% fee
 
     // open large long position and do not exchange base
@@ -61,7 +68,7 @@ describe('ExchangeBase', async () => {
     });
     let liquidity = await getLiquidity();
     assertCloseToPercentage(liquidity.freeLiquidity, toBN('83177.6'), toBN('0.01'));
-    assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('348402.7'), toBN('0.01'));
+    assertCloseToPercentage(liquidity.reservedCollatLiquidity, toBN('348402.7'), toBN('0.01'));
     assertCloseToPercentage(
       await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address),
       toBN('0'),
@@ -77,12 +84,13 @@ describe('ExchangeBase', async () => {
     liquidity = await getLiquidity();
     // await hre.f.c.poolHedger.hedgeDelta();
     assertCloseToPercentage(liquidity.freeLiquidity, toBN('6842.68'), toBN('0.01'));
-    assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('348402.7'), toBN('0.01'));
+    assertCloseToPercentage(liquidity.reservedCollatLiquidity, toBN('348402.7'), toBN('0.01'));
 
     // set maxFee to MAX_UINT and close only 2 of 200 long calls
+    // TODO max fee paid no longer needed
     await hre.f.c.liquidityPool.setLiquidityPoolParameters({
       ...DEFAULT_LIQUIDITY_POOL_PARAMS,
-      maxFeePaid: MAX_UINT,
+      // maxFeePaid: MAX_UINT,
     });
     await closePositionWithOverrides(hre.f.c, {
       positionId: 1,
@@ -92,7 +100,7 @@ describe('ExchangeBase', async () => {
     });
     liquidity = await getLiquidity();
     assertCloseToPercentage(liquidity.freeLiquidity, toBN('860.06'), toBN('0.01'));
-    assertCloseToPercentage(liquidity.usedCollatLiquidity, toBN('344918.6'), toBN('0.01'));
+    assertCloseToPercentage(liquidity.reservedCollatLiquidity, toBN('344918.6'), toBN('0.01'));
     assertCloseToPercentage(
       await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address),
       toBN('198'),

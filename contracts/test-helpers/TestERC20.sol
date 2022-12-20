@@ -1,5 +1,5 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 
@@ -10,6 +10,10 @@ contract TestERC20 is ITestERC20, ERC20 {
 
   constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {
     permitted[msg.sender] = true;
+  }
+
+  function decimals() public pure override returns (uint8) {
+    return 18;
   }
 
   function permitMint(address user, bool permit) external {

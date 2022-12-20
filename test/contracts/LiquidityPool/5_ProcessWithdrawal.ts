@@ -22,6 +22,7 @@ import {
   partiallyFillLiquidityWithLongCall,
 } from '../../utils/contractHelpers';
 import {
+  DEFAULT_CB_PARAMS,
   DEFAULT_GREEK_CACHE_PARAMS,
   DEFAULT_LIQUIDITY_POOL_PARAMS,
   DEFAULT_POOL_HEDGER_PARAMS,
@@ -218,8 +219,8 @@ describe('Process withdrawal', async () => {
 
       const firstTx = await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('200000'));
       // prevent withdrawal from triggering CBTimeout
-      await hre.f.c.liquidityPool.setLiquidityPoolParameters({
-        ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+      await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+        ...DEFAULT_CB_PARAMS,
         liquidityCBThreshold: toBN('0'),
       });
 
@@ -228,14 +229,14 @@ describe('Process withdrawal', async () => {
       await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
       await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       const newQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
-      // assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('75488.496'), toBN('1'));
+      assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('149722.73'), toBN('2'));
 
       expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
-      assertCloseTo(newQuote.sub(oldQuote), toBN('123776.42'), toBN('5'));
+      assertCloseTo(newQuote.sub(oldQuote), toBN('50100.25'), toBN('5'));
       await validateWithdrawalRecord(
         1,
         hre.f.deployer.address,
-        toBN('75567.517'),
+        toBN('149722.73'),
         newQuote.sub(oldQuote),
         await getTxTimestamp(firstTx),
       );
@@ -342,8 +343,7 @@ describe('Process withdrawal', async () => {
       expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
 
       // confirm 100% withdrawn, except pool fees and settlement values
-      const globals = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
-      const liquidity = await hre.f.c.liquidityPool.getLiquidity(globals.spotPrice);
+      const liquidity = await hre.f.c.liquidityPool.getLiquidity();
       assertCloseToPercentage(
         await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address),
         toBN('5242.0727'),

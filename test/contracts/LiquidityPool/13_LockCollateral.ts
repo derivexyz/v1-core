@@ -43,7 +43,7 @@ describe('Lock Collateral', async () => {
     it('Reverts if not enough freeLiq to exchange for base', async () => {
       await fillLiquidityWithLongPut();
       expect((await getLiquidity()).freeLiquidity).to.eq(toBN('0'));
-      await expect(openDefaultLongCall()).to.revertedWith('QuoteBaseExchangeExceedsLimit');
+      await expect(openDefaultLongCall()).to.revertedWith('LockingMoreQuoteThanIsFree');
     });
   });
 });

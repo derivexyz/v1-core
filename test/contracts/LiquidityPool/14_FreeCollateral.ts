@@ -4,7 +4,6 @@ import {
   fullyClosePosition,
   getSpotPrice,
   mockPrice,
-  openDefaultLongCall,
   openDefaultLongPut,
   openPosition,
 } from '../../utils/contractHelpers';
@@ -45,46 +44,6 @@ describe('Free Collateral', async () => {
         closeEvent.trade.reservedFee,
       );
     });
-
-    it('liquidates the correct amount of base and sends premium', async () => {
-      const positionId = await openDefaultLongCall();
-
-      const oldAccruedFees = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address);
-      const oldUsedCollat = (await hre.f.c.liquidityPool.lockedCollateral()).base;
-      const oldBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
-      const oldLPBaseBal = await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address);
-      const oldLPQuoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
-      const tx = await fullyClosePosition(positionId);
-      const newAccruedFees = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address);
-      const newUsedCollat = (await hre.f.c.liquidityPool.lockedCollateral()).base;
-      const newBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
-      const newLPBaseBal = await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address);
-      const newLPQuoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
-
-      const closeEvent = getEventArgs(await tx.wait(), 'Trade');
-
-      expect(oldLPBaseBal).to.be.eq(toBN('1'));
-      expect(newLPBaseBal).to.be.eq(toBN('0'));
-
-      expect(oldUsedCollat).to.be.eq(toBN('1'));
-      expect(newUsedCollat).to.be.eq(toBN('0'));
-      assertCloseTo(newBalance.sub(oldBalance), toBN('292.5838'), toBN('0.1'));
-      assertCloseTo(newBalance.sub(oldBalance), closeEvent.trade.totalCost, toBN('0.1'));
-      expect(newAccruedFees.sub(oldAccruedFees)).to.be.eq(closeEvent.trade.reservedFee);
-      expect(calculateReservedFee(closeEvent, DEFAULT_OPTION_MARKET_PARAMS.feePortionReserved)).to.eq(
-        closeEvent.trade.reservedFee,
-      );
-
-      assertCloseTo(
-        newLPQuoteBal.sub(oldLPQuoteBal),
-        (await getSpotPrice())
-          .mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE))
-          .div(UNIT)
-          .sub(closeEvent.trade.totalCost)
-          .sub(closeEvent.trade.reservedFee),
-        toBN('0.01'),
-      );
-    });
   });
 
   describe('Board Settlement', async () => {
@@ -123,22 +82,15 @@ describe('Free Collateral', async () => {
 
       const result = await getBalancesAndSettle();
 
-      expect((await hre.f.c.liquidityPool.lockedCollateral()).base).to.be.eq(result.preSettleBase.sub(toBN('10')));
-      expect((await hre.f.c.liquidityPool.lockedCollateral()).quote).to.be.eq(toBN('0'));
+      // from the unexpired board
+      expect((await hre.f.c.liquidityPool.lockedCollateral()).base).to.be.eq(toBN('20'));
+      expect((await hre.f.c.liquidityPool.lockedCollateral()).quote).to.be.eq(0);
 
       const traderCallProfit = (await getSpotPrice()).sub(toBN('1500')).mul(10);
-      const quoteFromLiqBase = (await getSpotPrice())
-        .mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE))
-        .div(UNIT)
-        .mul(toBN('10').div(UNIT));
-      expect(result.newLPBaseBal).to.eq(toBN('20'));
+      expect(result.newLPBaseBal).to.eq(0);
 
       // amm and trader call profit cancel out but quote stays in LP until position settled
-      assertCloseTo(
-        result.newLPQuoteBal.sub(result.oldLPQuoteBal),
-        quoteFromLiqBase.add(traderCallProfit),
-        toBN('0.01'),
-      );
+      assertCloseTo(result.newLPQuoteBal.sub(result.oldLPQuoteBal), traderCallProfit);
       expect(await hre.f.c.liquidityPool.totalOutstandingSettlements()).to.eq(traderCallProfit);
     }); // just input amountQuoteFreed/Liquidiated and check lockedCollateral
 
@@ -150,34 +102,34 @@ describe('Free Collateral', async () => {
       const result = await getBalancesAndSettle();
       const expectedInsolventAmount = await hre.f.c.liquidityPool.insolventSettlementAmount();
 
-      expect((await hre.f.c.liquidityPool.lockedCollateral()).base).to.be.eq(result.preSettleBase.sub(toBN('10')));
+      // base OI reduced by 10
+      expect((await hre.f.c.liquidityPool.lockedCollateral()).base).to.be.eq(result.shortCallOI.sub(toBN('10')));
       expect((await hre.f.c.liquidityPool.lockedCollateral()).quote).to.be.eq(toBN('0'));
 
-      const traderCallProfit = (await getSpotPrice()).sub(toBN('1500')).mul(10);
-      const ammRealizedProfit = traderCallProfit.sub(
+      // console.log("expectedInsolventAmount", expectedInsolventAmount)
+
+      const callProfit = (await getSpotPrice()).sub(toBN('1500')).mul(10);
+      const ammRealizedProfit = callProfit.sub(
         expectedInsolventAmount.mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE)).div(UNIT),
       );
-      const quoteFromLiqBase = (await getSpotPrice()).mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE)).div(UNIT).mul(10);
-      expect(result.newLPBaseBal).to.eq(toBN('20'));
+      // const quoteFromLiqBase = (await getSpotPrice()).mul(UNIT.sub(DEFAULT_FEE_RATE_FOR_BASE)).div(UNIT).mul(10);
+      expect(result.newLPBaseBal).to.eq(0);
 
-      // amm and trader call profit cancel out but quote stays in LP until position settled
-      assertCloseTo(
-        result.newLPQuoteBal.sub(result.oldLPQuoteBal),
-        quoteFromLiqBase.add(ammRealizedProfit),
-        toBN('0.01'),
-      );
-      expect(await hre.f.c.liquidityPool.totalOutstandingSettlements()).to.eq(traderCallProfit);
+      // trader puts are worthless, so only calls are used in `totalOutstandingSettlements`
+      // the only delta in quote balance is from LP gains, since trader profits do not get released until position settling
+      assertCloseTo(result.newLPQuoteBal.sub(result.oldLPQuoteBal), ammRealizedProfit, toBN('0.01'));
+      expect(await hre.f.c.liquidityPool.totalOutstandingSettlements()).to.eq(callProfit);
     }); // base liquidated is smaller in case of base excess
   });
 });
 
 async function getBalancesAndSettle() {
-  const preSettleBase = (await hre.f.c.liquidityPool.lockedCollateral()).base;
+  const shortCallOI = (await hre.f.c.liquidityPool.lockedCollateral()).base;
   const oldLPQuoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
   await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
   await hre.f.c.liquidityPool.exchangeBase();
   const newLPBaseBal = await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address);
   const newLPQuoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
 
-  return { preSettleBase, oldLPQuoteBal, newLPBaseBal, newLPQuoteBal };
+  return { shortCallOI, oldLPQuoteBal, newLPBaseBal, newLPQuoteBal };
 }

@@ -1,12 +1,13 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
+
 // Inherited
 import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializable.sol";
 
 // Interfaces
 import "./interfaces/ILiquidityTracker.sol";
@@ -17,7 +18,7 @@ import "./interfaces/ILiquidityTracker.sol";
  * @dev An ERC20 token which represents a share of the LiquidityPool.
  * It is minted when users deposit, and burned when users withdraw.
  */
-contract LiquidityToken is ERC20, Owned, SimpleInitializeable {
+contract LiquidityToken is ERC20, Owned, SimpleInitializable {
   using DecimalMath for uint;
 
   /// @dev The liquidityPool for which these tokens represent a share of
@@ -76,11 +77,7 @@ contract LiquidityToken is ERC20, Owned, SimpleInitializeable {
   /**
    * @dev Override to track the liquidty of the token. Mint, address(0), burn - to, address(0)
    */
-  function _afterTokenTransfer(
-    address from,
-    address to,
-    uint amount
-  ) internal override {
+  function _afterTokenTransfer(address from, address to, uint amount) internal override {
     if (address(liquidityTracker) != address(0)) {
       if (from != address(0)) {
         liquidityTracker.removeTokens(from, amount);

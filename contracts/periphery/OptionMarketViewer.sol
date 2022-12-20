@@ -1,59 +1,63 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
+// Inherited
+import "../synthetix/Owned.sol";
+// Interfaces
 import "../OptionMarket.sol";
-import "../libraries/BlackScholes.sol";
-import "../synthetix/DecimalMath.sol";
 import "../OptionToken.sol";
 import "../LiquidityPool.sol";
 import "../OptionGreekCache.sol";
 import "../OptionMarketPricer.sol";
-import "../SynthetixAdapter.sol";
-
-// Inherited
-import "../synthetix/Owned.sol";
+import "../BaseExchangeAdapter.sol";
 
 /**
  * @title OptionMarketViewer
  * @author Lyra
- * @dev Provides helpful functions to allow the dapp to operate more smoothly; logic in getPremiumForTrade is vital to
- * ensuring accurate prices are provided to the user.
+ * @dev Provides helpful functions for user interfaces
  */
 contract OptionMarketViewer is Owned {
   struct MarketsView {
-    IAddressResolver addressResolver;
     bool isPaused;
     MarketView[] markets;
   }
 
   struct MarketView {
     bool isPaused;
-    uint totalQueuedDeposits;
-    uint totalQueuedWithdrawals;
-    uint tokenPrice;
+    uint spotPrice;
+    uint minSpotPrice;
+    uint maxSpotPrice;
+    string quoteSymbol;
+    uint quoteDecimals;
+    string baseSymbol;
+    uint baseDecimals;
+    LiquidityPool.Liquidity liquidity;
     OptionMarketAddresses marketAddresses;
     MarketParameters marketParameters;
-    LiquidityPool.Liquidity liquidity;
     OptionGreekCache.NetGreeks globalNetGreeks;
-    SynthetixAdapter.ExchangeParams exchangeParams;
   }
 
   struct MarketViewWithBoards {
     bool isPaused;
-    uint totalQueuedDeposits;
-    uint totalQueuedWithdrawals;
-    uint tokenPrice;
+    uint spotPrice;
+    uint minSpotPrice;
+    uint maxSpotPrice;
+    string quoteSymbol;
+    uint quoteDecimals;
+    string baseSymbol;
+    uint baseDecimals;
+    int rateAndCarry;
+    LiquidityPool.Liquidity liquidity;
     OptionMarketAddresses marketAddresses;
     MarketParameters marketParameters;
-    LiquidityPool.Liquidity liquidity;
     OptionGreekCache.NetGreeks globalNetGreeks;
     BoardView[] liveBoards;
-    SynthetixAdapter.ExchangeParams exchangeParams;
   }
 
   struct MarketParameters {
     OptionMarket.OptionMarketParameters optionMarketParams;
     LiquidityPool.LiquidityPoolParameters lpParams;
+    LiquidityPool.CircuitBreakerParameters cbParams;
     OptionGreekCache.GreekCacheParameters greekCacheParams;
     OptionGreekCache.ForceCloseParameters forceCloseParams;
     OptionGreekCache.MinCollateralParameters minCollatParams;
@@ -61,7 +65,6 @@ contract OptionMarketViewer is Owned {
     OptionMarketPricer.TradeLimitParameters tradeLimitParams;
     OptionMarketPricer.VarianceFeeParameters varianceFeeParams;
     OptionToken.PartialCollateralParameters partialCollatParams;
-    PoolHedger.PoolHedgerParameters poolHedgerParams;
   }
 
   struct StrikeView {
@@ -86,7 +89,9 @@ contract OptionMarketViewer is Owned {
     uint baseIv;
     uint priceAtExpiry;
     bool isPaused;
-    uint forceCloseGwavIV;
+    uint varianceGwavIv;
+    uint forceCloseGwavIv;
+    uint longScaleFactor;
     OptionGreekCache.NetGreeks netGreeks;
     StrikeView[] strikes;
   }
@@ -105,17 +110,20 @@ contract OptionMarketViewer is Owned {
     OptionToken optionToken;
     ShortCollateral shortCollateral;
     PoolHedger poolHedger;
-    IERC20 quoteAsset;
-    IERC20 baseAsset;
+    IERC20Decimals quoteAsset;
+    IERC20Decimals baseAsset;
   }
 
-  struct LiquidityBalanceAndAllowance {
-    address token;
-    uint balance;
-    uint allowance;
+  struct LiquidityBalance {
+    IERC20Decimals quoteAsset;
+    uint quoteBalance;
+    string quoteSymbol;
+    uint quoteDepositAllowance;
+    LiquidityToken liquidityToken;
+    uint liquidityBalance;
   }
 
-  SynthetixAdapter public synthetixAdapter;
+  BaseExchangeAdapter public exchangeAdapter;
   bool public initialized = false;
   OptionMarket[] public optionMarkets;
   mapping(OptionMarket => OptionMarketAddresses) public marketAddresses;
@@ -124,11 +132,11 @@ contract OptionMarketViewer is Owned {
 
   /**
    * @dev Initializes the contract
-   * @param _synthetixAdapter SynthetixAdapter contract address
+   * @param _exchangeAdapter BaseExchangeAdapter contract address
    */
-  function init(SynthetixAdapter _synthetixAdapter) external {
+  function init(BaseExchangeAdapter _exchangeAdapter) external {
     require(!initialized, "already initialized");
-    synthetixAdapter = _synthetixAdapter;
+    exchangeAdapter = _exchangeAdapter;
     initialized = true;
   }
 
@@ -172,25 +180,19 @@ contract OptionMarketViewer is Owned {
   function getMarkets(OptionMarket[] memory markets) external view returns (MarketsView memory marketsView) {
     uint marketsLen = markets.length;
     MarketView[] memory marketViews = new MarketView[](marketsLen);
-    bool isGlobalPaused = synthetixAdapter.isGlobalPaused();
+    bool isGlobalPaused = exchangeAdapter.isGlobalPaused();
     for (uint i = 0; i < marketsLen; ++i) {
       OptionMarketAddresses memory marketC = marketAddresses[markets[i]];
-      marketViews[i] = _getMarket(marketC, isGlobalPaused);
+      marketViews[i] = _getMarketView(marketC, isGlobalPaused);
     }
-    return
-      MarketsView({
-        addressResolver: synthetixAdapter.addressResolver(),
-        isPaused: isGlobalPaused,
-        markets: marketViews
-      });
+    return MarketsView({isPaused: isGlobalPaused, markets: marketViews});
   }
 
-  function getMarketForBaseKey(bytes32 baseKey) public view returns (MarketViewWithBoards memory market) {
-    uint marketsLen = optionMarkets.length;
-    for (uint i = 0; i < marketsLen; ++i) {
+  function getMarketForBase(string memory baseSymbol) public view returns (MarketViewWithBoards memory market) {
+    for (uint i = 0; i < optionMarkets.length; ++i) {
       OptionMarketAddresses memory marketC = marketAddresses[optionMarkets[i]];
-      bytes32 marketBaseKey = synthetixAdapter.baseKey(address(marketC.optionMarket));
-      if (marketBaseKey == baseKey) {
+      string memory marketBaseSymbol = marketC.baseAsset.symbol();
+      if (keccak256(bytes(baseSymbol)) == keccak256(bytes(marketBaseSymbol))) {
         market = getMarket(marketC.optionMarket);
         break;
       }
@@ -201,92 +203,101 @@ contract OptionMarketViewer is Owned {
 
   function getMarket(OptionMarket market) public view returns (MarketViewWithBoards memory) {
     OptionMarketAddresses memory marketC = marketAddresses[market];
-    MarketView memory marketView = _getMarket(marketC, synthetixAdapter.isGlobalPaused());
+    bool isGlobalPaused = exchangeAdapter.isGlobalPaused();
+    MarketView memory marketView = _getMarketView(marketC, isGlobalPaused);
+    string memory quoteSymbol = marketC.quoteAsset.symbol();
+    uint quoteDecimals = marketC.quoteAsset.decimals();
+    string memory baseSymbol = marketC.baseAsset.symbol();
+    uint baseDecimals = marketC.baseAsset.decimals();
     return
       MarketViewWithBoards({
-        marketAddresses: marketView.marketAddresses,
         isPaused: marketView.isPaused,
-        liveBoards: getLiveBoards(marketC.optionMarket),
-        marketParameters: marketView.marketParameters,
-        totalQueuedDeposits: marketView.totalQueuedDeposits,
-        totalQueuedWithdrawals: marketView.totalQueuedWithdrawals,
-        tokenPrice: marketView.tokenPrice,
+        spotPrice: marketView.spotPrice,
+        minSpotPrice: marketView.minSpotPrice,
+        maxSpotPrice: marketView.maxSpotPrice,
+        quoteSymbol: quoteSymbol,
+        quoteDecimals: quoteDecimals,
+        baseSymbol: baseSymbol,
+        baseDecimals: baseDecimals,
+        rateAndCarry: exchangeAdapter.rateAndCarry(address(market)),
         liquidity: marketView.liquidity,
+        marketAddresses: marketView.marketAddresses,
+        marketParameters: marketView.marketParameters,
         globalNetGreeks: marketView.globalNetGreeks,
-        exchangeParams: marketView.exchangeParams
+        liveBoards: getLiveBoards(marketC.optionMarket)
       });
   }
 
-  function _getMarket(OptionMarketAddresses memory marketC, bool isGlobalPaused)
-    internal
-    view
-    returns (MarketView memory)
-  {
+  function _getMarketView(
+    OptionMarketAddresses memory marketC,
+    bool isGlobalPaused
+  ) internal view returns (MarketView memory) {
     OptionGreekCache.GlobalCache memory globalCache = marketC.greekCache.getGlobalCache();
     MarketParameters memory marketParameters = _getMarketParams(marketC);
-    bool isMarketPaused = synthetixAdapter.isMarketPaused(address(marketC.optionMarket));
-    if (!isMarketPaused && !isGlobalPaused) {
-      SynthetixAdapter.ExchangeParams memory exchangeParams = synthetixAdapter.getExchangeParams(
-        address(marketC.optionMarket)
+    bool isMarketPaused = exchangeAdapter.isMarketPaused(address(marketC.optionMarket));
+    uint spotPrice = 0;
+    uint minSpotPrice = 0;
+    uint maxSpotPrice = 0;
+    LiquidityPool.Liquidity memory liquidity = LiquidityPool.Liquidity({
+      freeLiquidity: 0,
+      burnableLiquidity: 0,
+      reservedCollatLiquidity: 0,
+      pendingDeltaLiquidity: 0,
+      usedDeltaLiquidity: 0,
+      NAV: 0,
+      longScaleFactor: 0
+    });
+    if (!isGlobalPaused && !isMarketPaused) {
+      minSpotPrice = exchangeAdapter.getSpotPriceForMarket(
+        address(marketC.optionMarket),
+        BaseExchangeAdapter.PriceType.MIN_PRICE
       );
-      return
-        MarketView({
-          marketAddresses: marketC,
-          isPaused: isMarketPaused,
-          marketParameters: marketParameters,
-          totalQueuedDeposits: marketC.liquidityPool.totalQueuedDeposits(),
-          totalQueuedWithdrawals: marketC.liquidityPool.totalQueuedWithdrawals(),
-          tokenPrice: marketC.liquidityPool.getTokenPrice(),
-          liquidity: marketC.liquidityPool.getLiquidity(exchangeParams.spotPrice),
-          globalNetGreeks: globalCache.netGreeks,
-          exchangeParams: exchangeParams
-        });
-    } else {
-      return
-        MarketView({
-          marketAddresses: marketC,
-          isPaused: isMarketPaused,
-          marketParameters: marketParameters,
-          totalQueuedDeposits: 0,
-          totalQueuedWithdrawals: 0,
-          tokenPrice: 0,
-          liquidity: LiquidityPool.Liquidity({
-            freeLiquidity: 0,
-            burnableLiquidity: 0,
-            usedCollatLiquidity: 0,
-            pendingDeltaLiquidity: 0,
-            usedDeltaLiquidity: 0,
-            NAV: 0
-          }),
-          globalNetGreeks: globalCache.netGreeks,
-          exchangeParams: SynthetixAdapter.ExchangeParams({
-            spotPrice: 0,
-            quoteKey: synthetixAdapter.quoteKey(address(marketC.optionMarket)),
-            baseKey: synthetixAdapter.baseKey(address(marketC.optionMarket)),
-            quoteBaseFeeRate: 0,
-            baseQuoteFeeRate: 0
-          })
-        });
+      maxSpotPrice = exchangeAdapter.getSpotPriceForMarket(
+        address(marketC.optionMarket),
+        BaseExchangeAdapter.PriceType.MAX_PRICE
+      );
+      spotPrice = exchangeAdapter.getSpotPriceForMarket(
+        address(marketC.optionMarket),
+        BaseExchangeAdapter.PriceType.REFERENCE
+      );
+      liquidity = marketC.liquidityPool.getLiquidity();
     }
+    string memory quoteSymbol = marketC.quoteAsset.symbol();
+    uint quoteDecimals = marketC.quoteAsset.decimals();
+    string memory baseSymbol = marketC.baseAsset.symbol();
+    uint baseDecimals = marketC.baseAsset.decimals();
+    return
+      MarketView({
+        isPaused: isMarketPaused || isGlobalPaused,
+        spotPrice: spotPrice,
+        minSpotPrice: minSpotPrice,
+        maxSpotPrice: maxSpotPrice,
+        quoteSymbol: quoteSymbol,
+        quoteDecimals: quoteDecimals,
+        baseSymbol: baseSymbol,
+        baseDecimals: baseDecimals,
+        liquidity: liquidity,
+        marketAddresses: marketC,
+        marketParameters: marketParameters,
+        globalNetGreeks: globalCache.netGreeks
+      });
   }
 
-  function _getMarketParams(OptionMarketAddresses memory marketC)
-    internal
-    view
-    returns (MarketParameters memory params)
-  {
+  function _getMarketParams(
+    OptionMarketAddresses memory marketC
+  ) internal view returns (MarketParameters memory params) {
     return
       MarketParameters({
         optionMarketParams: marketC.optionMarket.getOptionMarketParams(),
         lpParams: marketC.liquidityPool.getLpParams(),
+        cbParams: marketC.liquidityPool.getCBParams(),
         greekCacheParams: marketC.greekCache.getGreekCacheParams(),
         forceCloseParams: marketC.greekCache.getForceCloseParams(),
         minCollatParams: marketC.greekCache.getMinCollatParams(),
         pricingParams: marketC.optionMarketPricer.getPricingParams(),
         tradeLimitParams: marketC.optionMarketPricer.getTradeLimitParams(),
         varianceFeeParams: marketC.optionMarketPricer.getVarianceFeeParams(),
-        partialCollatParams: marketC.optionToken.getPartialCollatParams(),
-        poolHedgerParams: marketC.poolHedger.getPoolHedgerParams()
+        partialCollatParams: marketC.optionToken.getPartialCollatParams()
       });
   }
 
@@ -299,22 +310,6 @@ contract OptionMarketViewer is Owned {
       positions[i].positions = marketC.optionToken.getOwnerPositions(account);
     }
     return positions;
-  }
-
-  function getOwnerPositionsInRange(
-    OptionMarket market,
-    address account,
-    uint start,
-    uint limit
-  ) external view returns (OptionToken.OptionPosition[] memory) {
-    OptionMarketAddresses memory marketC = marketAddresses[market];
-    uint balance = marketC.optionToken.balanceOf(account);
-    uint n = limit > balance - start ? balance - start : limit;
-    OptionToken.OptionPosition[] memory result = new OptionToken.OptionPosition[](n);
-    for (uint i = 0; i < n; ++i) {
-      result[i] = marketC.optionToken.getOptionPosition(marketC.optionToken.tokenOfOwnerByIndex(account, start + i));
-    }
-    return result;
   }
 
   // Get live boards for the chosen market
@@ -334,8 +329,8 @@ contract OptionMarketViewer is Owned {
     return _getBoard(marketC, boardId);
   }
 
-  function getBoardForBaseKey(bytes32 baseKey, uint boardId) external view returns (BoardView memory) {
-    MarketViewWithBoards memory marketView = getMarketForBaseKey(baseKey);
+  function getBoardForBase(string memory baseSymbol, uint boardId) external view returns (BoardView memory) {
+    MarketViewWithBoards memory marketView = getMarketForBase(baseSymbol);
     return _getBoard(marketView.marketAddresses, boardId);
   }
 
@@ -350,11 +345,15 @@ contract OptionMarketViewer is Owned {
       OptionMarket.OptionBoard memory board,
       OptionMarket.Strike[] memory strikes,
       uint[] memory strikeToBaseReturnedRatios,
-      uint priceAtExpiry
+      uint priceAtExpiry,
+      uint longScaleFactor
     ) = marketC.optionMarket.getBoardAndStrikeDetails(boardId);
     OptionGreekCache.BoardGreeksView memory boardGreeksView;
+    uint varianceGwavIv = 0;
     if (priceAtExpiry == 0) {
       boardGreeksView = marketC.greekCache.getBoardGreeksView(boardId);
+      OptionGreekCache.GreekCacheParameters memory greekCacheParams = marketC.greekCache.getGreekCacheParams();
+      varianceGwavIv = marketC.greekCache.getIvGWAV(boardId, greekCacheParams.varianceIvGWAVPeriod);
     }
     return
       BoardView({
@@ -364,7 +363,9 @@ contract OptionMarketViewer is Owned {
         baseIv: board.iv,
         priceAtExpiry: priceAtExpiry,
         isPaused: board.frozen,
-        forceCloseGwavIV: boardGreeksView.ivGWAV,
+        varianceGwavIv: varianceGwavIv,
+        forceCloseGwavIv: boardGreeksView.ivGWAV,
+        longScaleFactor: longScaleFactor,
         strikes: _getStrikeViews(strikes, boardGreeksView, strikeToBaseReturnedRatios, priceAtExpiry),
         netGreeks: boardGreeksView.boardGreeks
       });
@@ -399,19 +400,17 @@ contract OptionMarketViewer is Owned {
     }
   }
 
-  function getLiquidityBalancesAndAllowances(OptionMarket[] memory markets, address account)
-    external
-    view
-    returns (LiquidityBalanceAndAllowance[] memory)
-  {
-    uint marketsLen = markets.length;
-    LiquidityBalanceAndAllowance[] memory balances = new LiquidityBalanceAndAllowance[](marketsLen);
-    for (uint i = 0; i < marketsLen; ++i) {
-      OptionMarketAddresses memory marketC = marketAddresses[markets[i]];
-      IERC20 liquidityToken = IERC20(marketC.liquidityToken);
-      balances[i].balance = liquidityToken.balanceOf(account);
-      balances[i].allowance = marketC.quoteAsset.allowance(account, address(marketC.liquidityPool));
-      balances[i].token = address(marketC.liquidityPool);
+  function getLiquidityBalances(address account) external view returns (LiquidityBalance[] memory) {
+    uint marketsLength = optionMarkets.length;
+    LiquidityBalance[] memory balances = new LiquidityBalance[](marketsLength);
+    for (uint i = 0; i < marketsLength; ++i) {
+      OptionMarketAddresses memory marketC = marketAddresses[optionMarkets[i]];
+      balances[i].quoteAsset = marketC.quoteAsset;
+      balances[i].quoteSymbol = marketC.quoteAsset.symbol();
+      balances[i].quoteBalance = marketC.quoteAsset.balanceOf(account);
+      balances[i].quoteDepositAllowance = marketC.quoteAsset.allowance(account, address(marketC.liquidityPool));
+      balances[i].liquidityToken = marketC.liquidityToken;
+      balances[i].liquidityBalance = marketC.liquidityToken.balanceOf(account);
     }
     return balances;
   }

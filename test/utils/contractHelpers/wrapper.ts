@@ -53,13 +53,16 @@ export async function parseTradeEvent(tx: ContractTransaction) {
   return event.positionId;
 }
 
-export async function wrapperOpenLong(overrides: {
-  token?: STABLE_IDS;
-  isCall: boolean;
-  maxCost: BigNumberish;
-  inputAmount: BigNumberish;
-  size: BigNumberish;
-}) {
+export async function wrapperOpenLong(
+  overrides: {
+    token?: STABLE_IDS;
+    isCall: boolean;
+    maxCost: BigNumberish;
+    inputAmount: BigNumberish;
+    size: BigNumberish;
+  },
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -68,7 +71,7 @@ export async function wrapperOpenLong(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.openLong(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.openLong(
       packOpenLongParams({
         ...params,
         maxCost: toUint32(params.maxCost),
@@ -79,13 +82,16 @@ export async function wrapperOpenLong(overrides: {
   );
 }
 
-export async function wrapperAddLong(overrides: {
-  token?: STABLE_IDS;
-  positionId: BigNumberish;
-  maxCost: BigNumberish;
-  inputAmount: BigNumberish;
-  size: BigNumberish;
-}) {
+export async function wrapperAddLong(
+  overrides: {
+    token?: STABLE_IDS;
+    positionId: BigNumberish;
+    maxCost: BigNumberish;
+    inputAmount: BigNumberish;
+    size: BigNumberish;
+  },
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -93,7 +99,7 @@ export async function wrapperAddLong(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.addLong(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.addLong(
       packAddLongParams({
         ...params,
         maxCost: toUint32(params.maxCost),
@@ -104,14 +110,17 @@ export async function wrapperAddLong(overrides: {
   );
 }
 
-export async function wrapperReduceLong(overrides: {
-  token?: STABLE_IDS;
-  isForceClose?: boolean;
-  positionId: BigNumberish;
-  minReceived: BigNumberish;
-  inputAmount: BigNumberish;
-  size: BigNumberish;
-}) {
+export async function wrapperReduceLong(
+  overrides: {
+    token?: STABLE_IDS;
+    isForceClose?: boolean;
+    positionId: BigNumberish;
+    minReceived: BigNumberish;
+    inputAmount: BigNumberish;
+    size: BigNumberish;
+  },
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -120,7 +129,7 @@ export async function wrapperReduceLong(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.reduceLong(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.reduceLong(
       packReduceLongParams({
         ...params,
         minReceived: toUint32(params.minReceived),
@@ -131,13 +140,16 @@ export async function wrapperReduceLong(overrides: {
   );
 }
 
-export async function wrapperCloseLong(overrides: {
-  token?: STABLE_IDS;
-  isForceClose?: boolean;
-  positionId: BigNumberish;
-  minReceived: BigNumberish;
-  inputAmount: BigNumberish;
-}) {
+export async function wrapperCloseLong(
+  overrides: {
+    token?: STABLE_IDS;
+    isForceClose?: boolean;
+    positionId: BigNumberish;
+    minReceived: BigNumberish;
+    inputAmount: BigNumberish;
+  },
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -146,7 +158,7 @@ export async function wrapperCloseLong(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.closeLong(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.closeLong(
       packCloseLongParams({
         ...params,
         minReceived: toUint32(params.minReceived),
@@ -156,14 +168,18 @@ export async function wrapperCloseLong(overrides: {
   );
 }
 
-export async function wrapperOpenShort(overrides: {
-  token?: STABLE_IDS;
-  optionType: OptionType;
-  minReceived: BigNumberish;
-  inputAmount: BigNumberish;
-  size: BigNumberish;
-  collateral: BigNumberish;
-}) {
+export async function wrapperOpenShort(
+  overrides: {
+    token?: STABLE_IDS;
+    optionType: OptionType;
+    minReceived: BigNumberish;
+    inputAmount: BigNumberish;
+    size: BigNumberish;
+    collateral: BigNumberish;
+  },
+  ethValue?: BigNumberish,
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -172,7 +188,7 @@ export async function wrapperOpenShort(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.openShort(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.openShort(
       packOpenShortParams({
         ...params,
         minReceived: toUint32(params.minReceived),
@@ -180,18 +196,23 @@ export async function wrapperOpenShort(overrides: {
         size: toUint64(params.size),
         collateral: toUint64(params.collateral),
       }),
+      { value: ethValue },
     ),
   );
 }
 
-export async function wrapperAddShort(overrides: {
-  token?: STABLE_IDS;
-  positionId: BigNumberish;
-  minReceived: BigNumberish;
-  inputAmount: BigNumberish;
-  size: BigNumberish;
-  absoluteCollateral: BigNumberish;
-}) {
+export async function wrapperAddShort(
+  overrides: {
+    token?: STABLE_IDS;
+    positionId: BigNumberish;
+    minReceived: BigNumberish;
+    inputAmount: BigNumberish;
+    size: BigNumberish;
+    absoluteCollateral: BigNumberish;
+  },
+  ethValue?: BigNumberish,
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -199,7 +220,7 @@ export async function wrapperAddShort(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.addShort(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.addShort(
       packAddShortParams({
         ...params,
         minReceived: toUint32(params.minReceived),
@@ -207,18 +228,23 @@ export async function wrapperAddShort(overrides: {
         size: toUint64(params.size),
         absoluteCollateral: toUint64(params.absoluteCollateral),
       }),
+      { value: ethValue },
     ),
   );
 }
 
-export async function wrapperStringAddShort(overrides: {
-  token?: STABLE_IDS;
-  positionId: BigNumberish;
-  minReceived: BigNumberish;
-  inputAmount: BigNumberish;
-  size: BigNumberish;
-  absoluteCollateral: BigNumberish;
-}) {
+export async function wrapperStringAddShort(
+  overrides: {
+    token?: STABLE_IDS;
+    positionId: BigNumberish;
+    minReceived: BigNumberish;
+    inputAmount: BigNumberish;
+    size: BigNumberish;
+    absoluteCollateral: BigNumberish;
+  },
+  ethValue?: BigNumberish,
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -226,7 +252,7 @@ export async function wrapperStringAddShort(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.addShort(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.addShort(
       packAddShortParams({
         ...params,
         minReceived: toUint32(params.minReceived),
@@ -234,19 +260,24 @@ export async function wrapperStringAddShort(overrides: {
         size: stringToUint64(params.size.toString()),
         absoluteCollateral: stringToUint64(params.absoluteCollateral.toString()),
       }),
+      { value: ethValue },
     ),
   );
 }
 
-export async function wrapperReduceShort(overrides: {
-  token?: STABLE_IDS;
-  positionId: BigNumberish;
-  maxCost: BigNumberish;
-  isForceClose?: boolean;
-  inputAmount: BigNumberish;
-  size: BigNumberish;
-  absoluteCollateral: BigNumberish;
-}) {
+export async function wrapperReduceShort(
+  overrides: {
+    token?: STABLE_IDS;
+    positionId: BigNumberish;
+    maxCost: BigNumberish;
+    isForceClose?: boolean;
+    inputAmount: BigNumberish;
+    size: BigNumberish;
+    absoluteCollateral: BigNumberish;
+  },
+  ethValue?: BigNumberish,
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -255,7 +286,7 @@ export async function wrapperReduceShort(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.reduceShort(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.reduceShort(
       packReduceShortParams({
         ...params,
         maxCost: toUint32(params.maxCost),
@@ -263,17 +294,22 @@ export async function wrapperReduceShort(overrides: {
         size: toUint64(params.size),
         absoluteCollateral: toUint64(params.absoluteCollateral),
       }),
+      { value: ethValue },
     ),
   );
 }
 
-export async function wrapperCloseShort(overrides: {
-  token?: STABLE_IDS;
-  positionId: BigNumberish;
-  maxCost: BigNumberish;
-  isForceClose?: boolean;
-  inputAmount: BigNumberish;
-}) {
+export async function wrapperCloseShort(
+  overrides: {
+    token?: STABLE_IDS;
+    positionId: BigNumberish;
+    maxCost: BigNumberish;
+    isForceClose?: boolean;
+    inputAmount: BigNumberish;
+  },
+  ethValue?: BigNumberish,
+  useGmx: boolean = false,
+) {
   const params = {
     token: STABLE_IDS.sUSD,
     market: DEFAULT_MARKET_ID,
@@ -282,12 +318,13 @@ export async function wrapperCloseShort(overrides: {
     ...overrides,
   };
   return await parseTradeEvent(
-    await hre.f.c.optionMarketWrapper.closeShort(
+    await hre.f[useGmx ? 'gc' : 'c'].optionMarketWrapper.closeShort(
       packCloseShortParams({
         ...params,
         maxCost: toUint32(params.maxCost),
         inputAmount: toUint32(params.inputAmount),
       }),
+      { value: ethValue },
     ),
   );
 }
@@ -304,5 +341,12 @@ export async function checkContractFunds(contract: string) {
   expect(wrapperQuote).to.eq(0);
   expect(wrapperDAI).to.eq(0);
   expect(wrapperUSDC).to.eq(0);
+  expect(wrapperBase).to.eq(0);
+}
+
+export async function checkContractFundsGMX(contract: string) {
+  const wrapperQuote = await hre.f.gc.gmx.USDC.balanceOf(contract);
+  const wrapperBase = await hre.f.gc.gmx.eth.balanceOf(contract);
+  expect(wrapperQuote).to.eq(0);
   expect(wrapperBase).to.eq(0);
 }

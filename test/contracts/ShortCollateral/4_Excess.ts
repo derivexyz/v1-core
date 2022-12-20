@@ -60,7 +60,7 @@ describe('LP excess', () => {
 
     // Cover edge case for coverage
     await hre.f.c.snx.baseAsset.setForceFail(true);
-    await expect(hre.f.c.shortCollateral.settleOptions([insolventPos])).revertedWith('BaseTransferFailed');
+    await expect(hre.f.c.shortCollateral.settleOptions([insolventPos])).revertedWith('TransferFailed');
     await hre.f.c.snx.baseAsset.setForceFail(false);
 
     // settle large insolvent position and calls reclaim()

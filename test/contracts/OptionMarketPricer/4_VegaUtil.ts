@@ -53,7 +53,7 @@ describe('getVegaUtil', async () => {
           NAV: 0,
         },
       }),
-    ).to.be.revertedWith('Division or modulo division by zero');
+    ).to.be.revertedWith('reverted with panic code 18');
   });
 
   it('pricing.vol = 0', async () => {

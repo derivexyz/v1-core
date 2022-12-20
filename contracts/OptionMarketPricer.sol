@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "./synthetix/SignedDecimalMath.sol";
@@ -8,10 +8,10 @@ import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializable.sol";
+import "./libraries/Math.sol";
 
 // Interfaces
-import "./SynthetixAdapter.sol";
 import "./LiquidityPool.sol";
 import "./OptionMarket.sol";
 import "./OptionGreekCache.sol";
@@ -22,7 +22,7 @@ import "./OptionGreekCache.sol";
  * @dev Logic for working out the price of an option. Includes the IV impact of the trade, the fee components and
  * premium.
  */
-contract OptionMarketPricer is Owned, SimpleInitializeable {
+contract OptionMarketPricer is Owned, SimpleInitializable {
   using DecimalMath for uint;
 
   ////////////////
@@ -141,7 +141,6 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   ///////////////
   address internal optionMarket;
   OptionGreekCache internal greekCache;
-
   PricingParameters public pricingParams;
   TradeLimitParameters public tradeLimitParams;
   VarianceFeeParameters public varianceFeeParams;
@@ -309,7 +308,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
 
     if (tradeLimitParams.capSkewsToAbs) {
       // Only relevant to liquidations. Technically only needs to be capped on the max side (as closing shorts)
-      newSkew = _max(_min(newSkew, tradeLimitParams.absMaxSkew), tradeLimitParams.absMinSkew);
+      newSkew = Math.max(Math.min(newSkew, tradeLimitParams.absMaxSkew), tradeLimitParams.absMinSkew);
     }
 
     OptionGreekCache.TradePricing memory pricing = greekCache.updateStrikeExposureAndGetPrice(
@@ -410,9 +409,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
 
     // scale by premium/amount/spot
     uint optionPriceFee = timeWeightedOptionPriceFee.multiplyDecimal(premium);
-    uint spotPriceFee = timeWeightedSpotPriceFee.multiplyDecimal(trade.exchangeParams.spotPrice).multiplyDecimal(
-      trade.amount
-    );
+    uint spotPriceFee = timeWeightedSpotPriceFee.multiplyDecimal(trade.spotPrice).multiplyDecimal(trade.amount);
     VegaUtilFeeComponents memory vegaUtilFeeComponents = getVegaUtilFee(trade, pricing);
     VarianceFeeComponents memory varianceFeeComponents = getVarianceFee(trade, pricing, newSkew);
 
@@ -489,12 +486,11 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
    * @param trade The trade struct, containing fields related to the ongoing trade.
    * @param pricing Fields related to option pricing and required for fees.
    */
-  function getVegaUtilFee(OptionMarket.TradeParameters memory trade, OptionGreekCache.TradePricing memory pricing)
-    public
-    view
-    returns (VegaUtilFeeComponents memory vegaUtilFeeComponents)
-  {
-    if (_abs(pricing.preTradeAmmNetStdVega) >= _abs(pricing.postTradeAmmNetStdVega)) {
+  function getVegaUtilFee(
+    OptionMarket.TradeParameters memory trade,
+    OptionGreekCache.TradePricing memory pricing
+  ) public view returns (VegaUtilFeeComponents memory vegaUtilFeeComponents) {
+    if (Math.abs(pricing.preTradeAmmNetStdVega) >= Math.abs(pricing.postTradeAmmNetStdVega)) {
       return
         VegaUtilFeeComponents({
           preTradeAmmNetStdVega: pricing.preTradeAmmNetStdVega,
@@ -509,7 +505,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
     // opening 5 options with 5 iterations as nav won't update each iteration
 
     // This would be the whitepaper vegaUtil divided by 100 due to vol being stored as a percentage
-    uint vegaUtil = pricing.volTraded.multiplyDecimal(_abs(pricing.postTradeAmmNetStdVega)).divideDecimal(
+    uint vegaUtil = pricing.volTraded.multiplyDecimal(Math.abs(pricing.postTradeAmmNetStdVega)).divideDecimal(
       trade.liquidity.NAV
     );
 
@@ -556,7 +552,7 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
     uint vegaCoefficient = varianceFeeParams.minimumStaticVega +
       pricing.vega.multiplyDecimal(varianceFeeParams.vegaCoefficient);
     uint skewCoefficient = varianceFeeParams.minimumStaticSkewAdjustment +
-      _abs(SafeCast.toInt256(skew) - SafeCast.toInt256(varianceFeeParams.referenceSkew)).multiplyDecimal(
+      Math.abs(SafeCast.toInt256(skew) - SafeCast.toInt256(varianceFeeParams.referenceSkew)).multiplyDecimal(
         varianceFeeParams.skewAdjustmentCoefficient
       );
     uint ivVarianceCoefficient = varianceFeeParams.minimumStaticIvVariance +
@@ -597,27 +593,6 @@ contract OptionMarketPricer is Owned, SimpleInitializeable {
   /// @notice returns current variance fee parameters
   function getVarianceFeeParams() external view returns (VarianceFeeParameters memory varianceFeeParameters) {
     return varianceFeeParams;
-  }
-
-  ///////////
-  // Utils //
-  ///////////
-
-  function _min(uint x, uint y) internal pure returns (uint) {
-    return (x < y) ? x : y;
-  }
-
-  function _max(uint x, uint y) internal pure returns (uint) {
-    return (x > y) ? x : y;
-  }
-
-  /**
-   * @dev Compute the absolute value of `val`.
-   *
-   * @param val The number to absolute value.
-   */
-  function _abs(int val) internal pure returns (uint) {
-    return uint(val < 0 ? -val : val);
   }
 
   ///////////////

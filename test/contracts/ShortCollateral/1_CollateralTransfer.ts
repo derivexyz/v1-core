@@ -120,7 +120,7 @@ describe('Collateral transfer', async () => {
     });
 
     it('reverts for various reasons', async () => {
-      await c.snx.quoteAsset.setForceFail(true);
+      await c.snx.baseAsset.setForceFail(true);
       await expect(
         c.shortCollateral.routeLiquidationFunds(alice.address, deployer.address, OptionType.SHORT_CALL_BASE, {
           insolventAmount: 0,
@@ -130,18 +130,7 @@ describe('Collateral transfer', async () => {
           returnCollateral: toBN('0.3'),
           smFee: toBN('0'),
         }),
-      ).revertedWith('QuoteTransferFailed');
-      await c.snx.quoteAsset.setForceFail(false);
-      await expect(
-        c.shortCollateral.routeLiquidationFunds(alice.address, deployer.address, OptionType.SHORT_CALL_BASE, {
-          insolventAmount: 0,
-          liquidatorFee: toBN('0.1'),
-          lpFee: toBN('0.1'),
-          lpPremiums: toBN('1'),
-          returnCollateral: toBN('0.3'),
-          smFee: toBN('0'),
-        }),
-      ).revertedWith('OutOfBaseCollateralForExchangeAndTransfer');
+      ).revertedWith('BaseTransferFailed');
     });
   });
 

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Interfaces
 import "../LiquidityPool.sol";
@@ -7,8 +7,8 @@ import "../LiquidityPool.sol";
 /**
  * @title PoolHedger
  * @author Lyra
- * @dev Uses the delta hedging funds from the LiquidityPool to hedge option deltas, so LPs are minimally exposed to
- * movements in the underlying asset price.
+ * @dev Scaffold for using the delta hedging funds from the LiquidityPool to hedge option deltas, so LPs are minimally
+ * exposed to movements in the underlying asset price.
  */
 abstract contract PoolHedger {
   struct PoolHedgerParameters {
@@ -38,11 +38,9 @@ abstract contract PoolHedger {
 
   /// @notice Returns pending delta hedge liquidity and used delta hedge liquidity
   /// @dev include funds that would need to be transferred to the contract to hedge optimally
-  function getHedgingLiquidity(uint spotPrice)
-    external
-    view
-    virtual
-    returns (uint pendingDeltaLiquidity, uint usedDeltaLiquidity);
+  function getHedgingLiquidity(
+    uint spotPrice
+  ) external view virtual returns (uint pendingDeltaLiquidity, uint usedDeltaLiquidity);
 
   /**
    * @dev Calculates the expected delta hedge that hedger must perform and
@@ -54,12 +52,14 @@ abstract contract PoolHedger {
   // External //
   //////////////
 
+  function canHedge(uint tradeSize, bool increasesDelta) external view virtual returns (bool);
+
   /**
    * @dev Retrieves the netDelta for the system and hedges appropriately.
    */
-  function hedgeDelta() external virtual;
+  function hedgeDelta() external payable virtual;
 
-  function updateCollateral() external virtual;
+  function updateCollateral() external payable virtual;
 
   function getPoolHedgerParams() external view virtual returns (PoolHedgerParameters memory) {
     return poolHedgerParams;

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "../libraries/GWAV.sol";
@@ -12,7 +12,7 @@ import "../synthetix/Owned.sol";
 // Interfaces
 import "../OptionMarket.sol";
 import "../OptionGreekCache.sol";
-import "../SynthetixAdapter.sol";
+import "../BaseExchangeAdapter.sol";
 
 contract GWAVOracle is Owned {
   using DecimalMath for uint;
@@ -23,7 +23,7 @@ contract GWAVOracle is Owned {
 
   OptionMarket internal optionMarket;
   OptionGreekCache internal greekCache;
-  SynthetixAdapter internal synthetixAdapter;
+  BaseExchangeAdapter internal exchangeAdapter;
 
   constructor() Owned() {}
 
@@ -35,25 +35,25 @@ contract GWAVOracle is Owned {
    * @dev Initializes the contract
    * @param _optionMarket OptionMarket Address
    * @param _greekCache greekCache address
-   * @param _synthetixAdapter synthetixAdapter address
+   * @param _exchangeAdapter exchangeAdapter address
    */
 
   function init(
     OptionMarket _optionMarket,
     OptionGreekCache _greekCache,
-    SynthetixAdapter _synthetixAdapter
+    BaseExchangeAdapter _exchangeAdapter
   ) external onlyOwner {
-    setLyraAddresses(_optionMarket, _greekCache, _synthetixAdapter);
+    setLyraAddresses(_optionMarket, _greekCache, _exchangeAdapter);
   }
 
   function setLyraAddresses(
     OptionMarket _optionMarket,
     OptionGreekCache _greekCache,
-    SynthetixAdapter _synthetixAdapter
+    BaseExchangeAdapter _exchangeAdapter
   ) public onlyOwner {
     optionMarket = _optionMarket;
     greekCache = _greekCache;
-    synthetixAdapter = _synthetixAdapter;
+    exchangeAdapter = _exchangeAdapter;
   }
 
   function ivGWAV(uint boardId, uint secondsAgo) public view returns (uint) {
@@ -104,9 +104,12 @@ contract GWAVOracle is Owned {
     bsInput = BlackScholes.BlackScholesInputs({
       timeToExpirySec: board.expiry - block.timestamp,
       volatilityDecimal: board.iv.multiplyDecimal(strike.skew),
-      spotDecimal: synthetixAdapter.getSpotPriceForMarket(address(optionMarket)),
+      spotDecimal: exchangeAdapter.getSpotPriceForMarket(
+        address(optionMarket),
+        BaseExchangeAdapter.PriceType.REFERENCE
+      ),
       strikePriceDecimal: strike.strikePrice,
-      rateDecimal: greekCache.getGreekCacheParams().rateAndCarry
+      rateDecimal: exchangeAdapter.rateAndCarry(address(optionMarket))
     });
   }
 }

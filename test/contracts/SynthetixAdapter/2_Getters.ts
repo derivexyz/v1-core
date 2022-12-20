@@ -13,11 +13,11 @@ describe('Getters', async () => {
     it('gets spot price from key', async () => {
       await setETHPrice(toBN('1000'));
       expect(await hre.f.c.synthetixAdapter.getSpotPrice(toBytes32('sETH'))).to.eq(toBN('1000'));
-      expect(await hre.f.c.synthetixAdapter.getSpotPriceForMarket(hre.f.c.optionMarket.address)).to.eq(toBN('1000'));
+      expect(await hre.f.c.synthetixAdapter.getSpotPriceForMarket(hre.f.c.optionMarket.address, 2)).to.eq(toBN('1000'));
 
       await setETHPrice(toBN('2000'));
       expect(await hre.f.c.synthetixAdapter.getSpotPrice(toBytes32('sETH'))).to.eq(toBN('2000'));
-      expect(await hre.f.c.synthetixAdapter.getSpotPriceForMarket(hre.f.c.optionMarket.address)).to.eq(toBN('2000'));
+      expect(await hre.f.c.synthetixAdapter.getSpotPriceForMarket(hre.f.c.optionMarket.address, 2)).to.eq(toBN('2000'));
     });
     it('reverts if snx returns invalid flag or rate = 0', async () => {
       await setETHExchangerInvalid();

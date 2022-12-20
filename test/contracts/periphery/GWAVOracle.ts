@@ -14,7 +14,7 @@ import { TestBlackScholes } from '../../../typechain-types';
 import { BlackScholesInputsStruct } from '../../../typechain-types/BlackScholes';
 import { assertCloseToPercentage } from '../../utils/assert';
 import { getSpotPrice, openPosition } from '../../utils/contractHelpers';
-import { DEFAULT_GREEK_CACHE_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_RATE_AND_CARRY } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { mockPrice } from '../../utils/seedTestSystem';
@@ -113,7 +113,7 @@ export async function compareDeltaVegaWithGreekCache(secondsAgo: number, blackSc
     volatilityDecimal: cacheIv.mul(cacheSkew).div(UNIT),
     spotDecimal: spotPrice,
     strikePriceDecimal: strike.strikePrice,
-    rateDecimal: DEFAULT_GREEK_CACHE_PARAMS.rateAndCarry,
+    rateDecimal: DEFAULT_RATE_AND_CARRY,
   };
   const [callDeltaReal] = await blackScholes.delta_pub(bsInput);
   const vegaReal = await blackScholes.vega_pub(bsInput);

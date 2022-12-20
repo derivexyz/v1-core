@@ -31,7 +31,7 @@ describe('OptionGreekCache - Update Strike Exposure', () => {
 
     boardId = (await c.optionMarket.getLiveBoards())[0];
     strikeId = (await c.optionMarket.getBoardStrikes(boardId))[0];
-    const liquidity = await c.liquidityPool.getLiquidity(DEFAULT_BASE_PRICE);
+    const liquidity = await c.liquidityPool.getLiquidity();
     const exchangeParams = await c.synthetixAdapter.getExchangeParams(c.optionMarket.address);
 
     strikeStruct = {
@@ -48,7 +48,7 @@ describe('OptionGreekCache - Update Strike Exposure', () => {
 
     tradeStruct = {
       amount: toBN('1'),
-      exchangeParams,
+      spotPrice: exchangeParams.spotPrice,
       expiry: (await currentTime()) + MONTH_SEC,
       isBuy: true,
       liquidity,
