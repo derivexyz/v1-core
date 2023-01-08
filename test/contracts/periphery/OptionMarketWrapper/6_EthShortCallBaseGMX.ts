@@ -191,7 +191,7 @@ describe('OptionMarketWrapper ETH->WETH SHORT CALL BASE trading tests', () => {
     });
 
     it('Eth + Weth used to open position', async () => {
-      await hre.f.gc.gmx.eth.mint(hre.f.deployer.address, toBN('1'));
+      await hre.f.c.gmx.eth.mint(hre.f.deployer.address, toBN('1'));
 
       await expect(
         wrapperOpenShort(
@@ -203,7 +203,6 @@ describe('OptionMarketWrapper ETH->WETH SHORT CALL BASE trading tests', () => {
             collateral: 2,
           },
           toBN('0.9'),
-          true,
         ),
       ).to.revertedWith('transfer amount exceeds balance');
 
@@ -217,18 +216,17 @@ describe('OptionMarketWrapper ETH->WETH SHORT CALL BASE trading tests', () => {
           collateral: 2,
         },
         toBN('1'),
-        true,
       );
 
-      let result1 = await hre.f.gc.optionToken.getPositionWithOwner(positionId);
+      let result1 = await hre.f.c.optionToken.getPositionWithOwner(positionId);
       expect(result1.strikeId).to.eq(hre.f.strike.strikeId);
       expect(result1.amount).to.eq(toBN('1'));
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_BASE);
-      await checkContractFundsGMX(hre.f.gc.optionMarketWrapper.address);
+      await checkContractFundsGMX(hre.f.c.optionMarketWrapper.address);
 
       // Adds to the position increasing collateral with 0.5 ETH + 0.5 WETH
-      await hre.f.gc.gmx.eth.mint(hre.f.deployer.address, toBN('0.5'));
+      await hre.f.c.gmx.eth.mint(hre.f.deployer.address, toBN('0.5'));
       console.log(`Adds to the position increasing collateral`);
       positionId = await wrapperAddShort(
         {
@@ -239,15 +237,14 @@ describe('OptionMarketWrapper ETH->WETH SHORT CALL BASE trading tests', () => {
           absoluteCollateral: 3,
         },
         toBN('0.5'),
-        true,
       );
 
-      result1 = await hre.f.gc.optionToken.getPositionWithOwner(positionId);
+      result1 = await hre.f.c.optionToken.getPositionWithOwner(positionId);
       expect(result1.strikeId).to.eq(hre.f.strike.strikeId);
       expect(result1.amount).to.eq(toBN('2'));
       expect(result1.state).to.eq(PositionState.ACTIVE);
       expect(result1.optionType).to.eq(OptionType.SHORT_CALL_BASE);
-      await checkContractFundsGMX(hre.f.gc.optionMarketWrapper.address);
+      await checkContractFundsGMX(hre.f.c.optionMarketWrapper.address);
     });
   });
 });

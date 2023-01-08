@@ -44,7 +44,7 @@ describe('USDC_quote - Pool Value', async () => {
     it('gets pool value when no live boards', async () => {
       await deployFixtureUSDC();
       await seedBalanceAndApprovalFor(hre.f.deployer, hre.f.c);
-      await seedLiquidityPool(hre.f.deployer, hre.f.c, undefined, true);
+      await seedLiquidityPool(hre.f.deployer, hre.f.c, undefined, { useUSDC: true });
 
       expect((await hre.f.c.optionMarket.getLiveBoards()).length).to.eq(0);
       expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.eq(DEFAULT_POOL_DEPOSIT);

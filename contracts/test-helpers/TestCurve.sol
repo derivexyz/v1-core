@@ -65,10 +65,19 @@ contract TestCurve is ICurve, Owned {
     // grab the rates of each token
     uint _fromRate = rates[address(_from)];
     uint _toRate = rates[address(_to)];
+    // console.log("Inputs in exchange");
+    // console.log("Address from:", _from);
+    // console.log("Address   to:", _to);
+    // console.log("  Amount:", _amount);
+    // console.log("Expected:", _expected);
+    // console.log("FromRate:", _fromRate);
+    // console.log("  ToRate:", _toRate);
 
     // if the amount we get out is less than expected throw error
     // amountOut = (_amount * _fromRate) / _toRate;
     amountOut = (_amount * _toRate) / _fromRate;
+    // console.log("amountOut", amountOut);
+    // console.log("expected ", _expected);
     require(amountOut >= _expected, "not enough expected");
 
     // mint the amountOut

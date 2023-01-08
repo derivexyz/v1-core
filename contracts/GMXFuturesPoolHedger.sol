@@ -37,11 +37,10 @@ contract GMXFuturesPoolHedger is
   using SafeCast for int;
 
   uint256 public constant GMX_PRICE_PRECISION = 10 ** 30;
-  uint256 public constant BASIS_POINTS_DIVISOR = 10000;
 
   struct FuturesPoolHedgerParameters {
     uint acceptableSpotSlippage;
-    uint deltaThreshold; // Bypass interaction delay if delta is outside of a certain range.
+    uint deltaThreshold; // Bypass interaction delay if delate is outside of a certain range.
     uint marketDepthBuffer; // delta buffer. 50 -> 50 eth buffer
     uint targetLeverage; // target leverage ratio
     uint leverageBuffer; // leverage tolerance before allowing collateral updates
@@ -145,12 +144,7 @@ contract GMXFuturesPoolHedger is
    */
   function setFuturesPoolHedgerParams(FuturesPoolHedgerParameters memory _futuresPoolHedgerParams) external onlyOwner {
     futuresPoolHedgerParams = _futuresPoolHedgerParams;
-    emit MaxLeverageSet(address(this), futuresPoolHedgerParams.targetLeverage);
-  }
-
-  function setPositionRouter(IPositionRouter _positionRouter) external onlyOwner {
-    positionRouter = _positionRouter;
-    emit PositionRouterSet(address(this), _positionRouter);
+    emit MaxLeverageSet(futuresPoolHedgerParams.targetLeverage);
   }
 
   /**
@@ -172,16 +166,16 @@ contract GMXFuturesPoolHedger is
     uint quoteBal = quoteAsset.balanceOf(address(this));
     if (quoteBal > 0) {
       if (!quoteAsset.transfer(address(liquidityPool), quoteBal)) {
-        revert AssetTransferFailed(address(this), quoteAsset, quoteBal, address(liquidityPool));
+        revert AssetTransferFailed(quoteAsset, quoteBal, address(liquidityPool));
       }
-      emit QuoteReturnedToLP(address(this), quoteBal);
+      emit QuoteReturnedToLP(quoteBal);
     }
     uint baseBal = baseAsset.balanceOf(address(this));
     if (baseBal > 0) {
       if (!baseAsset.transfer(address(liquidityPool), baseBal)) {
-        revert AssetTransferFailed(address(this), baseAsset, baseBal, address(liquidityPool));
+        revert AssetTransferFailed(baseAsset, baseBal, address(liquidityPool));
       }
-      emit BaseReturnedToLP(address(this), baseBal);
+      emit BaseReturnedToLP(baseBal);
     }
   }
 
@@ -299,7 +293,7 @@ contract GMXFuturesPoolHedger is
    */
   function updateCollateral() external payable virtual override nonReentrant {
     CurrentPositions memory positions = _getPositions();
-    emit HedgerPosition(address(this), positions);
+    emit HedgerPosition(positions);
 
     if (positions.amountOpen > 1) {
       int expectedHedge = _getCappedExpectedHedge();
@@ -308,9 +302,7 @@ contract GMXFuturesPoolHedger is
     }
 
     (, bool needUpdate, int collateralDelta) = _getCurrentLeverage(positions);
-    if (!needUpdate) {
-      return;
-    }
+    if (!needUpdate) return;
 
     uint spotPrice = _getSpotPrice();
 
@@ -334,7 +326,7 @@ contract GMXFuturesPoolHedger is
       );
     }
 
-    emit CollateralOrderPosted(address(this), pendingOrderKey, positions.isLong, collateralDelta);
+    emit CollateralOrderPosted(pendingOrderKey, positions.isLong, collateralDelta);
     // return any excess eth
     payable(msg.sender).transfer(address(this).balance);
   }
@@ -427,17 +419,16 @@ contract GMXFuturesPoolHedger is
    * @dev cancel outstanding order in case the GMX keeper bot is not working properly.
    */
   function cancelPendingOrder() external nonReentrant {
-    if (lastOrderTimestamp + futuresPoolHedgerParams.minCancelDelay > block.timestamp) {
-      revert CancellationDelayNotPassed(address(this));
-    }
+    if (lastOrderTimestamp + futuresPoolHedgerParams.minCancelDelay > block.timestamp)
+      revert CancellationDelayNotPassed();
 
     if (_hasPendingIncrease()) {
       bool success = positionRouter.cancelIncreasePosition(pendingOrderKey, address(this));
-      emit OrderCanceled(address(this), pendingOrderKey, success);
+      emit OrderCanceled(pendingOrderKey, success);
     }
     if (_hasPendingDecrease()) {
       bool success = positionRouter.cancelDecreasePosition(pendingOrderKey, address(this));
-      emit OrderCanceled(address(this), pendingOrderKey, success);
+      emit OrderCanceled(pendingOrderKey, success);
     }
 
     pendingOrderKey = bytes32(0);
@@ -521,7 +512,7 @@ contract GMXFuturesPoolHedger is
     pendingOrderKey = bytes32(0);
 
     CurrentPositions memory positions = _getPositions();
-    emit HedgerPosition(address(this), positions);
+    emit HedgerPosition(positions);
 
     if (positions.amountOpen > 1) {
       _closeSecondPosition(positions, expectedHedge);
@@ -555,7 +546,6 @@ contract GMXFuturesPoolHedger is
       );
 
       emit PositionUpdated(
-        address(this),
         currHedgedNetDelta,
         expectedHedge,
         currentPos.size,
@@ -594,7 +584,6 @@ contract GMXFuturesPoolHedger is
     }
 
     emit PositionUpdated(
-      address(this),
       currHedgedNetDelta,
       expectedHedge,
       sizeDelta,
@@ -641,11 +630,6 @@ contract GMXFuturesPoolHedger is
     uint collateralDelta,
     uint spot
   ) internal {
-    if (isLong) {
-      uint swapFeeBP = getSwapFeeBP(isLong, true, collateralDelta);
-      collateralDelta = (collateralDelta * (BASIS_POINTS_DIVISOR + swapFeeBP)) / BASIS_POINTS_DIVISOR;
-    }
-
     // add margin fee
     // when we increase position, fee always got deducted from collateral
     collateralDelta += _getPositionFee(currentPos.size, sizeDelta, currentPos.entryFundingRate);
@@ -695,13 +679,13 @@ contract GMXFuturesPoolHedger is
       acceptableSpot,
       executionFee,
       referralCode,
-      address(this)
+      address(0)
     );
 
     pendingOrderKey = key;
     lastOrderTimestamp = block.timestamp;
 
-    emit OrderPosted(address(this), pendingOrderKey, collateralDelta, sizeDelta, isLong, true);
+    emit OrderPosted(pendingOrderKey, collateralDelta, sizeDelta, isLong, true);
   }
 
   /**
@@ -719,12 +703,8 @@ contract GMXFuturesPoolHedger is
     // if realised pnl is negative, fee will be paid in collateral
     // so we can reduce less
     if (currentPos.unrealisedPnl < 0) {
-      uint adjustedDelta = Math.abs(currentPos.unrealisedPnl).multiplyDecimal(sizeDelta).divideDecimal(currentPos.size);
-      if (adjustedDelta > collateralDelta) {
-        collateralDelta = 0;
-      } else {
-        collateralDelta -= adjustedDelta;
-      }
+      uint feeUsd = _getPositionFee(currentPos.size, sizeDelta, currentPos.entryFundingRate);
+      collateralDelta -= feeUsd;
     }
 
     address[] memory path;
@@ -745,6 +725,18 @@ contract GMXFuturesPoolHedger is
       collateralDelta = currentPos.collateral;
     }
 
+    // make sure ending collateral < ending size
+    if (!isClose) {
+      uint endingCollateral = currentPos.collateral - collateralDelta;
+      uint endingSize = currentPos.size > sizeDelta ? currentPos.size - sizeDelta : 0;
+
+      if (endingSize < endingCollateral) {
+        // gmx restrict position to have size >= collateral
+        // so we cap the collateral to be same as size. (remove extra to liquidity pool if needed)
+        collateralDelta += endingCollateral - endingSize;
+      }
+    }
+
     uint executionFee = _getExecutionFee();
     bytes32 key = positionRouter.createDecreasePosition{value: executionFee}(
       path,
@@ -759,13 +751,13 @@ contract GMXFuturesPoolHedger is
       0,
       executionFee,
       false,
-      address(this)
+      address(0)
     );
 
     pendingOrderKey = key;
     lastOrderTimestamp = block.timestamp;
 
-    emit OrderPosted(address(this), pendingOrderKey, collateralDelta, sizeDelta, isLong, false);
+    emit OrderPosted(pendingOrderKey, collateralDelta, sizeDelta, isLong, false);
   }
 
   function _convertFromGMXPrecision(uint amt) internal pure returns (uint) {
@@ -816,28 +808,6 @@ contract GMXFuturesPoolHedger is
     return exchangeAdapter.getSpotPriceForMarket(optionMarket, BaseExchangeAdapter.PriceType.REFERENCE);
   }
 
-  function getSwapFeeBP(bool isLong, bool isIncrease, uint amountIn) public view returns (uint feeBP) {
-    if (!isLong) {
-      // only relevant for longs as shorts use the stable asset as collateral
-      return 0;
-    }
-    address inToken = isIncrease ? address(quoteAsset) : address(baseAsset);
-    address outToken = isIncrease ? address(baseAsset) : address(quoteAsset);
-    uint256 priceIn = vault.getMinPrice(inToken);
-
-    // adjust usdgAmounts by the same usdgAmount as debt is shifted between the assets
-    uint256 usdgAmount = _convertFromGMXPrecision(
-      ConvertDecimals.convertTo18(amountIn, quoteAsset.decimals()).multiplyDecimal(priceIn)
-    );
-
-    uint256 baseBps = vault.swapFeeBasisPoints();
-    uint256 taxBps = vault.taxBasisPoints();
-    uint256 feesBasisPoints0 = vault.getFeeBasisPoints(inToken, usdgAmount, baseBps, taxBps, true);
-    uint256 feesBasisPoints1 = vault.getFeeBasisPoints(outToken, usdgAmount, baseBps, taxBps, false);
-    // use the higher of the two fee basis points
-    return feesBasisPoints0 > feesBasisPoints1 ? feesBasisPoints0 : feesBasisPoints1;
-  }
-
   /**
    * @dev get total value from long and short GMX positions.
    * @return total value in USD term.
@@ -859,9 +829,7 @@ contract GMXFuturesPoolHedger is
       int longPositionValue = position.collateral.toInt256() + position.unrealisedPnl;
 
       // Ignore the case when negative PnL covers collateral (insolvency) as the value is 0
-      if (longPositionValue > 0) {
-        totalValue += uint(longPositionValue);
-      }
+      if (longPositionValue > 0) totalValue += uint(longPositionValue);
     }
 
     if (positions.shortPosition.size > 0) {
@@ -869,9 +837,7 @@ contract GMXFuturesPoolHedger is
       int shortPositionValue = position.collateral.toInt256() + position.unrealisedPnl;
 
       // Ignore the case when negative PnL covers collateral (insolvency) as the value is 0
-      if (shortPositionValue > 0) {
-        totalValue += uint(shortPositionValue);
-      }
+      if (shortPositionValue > 0) totalValue += uint(shortPositionValue);
     }
     return totalValue;
   }
@@ -952,15 +918,9 @@ contract GMXFuturesPoolHedger is
   }
 
   function _hasPendingPositionRequest() internal view returns (bool) {
-    if (pendingOrderKey == bytes32(0)) {
-      return false;
-    }
-    if (_hasPendingIncrease()) {
-      return true;
-    }
-    if (_hasPendingDecrease()) {
-      return true;
-    }
+    if (pendingOrderKey == bytes32(0)) return false;
+    if (_hasPendingIncrease()) return true;
+    if (_hasPendingDecrease()) return true;
     return false;
   }
 
@@ -971,9 +931,7 @@ contract GMXFuturesPoolHedger is
     bytes memory data = abi.encodeWithSelector(positionRouter.increasePositionRequests.selector, pendingOrderKey);
 
     (bool success, bytes memory returndata) = address(positionRouter).staticcall(data);
-    if (!success) {
-      revert GetGMXVaultError(address(this));
-    }
+    if (!success) revert GetGMXVaultError();
 
     // parse account from the first 32 bytes of returned data
     // same as: (address account,,,,,,,,,,,,) = positionRouter.increasePositionRequests(pendingOrderKey);
@@ -993,9 +951,7 @@ contract GMXFuturesPoolHedger is
     bytes memory data = abi.encodeWithSelector(positionRouter.decreasePositionRequests.selector, pendingOrderKey);
 
     (bool success, bytes memory returndata) = address(positionRouter).staticcall(data);
-    if (!success) {
-      revert GetGMXVaultError(address(this));
-    }
+    if (!success) revert GetGMXVaultError();
 
     // parse account from the first 32 bytes of returned data
     // same as: (address account,,,,,,,,,,,,,) = positionRouter.decreasePositionRequests(pendingOrderKey);
@@ -1013,7 +969,7 @@ contract GMXFuturesPoolHedger is
   //////////////
 
   function gmxPositionCallback(bytes32 positionKey, bool isExecuted, bool isIncrease) external onlyGMXKeeper {
-    emit GMXPositionCallback(address(this), positionKey, isExecuted, isIncrease, _getPositions());
+    emit GMXPositionCallback(positionKey, isExecuted, isIncrease, _getPositions());
   }
 
   ///////////////
@@ -1030,73 +986,49 @@ contract GMXFuturesPoolHedger is
   ////////////
 
   /**
-   * @dev Emitted when the position router is updated.
-   */
-  event PositionRouterSet(address thrower, IPositionRouter positionRouter);
-
-  /**
    * @dev Emitted when the max leverage parameter is updated.
    */
-  event MaxLeverageSet(address thrower, uint targetLeverage);
+  event MaxLeverageSet(uint targetLeverage);
 
   /**
    * @dev Emitted when the hedge position is updated.
    */
-  event PositionUpdated(
-    address thrower,
-    int currentNetDelta,
-    int expectedNetDelta,
-    uint modifiedDelta,
-    bool isIncrease
-  );
+  event PositionUpdated(int currentNetDelta, int expectedNetDelta, uint modifiedDelta, bool isIncrease);
 
   /**
    * @dev Emitted when proceeds of the short are sent back to the LP.
    */
-  event QuoteReturnedToLP(address thrower, uint amountQuote);
+  event QuoteReturnedToLP(uint amountQuote);
 
   /**
    * @dev Emitted when base is returned to the LP
    */
-  event BaseReturnedToLP(address thrower, uint amountBase);
+  event BaseReturnedToLP(uint amountBase);
 
   /**
    * @dev Emitted when the collateral order is posted
    */
-  event CollateralOrderPosted(address thrower, bytes32 positionKey, bool isLong, int collateralDelta);
+  event CollateralOrderPosted(bytes32 positionKey, bool isLong, int collateralDelta);
 
   /**
    * @dev Emitted when a either Hedgedelta is called or update collateral
    */
-  event HedgerPosition(address thrower, CurrentPositions position);
+  event HedgerPosition(CurrentPositions position);
 
   /**
    * @dev Emitted when queue order is posted
    */
-  event OrderPosted(
-    address thrower,
-    bytes32 positionKey,
-    uint collateralDelta,
-    uint sizeDelta,
-    bool isLong,
-    bool isIncrease
-  );
+  event OrderPosted(bytes32 positionKey, uint collateralDelta, uint sizeDelta, bool isLong, bool isIncrease);
 
   /**
    * @dev call back occurs and returns the positions information
    */
-  event GMXPositionCallback(
-    address thrower,
-    bytes32 positionKey,
-    bool isExecuted,
-    bool isIncrease,
-    CurrentPositions positions
-  );
+  event GMXPositionCallback(bytes32 positionKey, bool isExecuted, bool isIncrease, CurrentPositions positions);
 
   /**
    * @dev Emitted when an order is cancelled
    */
-  event OrderCanceled(address thrower, bytes32 pendingOrderKey, bool success);
+  event OrderCanceled(bytes32 pendingOrderKey, bool success);
 
   ////////////
   // Errors //
@@ -1113,9 +1045,9 @@ contract GMXFuturesPoolHedger is
   // Token transfers
   error NoQuoteReceivedFromLP(address thrower);
 
-  error CancellationDelayNotPassed(address thrower);
+  error CancellationDelayNotPassed();
 
-  error GetGMXVaultError(address thrower);
-  error AssetTransferFailed(address thrower, IERC20Decimals asset, uint amount, address recipient);
+  error GetGMXVaultError();
+  error AssetTransferFailed(IERC20Decimals asset, uint amount, address recipient);
   error QuoteApprovalFailure(address thrower, address approvee, uint amount);
 }

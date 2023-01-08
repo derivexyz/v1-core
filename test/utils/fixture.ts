@@ -69,15 +69,20 @@ export async function deployFixture() {
   } else {
     await restoreSnapshot(hre.f.deploySnap);
   }
-  await resetAllSnaps();
 
   hre.f.deploySnap = await takeSnapshot();
 
+  hre.f.deploySnapUSDC = undefined as any;
+  hre.f.gmxCurrenciesSnap = undefined as any;
   hre.f.board = undefined as any;
   hre.f.strike = undefined as any;
   hre.f.market = undefined as any;
   hre.f.defaultTradeParametersStruct = undefined as any;
+  hre.f.USDCSeedSnap = undefined as any;
+  hre.f.seedSnap = undefined as any;
   hre.f.positionIds = undefined as any;
+  hre.f.allTradesSnap = undefined as any;
+  hre.f.allCurrenciesSnap = undefined as any;
 }
 
 export async function deployFixtureUSDC() {
@@ -89,35 +94,43 @@ export async function deployFixtureUSDC() {
   } else {
     await restoreSnapshot(hre.f.deploySnapUSDC);
   }
-  await resetAllSnaps();
-
   hre.f.deploySnapUSDC = await takeSnapshot();
 
+  hre.f.deploySnap = undefined as any;
+  hre.f.gmxCurrenciesSnap = undefined as any;
   hre.f.board = undefined as any;
   hre.f.strike = undefined as any;
   hre.f.market = undefined as any;
   hre.f.defaultTradeParametersStruct = undefined as any;
+  hre.f.USDCSeedSnap = undefined as any;
+  hre.f.seedSnap = undefined as any;
   hre.f.positionIds = undefined as any;
+  hre.f.allTradesSnap = undefined as any;
+  hre.f.allCurrenciesSnap = undefined as any;
 }
 
 export async function deployFixtureUSDCwBTC() {
-  if (!hre.f.USDCwBTCSeedSnap) {
+  if (!hre.f.deploySnapUSDC) {
     hre.f.signers = await ethers.getSigners();
     hre.f.deployer = hre.f.signers[0];
     hre.f.alice = hre.f.signers[1];
     hre.f.c = await deployTestSystem(hre.f.deployer, true, undefined, { quoteDecimals: 6, baseDecimals: 8 });
   } else {
-    await restoreSnapshot(hre.f.USDCwBTCSeedSnap);
+    await restoreSnapshot(hre.f.deploySnapUSDC);
   }
-  await resetAllSnaps();
+  hre.f.deploySnapUSDC = await takeSnapshot();
 
-  hre.f.USDCwBTCSeedSnap = await takeSnapshot();
-
+  hre.f.deploySnap = undefined as any;
+  hre.f.gmxCurrenciesSnap = undefined as any;
   hre.f.board = undefined as any;
   hre.f.strike = undefined as any;
   hre.f.market = undefined as any;
   hre.f.defaultTradeParametersStruct = undefined as any;
+  hre.f.USDCSeedSnap = undefined as any;
+  hre.f.seedSnap = undefined as any;
   hre.f.positionIds = undefined as any;
+  hre.f.allTradesSnap = undefined as any;
+  hre.f.allCurrenciesSnap = undefined as any;
 }
 
 export async function seedFixture() {
@@ -147,11 +160,13 @@ export async function seedFixture() {
   } else {
     await restoreSnapshot(hre.f.seedSnap);
   }
-  await resetAllSnaps();
-
   hre.f.seedSnap = await takeSnapshot();
 
   hre.f.positionIds = undefined as any;
+  hre.f.USDCSeedSnap = undefined as any;
+  hre.f.allTradesSnap = undefined as any;
+  hre.f.allCurrenciesSnap = undefined as any;
+  hre.f.gmxCurrenciesSnap = undefined as any;
 }
 
 export async function seedFixtureUSDC(overrides?: SeedOverrides) {
@@ -182,10 +197,14 @@ export async function seedFixtureUSDC(overrides?: SeedOverrides) {
   } else {
     await restoreSnapshot(hre.f.USDCSeedSnap);
   }
-  await resetAllSnaps();
   hre.f.USDCSeedSnap = await takeSnapshot();
 
+  hre.f.deploySnap = undefined as any;
   hre.f.positionIds = undefined as any;
+  hre.f.seedSnap = undefined as any;
+  hre.f.allTradesSnap = undefined as any;
+  hre.f.allCurrenciesSnap = undefined as any;
+  hre.f.gmxCurrenciesSnap = undefined as any;
 }
 
 export async function seedFixtureUSDCwBTC() {
@@ -215,10 +234,13 @@ export async function seedFixtureUSDCwBTC() {
   } else {
     await restoreSnapshot(hre.f.USDCwBTCSeedSnap);
   }
-  await resetAllSnaps();
-
   hre.f.USDCwBTCSeedSnap = await takeSnapshot();
+  hre.f.gmxCurrenciesSnap = undefined as any;
+  hre.f.deploySnap = undefined as any;
   hre.f.positionIds = undefined as any;
+  hre.f.seedSnap = undefined as any;
+  hre.f.allTradesSnap = undefined as any;
+  hre.f.allCurrenciesSnap = undefined as any;
 }
 
 export async function allTradesFixture() {
@@ -228,8 +250,9 @@ export async function allTradesFixture() {
   } else {
     await restoreSnapshot(hre.f.allTradesSnap);
   }
-  await resetAllSnaps();
   hre.f.allTradesSnap = await takeSnapshot();
+  hre.f.allCurrenciesSnap = undefined as any;
+  hre.f.gmxCurrenciesSnap = undefined as any;
 }
 
 export async function allCurrenciesFixture() {
@@ -269,9 +292,8 @@ export async function allCurrenciesFixture() {
   } else {
     await restoreSnapshot(hre.f.allCurrenciesSnap);
   }
-  await resetAllSnaps();
-
   hre.f.allCurrenciesSnap = await takeSnapshot();
+  hre.f.allTradesSnap = undefined as any;
 }
 
 export async function allCurrenciesFixtureGMX() {
@@ -322,21 +344,15 @@ export async function allCurrenciesFixtureGMX() {
   } else {
     await restoreSnapshot(hre.f.gmxCurrenciesSnap);
   }
-  await resetAllSnaps();
   hre.f.gmxCurrenciesSnap = await takeSnapshot();
 
   hre.f.DAI = undefined as any;
   hre.f.USDC = undefined as any;
-  hre.f.defaultTradeParametersStruct = undefined as any;
-}
-
-async function resetAllSnaps() {
   hre.f.deploySnap = undefined as any;
   hre.f.deploySnapUSDC = undefined as any;
-  hre.f.seedSnap = undefined as any;
-  hre.f.gmxCurrenciesSnap = undefined as any;
+  hre.f.defaultTradeParametersStruct = undefined as any;
   hre.f.USDCSeedSnap = undefined as any;
-  hre.f.USDCwBTCSeedSnap = undefined as any;
+  hre.f.seedSnap = undefined as any;
   hre.f.allTradesSnap = undefined as any;
   hre.f.allCurrenciesSnap = undefined as any;
 }
