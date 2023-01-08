@@ -431,7 +431,7 @@ contract SNXFuturesPoolHedger is PoolHedger, Owned, SimpleInitializable, Reentra
    */
   function _sendAllQuoteToLP() internal {
     uint quoteBal = quoteAsset.balanceOf(address(this));
-    if (!quoteAsset.transfer(address(liquidityPool), quoteBal)) {
+    if (quoteBal > 0 && !quoteAsset.transfer(address(liquidityPool), quoteBal)) {
       revert QuoteTransferFailed(address(this), address(this), address(liquidityPool), quoteBal);
     }
     emit QuoteReturnedToLP(quoteBal);

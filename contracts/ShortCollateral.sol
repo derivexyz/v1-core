@@ -365,7 +365,7 @@ contract ShortCollateral is Owned, SimpleInitializable, ReentrancyGuard {
       revert OutOfQuoteCollateralForTransfer(address(this), currentBalance, nativeAmount);
     }
 
-    if (!quoteAsset.transfer(recipient, nativeAmount)) {
+    if (nativeAmount > 0 && !quoteAsset.transfer(recipient, nativeAmount)) {
       revert QuoteTransferFailed(address(this), address(this), recipient, nativeAmount);
     }
     emit QuoteSent(recipient, nativeAmount);
@@ -383,7 +383,7 @@ contract ShortCollateral is Owned, SimpleInitializable, ReentrancyGuard {
       revert OutOfBaseCollateralForTransfer(address(this), currentBalance, nativeAmount);
     }
 
-    if (!baseAsset.transfer(recipient, nativeAmount)) {
+    if (nativeAmount > 0 && !baseAsset.transfer(recipient, nativeAmount)) {
       revert BaseTransferFailed(address(this), address(this), recipient, nativeAmount);
     }
     emit BaseSent(recipient, nativeAmount);

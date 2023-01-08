@@ -967,7 +967,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
           uint(pendingCollateral),
           baseAsset.decimals()
         );
-        if (!baseAsset.transferFrom(msg.sender, address(shortCollateral), uint(pendingCollateralConverted))) {
+        if (pendingCollateralConverted > 0 && !baseAsset.transferFrom(msg.sender, address(shortCollateral), uint(pendingCollateralConverted))) {
           revert BaseTransferFailed(
             address(this),
             msg.sender,

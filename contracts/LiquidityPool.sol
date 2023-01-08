@@ -824,7 +824,7 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     // It is better for the contract to revert if there is not enough here (due to rounding) to keep accounting in
     // ShortCollateral correct. baseAsset can be donated (sent) to this contract to allow this to pass.
     uint realBase = ConvertDecimals.convertFrom18(amountBase, baseAsset.decimals());
-    if (!baseAsset.transfer(address(shortCollateral), realBase)) {
+    if (realBase > 0 && !baseAsset.transfer(address(shortCollateral), realBase)) {
       revert BaseTransferFailed(address(this), address(this), address(shortCollateral), realBase);
     }
 
