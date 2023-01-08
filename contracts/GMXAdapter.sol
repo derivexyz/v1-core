@@ -242,6 +242,9 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenOutPrice,
     uint tokenOutAmt
   ) internal view returns (uint tokenInAmt) {
+    if (staticSwapFeeEstimate[optionMarket] < 1e18) {
+      revert InvalidStaticSwapFeeEstimate();
+    }
     return
       tokenOutPrice
         .multiplyDecimalRound(tokenOutAmt)
@@ -268,6 +271,9 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenInPrice = _getMinPrice(address(baseAsset));
     uint tokenOutPrice = _getMaxPrice(address(quoteAsset));
 
+    if (staticSwapFeeEstimate[_optionMarket] < 1e18) {
+      revert InvalidStaticSwapFeeEstimate();
+    }
     uint minOut = tokenInPrice
       .multiplyDecimal(minReturnPercent[_optionMarket])
       .multiplyDecimal(_amountBase)
@@ -326,8 +332,8 @@ contract GMXAdapter is BaseExchangeAdapter {
       revert InsufficientSwap(convertedBaseReceived, _amountBase, quoteAsset, baseAsset, msg.sender);
     }
 
-    emit QuoteSwappedForBase(_optionMarket, msg.sender, quoteSpent, baseReceived);
-    return (quoteNeeded, baseReceived);
+    emit QuoteSwappedForBase(_optionMarket, msg.sender, quoteSpent, convertedBaseReceived);
+    return (quoteNeeded, convertedBaseReceived);
   }
 
   ////////////

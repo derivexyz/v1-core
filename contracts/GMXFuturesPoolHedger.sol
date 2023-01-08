@@ -288,8 +288,7 @@ contract GMXFuturesPoolHedger is
       );
     }
     _hedgeDelta(expectedHedge);
-    // return any excess eth
-    payable(msg.sender).transfer(address(this).balance);
+    _returnAllEth();
   }
 
   /**
@@ -298,6 +297,12 @@ contract GMXFuturesPoolHedger is
    * @dev   if we need more collateral: transfer from liquidity pool
    */
   function updateCollateral() external payable virtual override nonReentrant {
+    // Check pending orders first
+    if (_hasPendingPositionRequest()) {
+      revert PositionRequestPending(address(this), pendingOrderKey);
+    }
+    pendingOrderKey = bytes32(0);
+
     CurrentPositions memory positions = _getPositions();
     emit HedgerPosition(address(this), positions);
 
@@ -336,7 +341,7 @@ contract GMXFuturesPoolHedger is
 
     emit CollateralOrderPosted(address(this), pendingOrderKey, positions.isLong, collateralDelta);
     // return any excess eth
-    payable(msg.sender).transfer(address(this).balance);
+    _returnAllEth();
   }
 
   /**
@@ -366,14 +371,23 @@ contract GMXFuturesPoolHedger is
       return true;
     }
 
-    // remaining is the amount of baseAsset that can be hedged
-    uint remaining = ConvertDecimals.convertTo18(
-      (vault.poolAmounts(address(baseAsset)) - vault.reservedAmounts(address(baseAsset))),
-      baseAsset.decimals()
-    );
+    uint remainingDeltas;
+    if (expectedHedge > 0) {
+      // remaining is the amount of baseAsset that can be hedged
+      remainingDeltas = ConvertDecimals.convertTo18(
+        (vault.poolAmounts(address(baseAsset)) - vault.reservedAmounts(address(baseAsset))),
+        baseAsset.decimals()
+      );
+    } else {
+      remainingDeltas = ConvertDecimals.convertTo18(
+        (vault.poolAmounts(address(quoteAsset)) - vault.reservedAmounts(address(quoteAsset))),
+        baseAsset.decimals()
+      );
+    }
+    // TODO: test both sides
 
     uint absHedgeDiff = (Math.abs(expectedHedge) - Math.abs(currentHedge));
-    if (remaining < absHedgeDiff.multiplyDecimal(futuresPoolHedgerParams.marketDepthBuffer)) {
+    if (remainingDeltas < absHedgeDiff.multiplyDecimal(futuresPoolHedgerParams.marketDepthBuffer)) {
       return false;
     }
 
@@ -434,10 +448,16 @@ contract GMXFuturesPoolHedger is
     if (_hasPendingIncrease()) {
       bool success = positionRouter.cancelIncreasePosition(pendingOrderKey, address(this));
       emit OrderCanceled(address(this), pendingOrderKey, success);
+      if (!success) {
+        revert OrderCancellationFailure(address(this), pendingOrderKey);
+      }
     }
     if (_hasPendingDecrease()) {
       bool success = positionRouter.cancelDecreasePosition(pendingOrderKey, address(this));
       emit OrderCanceled(address(this), pendingOrderKey, success);
+      if (!success) {
+        revert OrderCancellationFailure(address(this), pendingOrderKey);
+      }
     }
 
     pendingOrderKey = bytes32(0);
@@ -1008,6 +1028,18 @@ contract GMXFuturesPoolHedger is
     return account != address(0);
   }
 
+  //////////
+  // Misc //
+  //////////
+
+  function _returnAllEth() internal {
+    // return any excess eth
+    (bool success, ) = msg.sender.call{value: address(this).balance}("");
+    if (!success) {
+      revert EthTransferFailure(address(this), msg.sender, address(this).balance);
+    }
+  }
+
   //////////////
   // Callback //
   //////////////
@@ -1109,10 +1141,11 @@ contract GMXFuturesPoolHedger is
   // Hedging
   error InteractionDelayNotExpired(address thrower, uint lastInteraction, uint interactionDelta, uint currentTime);
   error PositionRequestPending(address thrower, bytes32 key);
+  error OrderCancellationFailure(address thrower, bytes32 pendingOrderKey);
 
   // Token transfers
   error NoQuoteReceivedFromLP(address thrower);
-
+  error EthTransferFailure(address thrower, address recipient, uint balance);
   error CancellationDelayNotPassed(address thrower);
 
   error GetGMXVaultError(address thrower);

@@ -357,18 +357,18 @@ contract ShortCollateral is Owned, SimpleInitializable, ReentrancyGuard {
       return;
     }
     // Convert amount to same dp as quoteAsset
-    amount = ConvertDecimals.convertFrom18(amount, quoteAsset.decimals());
+    uint nativeAmount = ConvertDecimals.convertFrom18(amount, quoteAsset.decimals());
 
     uint currentBalance = quoteAsset.balanceOf(address(this));
 
-    if (amount > currentBalance) {
-      revert OutOfQuoteCollateralForTransfer(address(this), currentBalance, amount);
+    if (nativeAmount > currentBalance) {
+      revert OutOfQuoteCollateralForTransfer(address(this), currentBalance, nativeAmount);
     }
 
-    if (!quoteAsset.transfer(recipient, amount)) {
-      revert QuoteTransferFailed(address(this), address(this), recipient, amount);
+    if (!quoteAsset.transfer(recipient, nativeAmount)) {
+      revert QuoteTransferFailed(address(this), address(this), recipient, nativeAmount);
     }
-    emit QuoteSent(recipient, amount);
+    emit QuoteSent(recipient, nativeAmount);
   }
 
   function _sendBaseCollateral(address recipient, uint amount) internal {
@@ -376,17 +376,17 @@ contract ShortCollateral is Owned, SimpleInitializable, ReentrancyGuard {
       return;
     }
 
-    amount = ConvertDecimals.convertFrom18(amount, baseAsset.decimals());
+    uint nativeAmount = ConvertDecimals.convertFrom18(amount, baseAsset.decimals());
     uint currentBalance = baseAsset.balanceOf(address(this));
 
-    if (amount > currentBalance) {
-      revert OutOfBaseCollateralForTransfer(address(this), currentBalance, amount);
+    if (nativeAmount > currentBalance) {
+      revert OutOfBaseCollateralForTransfer(address(this), currentBalance, nativeAmount);
     }
 
-    if (!baseAsset.transfer(recipient, amount)) {
-      revert BaseTransferFailed(address(this), address(this), recipient, amount);
+    if (!baseAsset.transfer(recipient, nativeAmount)) {
+      revert BaseTransferFailed(address(this), address(this), recipient, nativeAmount);
     }
-    emit BaseSent(recipient, amount);
+    emit BaseSent(recipient, nativeAmount);
   }
 
   ///////////////
@@ -438,13 +438,11 @@ contract ShortCollateral is Owned, SimpleInitializable, ReentrancyGuard {
   /**
    * @dev Emitted when quote is sent to either a user or the LiquidityPool
    */
-  event QuoteSent(address indexed receiver, uint amount);
+  event QuoteSent(address indexed receiver, uint nativeAmount);
   /**
    * @dev Emitted when base is sent to either a user or the LiquidityPool
    */
-  event BaseSent(address indexed receiver, uint amount);
-
-  event BaseExchangedAndQuoteSent(address indexed recipient, uint amountBase, uint quoteReceived);
+  event BaseSent(address indexed receiver, uint nativeAmount);
 
   ////////////
   // Errors //

@@ -424,8 +424,18 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
       totalQueuedWithdrawals -= burnAmount;
 
       uint quoteAmount = burnAmount.multiplyDecimal(tokenPriceWithFee);
-      current.quoteSent += quoteAmount;
-      _transferQuote(current.beneficiary, quoteAmount);
+      if (_tryTransferQuote(current.beneficiary, quoteAmount)) {
+        // success
+        current.quoteSent += quoteAmount;
+      } else {
+        // On unknown failure reason, return LP tokens and continue
+        totalQueuedWithdrawals -= current.amountTokens;
+        liquidityToken.mint(current.beneficiary, current.amountTokens + burnAmount);
+        current.amountTokens = 0;
+        queuedWithdrawalHead++;
+        // TODO: emit withdrawalReverted();
+        break;
+      }
 
       if (current.amountTokens > 0) {
         emit WithdrawPartiallyProcessed(
@@ -1063,6 +1073,18 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
         revert QuoteTransferFailed(address(this), address(this), to, amount);
       }
     }
+  }
+
+  function _tryTransferQuote(address to, uint amount) internal returns (bool success) {
+    amount = ConvertDecimals.convertFrom18(amount, quoteAsset.decimals());
+    if (amount > 0) {
+      try quoteAsset.transfer(to, amount) returns (bool res) {
+        return res;
+      } catch {
+        return false;
+      }
+    }
+    return true;
   }
 
   ///////////////
