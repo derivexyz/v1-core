@@ -132,6 +132,16 @@ describe('Integration Tests - GMX', () => {
 
         expect(pendingDeltaLiquidity.isZero()).to.be.true;
 
+        const positions = await testSystem.futuresPoolHedger.getPositions();
+        expect(positions.isLong).to.be.true;
+        const expectedNetDelta = (await testSystem.optionGreekCache.getGlobalCache()).netGreeks.netDelta;
+        expect(await testSystem.futuresPoolHedger.getCappedExpectedHedge()).eq(expectedNetDelta);
+        assertCloseToPercentage(positions.longPosition.size, expectedNetDelta.mul(spot).div(toBN('1')));
+        assertCloseToPercentage(
+          positions.longPosition.collateral,
+          expectedNetDelta.mul(spot).div(DEFAULT_GMX_POOL_HEDGER_PARAMS.targetLeverage),
+        );
+
         await fastForward(4);
         await testSystem.futuresPoolHedger.hedgeDelta({ value: toBN('0.01') }); // does nothing
         expect(await testSystem.futuresPoolHedger.hasPendingIncrease()).to.be.false;
@@ -550,7 +560,7 @@ describe('Integration Tests - GMX', () => {
 
           const oldTarget = await testSystem.futuresPoolHedger.getCappedExpectedHedge();
 
-          await setPrice(testSystem, '1300', testSystem.gmx.eth, testSystem.gmx.ethPriceFeed);
+          await setPrice(testSystem, '1200', testSystem.gmx.eth, testSystem.gmx.ethPriceFeed);
           await testSystem.optionGreekCache.updateBoardCachedGreeks(1);
 
           const newNetDelta = await testSystem.futuresPoolHedger.getCurrentHedgedNetDelta();
@@ -819,6 +829,8 @@ describe('Integration Tests - GMX', () => {
       });
       describe('update leverage', () => {
         let snapId: number;
+        const targetLeverageOverride = toBN('5');
+
         before('Create a net long hedge', async () => {
           snapId = await takeSnapshot();
 
@@ -836,7 +848,6 @@ describe('Integration Tests - GMX', () => {
         });
 
         before('increase target leverage', async () => {
-          const targetLeverageOverride = toBN('5');
           const receipt = await (
             await testSystem.futuresPoolHedger.connect(deployer).setFuturesPoolHedgerParams({
               ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
@@ -868,7 +879,19 @@ describe('Integration Tests - GMX', () => {
             .connect(deployer)
             .executeDecreasePosition(key, await deployer.getAddress());
 
+          const spot = await testSystem.GMXAdapter.getSpotPriceForMarket(testSystem.optionMarket.address, 2);
+          const positions = await testSystem.futuresPoolHedger.getPositions();
+          expect(positions.isLong).to.be.true;
+          const expectedNetDelta = (await testSystem.optionGreekCache.getGlobalCache()).netGreeks.netDelta;
+          expect(await testSystem.futuresPoolHedger.getCappedExpectedHedge()).eq(expectedNetDelta);
+          assertCloseToPercentage(positions.longPosition.size, expectedNetDelta.mul(spot).div(toBN('1')));
+          assertCloseToPercentage(
+            positions.longPosition.collateral,
+            expectedNetDelta.mul(spot).div(targetLeverageOverride),
+          );
+
           const leverageInfo = await testSystem.futuresPoolHedger.getCurrentLeverage();
+
           expect(leverageInfo.collateralDelta.isZero()).to.be.true;
         });
 
@@ -2129,165 +2152,3 @@ describe('Integration Tests - GMX', () => {
     });
   });
 });
-
-// describe("GMX Integration with USDC(6dp)", async () => {
-//   let testSystem: TestSystemContractsTypeGMX;
-//   let deployer: Wallet;
-//   let tokenManager: Signer;
-//   // let preQuoteBal: number;
-//   // let preBaseBal: number;
-//   let ethAddr: string;
-//   let usdcAddr: string;
-//   let vaultAddr: string;
-
-//   before(async () => {
-//     const provider = ethers.provider;
-
-//     [, , tokenManager] = await ethers.getSigners();
-
-//     const privateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-
-//     deployer = new ethers.Wallet(privateKey, provider);
-
-//     testSystem = (await deployGMXTestSystem(deployer as any as SignerWithAddress, false, true, {
-//       useGMX: true,
-//       compileGMX: false,
-//       optionMarketParams: { ...DEFAULT_OPTION_MARKET_PARAMS, feePortionReserved: toBN('0.05') },
-//       usdcDecimals: 6,
-//       btcDecimals: 8
-//     })) as TestSystemContractsTypeGMX;
-
-//     await testSystem.gmx.fastPriceFeed.connect(tokenManager).setPriceDataInterval(600);
-
-//     await seedTestSystemGMX(deployer, testSystem);
-
-//     ethAddr = testSystem.gmx.eth.address;
-//     vaultAddr = testSystem.gmx.vault.address;
-//     usdcAddr = testSystem.gmx.USDC.address;
-//     // marketView = await testSystem.optionMarketViewer.getMarket(testSystem.optionMarket.address);
-
-//     // adding more collat to vault
-//     await testSystem.gmx.eth.mint(vaultAddr, toBN('1000'));
-//     await testSystem.gmx.USDC.mint(vaultAddr, toBN('1000000'));
-//     await testSystem.gmx.vault.buyUSDG(ethAddr, await deployer.getAddress());
-//     await testSystem.gmx.vault.buyUSDG(usdcAddr, await deployer.getAddress());
-
-//     await testSystem.gmx.eth.mint(deployer.address,  toBN('101'));
-//     await testSystem.gmx.USDC.mint(deployer.address, toBN('100001'));
-//     //
-//     await testSystem.futuresPoolHedger.setPoolHedgerParams({
-//       ...DEFAULT_POOL_HEDGER_PARAMS,
-//       interactionDelay: 4,
-//     });
-//   });
-
-//   // test the adaptor with new option market, in which quote asset is USDC2 with 6 decimals
-//   describe('exchange for USDC2 (with 6 decimals)', async() => {
-//     before('setup', async() => {
-//       await testSystem.gmx.USDC.mint(vaultAddr, toBN('1'));
-//       await testSystem.gmx.vault.buyUSDG(testSystem.gmx.USDC.address, await deployer.getAddress());
-
-//       await testSystem.gmx.USDC.mint(deployer.address, toBN('1'));
-//     })
-//     it ('get exact base with limit', async () => {
-//       const ethBefore = await testSystem.gmx.eth.balanceOf(deployer.address)
-//       const usdcBefore = await testSystem.gmx.USDC.balanceOf(deployer.address)
-
-//       // get exactly 1 eth. spend at most 1600?
-//       await testSystem.GMXAdapter.exchangeToExactBaseWithLimit(testSystem.optionMarket.address, toBN('1'), toBN('1600'));
-
-//       const ethAfter = await testSystem.gmx.eth.balanceOf(deployer.address)
-//       const usdcAfter = await testSystem.gmx.USDC.balanceOf(deployer.address)
-
-//       const maxSpentUSDC2 = ethers.utils.parseUnits('1600', 6)
-//       expect(usdcBefore.sub(usdcAfter).lt(maxSpentUSDC2)).to.be.true
-
-//       assertCloseToPercentage(ethAfter.sub(ethBefore), toBN('1'), toBN('0.013')) // 1.3 percent error range
-//     })
-
-//     it ('sell base for quote', async () => {
-//       await testSystem.GMXAdapter.setMinReturnPercent(testSystem.optionMarket.address, toBN('0.98'))
-//       const ethBefore = await testSystem.gmx.eth.balanceOf(deployer.address)
-//       const usdcBefore = await testSystem.gmx.USDC.balanceOf(deployer.address)
-
-//       // sell exactly 1 eth.
-//       await testSystem.GMXAdapter.exchangeFromExactBase(testSystem.optionMarket.address, toBN('1'));
-
-//       const ethAfter = await testSystem.gmx.eth.balanceOf(deployer.address)
-//       const usdcAfter = await testSystem.gmx.USDC.balanceOf(deployer.address)
-//       expect(ethBefore.sub(ethAfter).eq(toBN('1'))).to.be.true
-
-//       assertCloseToPercentage(usdcAfter.sub(usdcBefore), ethers.utils.parseUnits('1500', 6), toBN('0.015')) // 1.5 percent error range
-//       expect(ethBefore.sub(ethAfter).eq(toBN('1'))).to.be.true
-//     })
-//   })
-
-//   describe('exchange for BTC2 <> USDC2', async() => {
-
-//     let btcOptionMarket: OptionMarket
-
-//     before('deploy option market with USDC2 & BTC', async() => {
-//       btcOptionMarket = (await ((await ethers.getContractFactory('OptionMarket')) as ContractFactory)
-//         .connect(deployer)
-//         .deploy()) as OptionMarket;
-
-//       await btcOptionMarket
-//         .connect(deployer)
-//         .init(
-//           testSystem.GMXAdapter.address,
-//           testSystem.liquidityPool.address,
-//           testSystem.optionMarketPricer.address,
-//           testSystem.optionGreekCache.address,
-//           testSystem.shortCollateral.address,
-//           testSystem.optionToken.address,
-//           testSystem.gmx.USDC.address,
-//           testSystem.gmx.btc.address,
-//         );
-
-//       await testSystem.GMXAdapter.setMinReturnPercent(btcOptionMarket.address, toBN('1.0'));
-//       await testSystem.GMXAdapter.setStaticSwapFeeEstimate(btcOptionMarket.address, toBN('1.015'));
-//       await testSystem.GMXAdapter.setPriceVarianceCBPercent(btcOptionMarket.address, toBN('0.015'));
-//     })
-//     before('setup', async() => {
-//       await testSystem.gmx.USDC.mint(vaultAddr, toBN('10'));
-//       await testSystem.gmx.vault.buyUSDG(testSystem.gmx.USDC.address, await deployer.getAddress());
-//       await testSystem.gmx.btc.mint(vaultAddr, toBN('1'));
-//       await testSystem.gmx.vault.buyUSDG(testSystem.gmx.btc.address, await deployer.getAddress());
-
-//       await testSystem.gmx.USDC.mint(deployer.address, toBN('100'));
-//       await testSystem.gmx.btc.mint(deployer.address, toBN('1'));
-//     })
-//     it ('get exact base with limit', async () => {
-//       const btcBefore = await testSystem.gmx.btc.balanceOf(deployer.address)
-//       const usdcBefore = await testSystem.gmx.USDC.balanceOf(deployer.address)
-
-//       // get exactly 1 btc. spend at most 1600?
-//       await testSystem.GMXAdapter.exchangeToExactBaseWithLimit(btcOptionMarket.address, toBN('1'), toBN('20100'));
-
-//       const btcAfter = await testSystem.gmx.btc.balanceOf(deployer.address)
-//       const usdcAfter = await testSystem.gmx.USDC.balanceOf(deployer.address)
-
-//       const maxSpentUSDC2 = ethers.utils.parseUnits('20100', 6)
-//       expect(usdcBefore.sub(usdcAfter).lte(maxSpentUSDC2)).to.be.true
-
-//       assertCloseToPercentage(btcAfter.sub(btcBefore), ethers.utils.parseUnits('1', 8), toBN('0.013')) // 1.3 percent error range
-//     })
-
-//     it ('sell base for quote', async () => {
-//       await testSystem.GMXAdapter.setMinReturnPercent(btcOptionMarket.address, toBN('0.98'))
-//       const btcBefore = await testSystem.gmx.btc.balanceOf(deployer.address)
-//       const usdcBefore = await testSystem.gmx.USDC.balanceOf(deployer.address)
-
-//       // sell exactly 1 eth.
-//       await testSystem.GMXAdapter.exchangeFromExactBase(btcOptionMarket.address, toBN('1'));
-
-//       const btcAfter = await testSystem.gmx.btc.balanceOf(deployer.address)
-//       const usdcAfter = await testSystem.gmx.USDC.balanceOf(deployer.address)
-
-//       expect(btcBefore.sub(btcAfter).eq(ethers.utils.parseUnits('1', 8))).to.be.true
-
-//       assertCloseToPercentage(usdcAfter.sub(usdcBefore), ethers.utils.parseUnits('20001', 6), toBN('0.015')) // 1.5 percent error range
-
-//     })
-//   })
-// })

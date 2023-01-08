@@ -129,6 +129,9 @@ contract GMXFuturesPoolHedger is
     _router.approvePlugin(address(positionRouter));
   }
 
+  /// @dev payable fallback for receiving fee refunds from position request cancellations TODO: test this
+  receive() external payable {}
+
   ///////////
   // Admin //
   ///////////

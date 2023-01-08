@@ -18,9 +18,11 @@ import "./interfaces/IERC20Decimals.sol";
  */
 abstract contract BaseExchangeAdapter is OwnedUpgradeable {
   enum PriceType {
-    MIN_PRICE,
-    MAX_PRICE,
-    REFERENCE
+    MIN_PRICE, // minimise the spot based on logic in adapter - can revert
+    MAX_PRICE, // maximise the spot based on logic in adapter
+    REFERENCE,
+    FORCE_MIN, // minimise the spot based on logic in adapter - shouldn't revert unless feeds are compromised
+    FORCE_MAX
   }
 
   /// @dev Pause the whole market. Note; this will not pause settling previously expired options.

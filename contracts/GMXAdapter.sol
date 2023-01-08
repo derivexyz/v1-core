@@ -34,7 +34,12 @@ contract GMXAdapter is BaseExchangeAdapter {
   /// @dev option market to constant used to estimate fee. 1.01e18 means we always estimate 1% fee to be charged
   mapping(address => uint) public staticSwapFeeEstimate;
 
-  /// @dev option market to max price variance tolerance percentage
+  /// @dev For a given OptionMarket - use GMX price until the difference crosses this threshold, then switch to CL.
+  /// Spot fee must cover this difference to prevent frontrunning
+  mapping(address => uint) public gmxUsageThreshold;
+
+  /// @dev For a given OptionMarket - for opening/closing use the gmx/cl price unless they differ by this % - in which
+  /// case block trading
   mapping(address => uint) public priceVarianceCBPercent;
 
   /// @dev option market to risk free interest rate
@@ -44,9 +49,6 @@ contract GMXAdapter is BaseExchangeAdapter {
   mapping(address => uint) public chainlinkStalenessCheck;
 
   uint public constant GMX_PRICE_PRECISION = 10 ** 30;
-
-  /// @dev payable fallback for receiving fee refunds from position request cancellations TODO: test this
-  receive() external payable {}
 
   ///////////
   // Admin //
@@ -129,8 +131,10 @@ contract GMXAdapter is BaseExchangeAdapter {
   ) external view override notPaused(optionMarket) returns (uint spotPrice) {
     uint clPrice = _getChainlinkPrice(optionMarket);
 
-    // skip variance check on max and min if refernce price is requested
-    if (pricing == PriceType.REFERENCE) return clPrice;
+    // skip variance check on max and min if reference price is requested
+    if (pricing == PriceType.REFERENCE) {
+      return clPrice;
+    }
 
     address baseAsset = address(OptionMarket(optionMarket).baseAsset());
 
@@ -138,21 +142,35 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint maxPrice = _getMaxPrice(baseAsset);
     uint minPrice = _getMinPrice(baseAsset);
 
-    _checkPriceVariance(optionMarket, maxPrice, clPrice);
-    _checkPriceVariance(optionMarket, minPrice, clPrice);
+    uint maxVariance = _getPriceVariance(maxPrice, clPrice);
+    uint minVariance = _getPriceVariance(minPrice, clPrice);
 
-    if (pricing == PriceType.MAX_PRICE) return maxPrice;
-    else return minPrice;
+    // Prevent opening and closing in the case where the feeds differ by a great amount, but allow force closes.
+    if (
+      (pricing == PriceType.MAX_PRICE || pricing == PriceType.MIN_PRICE) && //
+      (minVariance > priceVarianceCBPercent[optionMarket] || maxVariance > priceVarianceCBPercent[optionMarket])
+    ) {
+      revert PriceVarianceTooHigh(address(this), minPrice, maxPrice, clPrice, priceVarianceCBPercent[optionMarket]);
+    }
+
+    // In the case where the gmxUsageThreshold is crossed, we want to use the worst case price between cl and gmx
+    bool useWorstCase = false;
+    if ((minVariance > gmxUsageThreshold[optionMarket] || maxVariance > gmxUsageThreshold[optionMarket])) {
+      useWorstCase = true;
+    }
+
+    if (pricing == PriceType.FORCE_MIN || pricing == PriceType.MIN_PRICE) {
+      return (useWorstCase && minPrice > clPrice) ? clPrice : minPrice;
+    } else {
+      return (useWorstCase && maxPrice < clPrice) ? clPrice : maxPrice;
+    }
   }
 
   /**
    * @dev check that the price is within variance tolerance with the reference price
    */
-  function _checkPriceVariance(address optionMarket, uint price, uint refPrice) internal view {
-    uint diffPercent = Math.abs(price.divideDecimalRound(refPrice).toInt256() - SignedDecimalMath.UNIT);
-    if (diffPercent > priceVarianceCBPercent[optionMarket]) {
-      revert PriceVarianceTooHigh(address(this), price, refPrice, priceVarianceCBPercent[optionMarket]);
-    }
+  function _getPriceVariance(uint price, uint refPrice) internal pure returns (uint variance) {
+    return Math.abs(price.divideDecimalRound(refPrice).toInt256() - SignedDecimalMath.UNIT);
   }
 
   /**
@@ -352,7 +370,7 @@ contract GMXAdapter is BaseExchangeAdapter {
   error InvalidStaticSwapFeeEstimate();
   error InvalidPriceFeedAddress(address thrower, AggregatorV2V3Interface inputAddress);
   error InvalidAnswer(address thrower, int answer, uint updatedAt);
-  error PriceVarianceTooHigh(address thrower, uint price, uint refPrice, uint priceVarianceCBPercent);
+  error PriceVarianceTooHigh(address thrower, uint minPrice, uint maxPrice, uint clPrice, uint priceVarianceCBPercent);
   error InvalidRiskFreeRate();
 
   //////////////

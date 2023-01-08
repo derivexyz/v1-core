@@ -212,6 +212,15 @@ describe('GMXAdapter', async () => {
       await tokenForceFailQuote.setForceFail(true);
 
       await expect(hre.f.gc.GMXAdapter.exchangeFromExactBase(testMarket.address, toBN('1'))).revertedWith(
+        'InvalidStaticSwapFeeEstimate',
+      );
+      await expect(
+        hre.f.gc.GMXAdapter.exchangeToExactBaseWithLimit(testMarket.address, toBN('1'), toBN('1000')),
+      ).revertedWith('InvalidStaticSwapFeeEstimate');
+
+      await hre.f.gc.GMXAdapter.setStaticSwapFeeEstimate(testMarket.address, toBN('1'));
+
+      await expect(hre.f.gc.GMXAdapter.exchangeFromExactBase(testMarket.address, toBN('1'))).revertedWith(
         'AssetTransferFailed',
       );
       await expect(

@@ -726,12 +726,12 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
       pricing = BaseExchangeAdapter.PriceType.REFERENCE;
     } else if (optionType == OptionType.LONG_CALL || optionType == OptionType.SHORT_PUT_QUOTE) {
       pricing = _tradeDirection == TradeDirection.OPEN
-        ? BaseExchangeAdapter.PriceType.MAX_PRICE
-        : BaseExchangeAdapter.PriceType.MIN_PRICE;
+        ? (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MAX : BaseExchangeAdapter.PriceType.MAX_PRICE)
+        : (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MIN : BaseExchangeAdapter.PriceType.MIN_PRICE);
     } else {
       pricing = _tradeDirection == TradeDirection.OPEN
-        ? BaseExchangeAdapter.PriceType.MIN_PRICE
-        : BaseExchangeAdapter.PriceType.MAX_PRICE;
+        ? (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MIN : BaseExchangeAdapter.PriceType.MIN_PRICE)
+        : (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MAX : BaseExchangeAdapter.PriceType.MAX_PRICE);
     }
 
     trade = TradeParameters({
