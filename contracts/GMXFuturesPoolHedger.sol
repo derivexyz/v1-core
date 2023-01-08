@@ -342,7 +342,7 @@ contract GMXFuturesPoolHedger is
   /**
    * @dev return whether a hedge should be performed
    */
-  function canHedge(uint /* amountOptions */, bool deltaIncreasing) external view override returns (bool) {
+  function canHedge(uint /* amountOptions */, bool increasesPoolDelta) external view override returns (bool) {
     if (!futuresPoolHedgerParams.vaultLiquidityCheckEnabled) {
       return true;
     }
@@ -357,16 +357,16 @@ contract GMXFuturesPoolHedger is
       return true;
     }
 
-    if (deltaIncreasing && expectedHedge <= 0) {
+    if (increasesPoolDelta && expectedHedge <= 0) {
       // expected hedge is negative, and trade increases delta of the pool
       return true;
     }
 
-    if (!deltaIncreasing && expectedHedge >= 0) {
+    if (!increasesPoolDelta && expectedHedge >= 0) {
       return true;
     }
 
-    // remaining is the number of us dollars that can be hedged
+    // remaining is the amount of baseAsset that can be hedged
     uint remaining = ConvertDecimals.convertTo18(
       (vault.poolAmounts(address(baseAsset)) - vault.reservedAmounts(address(baseAsset))),
       baseAsset.decimals()

@@ -910,7 +910,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
         totalCost,
         trade.liquidity.freeLiquidity,
         feePortion,
-        false
+        trade.optionType == OptionType.SHORT_CALL_QUOTE
       );
     }
   }

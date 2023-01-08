@@ -52,7 +52,8 @@ abstract contract PoolHedger {
   // External //
   //////////////
 
-  function canHedge(uint tradeSize, bool increasesDelta) external view virtual returns (bool);
+  /// @param increasesPoolDelta Does the trade increase or decrease the pool's net delta position
+  function canHedge(uint tradeSize, bool increasesPoolDelta) external view virtual returns (bool);
 
   /**
    * @dev Retrieves the netDelta for the system and hedges appropriately.
