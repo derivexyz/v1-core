@@ -205,4 +205,11 @@ interface IVault {
   function getFundingFee(address _token, uint256 _size, uint256 _entryFundingRate) external view returns (uint256);
 
   function getPositionFee(uint256 _sizeDelta) external view returns (uint256);
+
+  function getPositionDelta(
+    address _account,
+    address _collateralToken,
+    address _indexToken,
+    bool _isLong
+  ) external view returns (bool, uint256);
 }

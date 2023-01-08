@@ -282,7 +282,6 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
   // Swapping errors
   error AssetTransferFailed(address thrower, IERC20Decimals asset, address sender, address receiver, uint amount);
   error TransferFailed(address thrower, IERC20Decimals asset, address from, address to, uint amount);
-  error SwapNotEnabled(address vaultAddress);
   error InsufficientSwap(
     uint amountOut,
     uint minAcceptedOut,
