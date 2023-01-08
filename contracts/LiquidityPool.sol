@@ -239,6 +239,14 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     emit PoolHedgerUpdated(poolHedger);
   }
 
+  /// @notice Allow incorrectly sent funds to be recovered
+  function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
+    if (token == quoteAsset || token == baseAsset) {
+      revert OwnerCannotTransferQuoteBase(address(this));
+    }
+    token.transfer(recipient, token.balanceOf(address(this)));
+  }
+
   //////////////////////////////
   // Deposits and Withdrawals //
   //////////////////////////////
@@ -1232,6 +1240,7 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
   // Admin
   error InvalidLiquidityPoolParameters(address thrower, LiquidityPoolParameters lpParams);
   error InvalidCircuitBreakerParameters(address thrower, CircuitBreakerParameters cbParams);
+  error OwnerCannotTransferQuoteBase(address thrower);
 
   // Deposits and withdrawals
   error InvalidBeneficiaryAddress(address thrower, address beneficiary);

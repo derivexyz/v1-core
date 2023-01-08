@@ -38,9 +38,15 @@ contract GMXAdapter is BaseExchangeAdapter {
   mapping(address => uint) public priceVarianceCBPercent;
 
   /// @dev option market to risk free interest rate
-  mapping(address => int256) public override rateAndCarry;
+  mapping(address => int) public override rateAndCarry;
 
-  uint256 public constant GMX_PRICE_PRECISION = 10 ** 30;
+  /// @dev option market to chainlink staleness duration
+  mapping(address => uint) public chainlinkStalenessCheck;
+
+  uint public constant GMX_PRICE_PRECISION = 10 ** 30;
+
+  /// @dev payable fallback for receiving fee refunds from position request cancellations TODO: test this
+  receive() external payable {}
 
   ///////////
   // Admin //
@@ -189,9 +195,9 @@ contract GMXAdapter is BaseExchangeAdapter {
     }
 
     // use latestRoundData because getLatestAnswer is deprecated
-    (, int answer, , , ) = assetPriceFeed.latestRoundData();
-    if (answer <= 0) {
-      revert InvalidAnswer(address(this), answer);
+    (, int answer, , uint updatedAt, ) = assetPriceFeed.latestRoundData();
+    if (answer <= 0 || block.timestamp - updatedAt < chainlinkStalenessCheck[optionMarket]) {
+      revert InvalidAnswer(address(this), answer, updatedAt);
     }
     spotPrice = ConvertDecimals.convertTo18(answer.toUint256(), assetPriceFeed.decimals());
   }
@@ -342,7 +348,7 @@ contract GMXAdapter is BaseExchangeAdapter {
   error InvalidMinReturnPercentage();
   error InvalidStaticSwapFeeEstimate();
   error InvalidPriceFeedAddress(address thrower, AggregatorV2V3Interface inputAddress);
-  error InvalidAnswer(address thrower, int answer);
+  error InvalidAnswer(address thrower, int answer, uint updatedAt);
   error PriceVarianceTooHigh(address thrower, uint price, uint refPrice, uint priceVarianceCBPercent);
   error InvalidRiskFreeRate();
 

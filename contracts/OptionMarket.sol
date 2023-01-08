@@ -408,6 +408,14 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
     emit SMClaimed(msg.sender, quoteBal, baseBal);
   }
 
+  /// @notice Allow incorrectly sent funds to be recovered
+  function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
+    if (token == quoteAsset || token == baseAsset) {
+      revert OwnerCannotTransferQuoteBase(address(this));
+    }
+    token.transfer(recipient, token.balanceOf(address(this)));
+  }
+
   ///////////
   // Views //
   ///////////
@@ -1225,6 +1233,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
   // Admin
   error InvalidOptionMarketParams(address thrower, OptionMarketParameters optionMarketParams);
+  error OwnerCannotTransferQuoteBase(address thrower);
 
   // Board related
   error InvalidBoardId(address thrower, uint boardId);

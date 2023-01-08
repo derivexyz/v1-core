@@ -185,6 +185,14 @@ contract GMXFuturesPoolHedger is
     }
   }
 
+  /// @notice Allow incorrectly sent funds to be recovered
+  function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
+    if (token == quoteAsset || token == baseAsset) {
+      revert OwnerCannotTransferQuoteBase(address(this));
+    }
+    token.transfer(recipient, token.balanceOf(address(this)));
+  }
+
   //////////////////////////////////
   // Overrides/Required functions //
   //////////////////////////////////
@@ -1135,8 +1143,8 @@ contract GMXFuturesPoolHedger is
   ////////////
   // Admin
   error InvalidMaxLeverage(address thrower, uint newMaxLeverage);
-
   error NotEnoughQuoteForMinCollateral(address thrower, uint quoteReceived, uint minCollateral);
+  error OwnerCannotTransferQuoteBase(address thrower);
 
   // Hedging
   error InteractionDelayNotExpired(address thrower, uint lastInteraction, uint interactionDelta, uint currentTime);
