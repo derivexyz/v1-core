@@ -270,7 +270,10 @@ contract GMXAdapter is BaseExchangeAdapter {
    * @param _amountBase the amount of base to be swapped. In 18 decimals
    * @return quoteReceived amount quote received in 18 decimals
    */
-  function exchangeFromExactBase(address _optionMarket, uint _amountBase) public override returns (uint quoteReceived) {
+  function exchangeFromExactBase(
+    address _optionMarket,
+    uint _amountBase
+  ) public override notPaused(_optionMarket) returns (uint quoteReceived) {
     IERC20Decimals baseAsset = OptionMarket(_optionMarket).baseAsset();
     IERC20Decimals quoteAsset = OptionMarket(_optionMarket).quoteAsset();
 
@@ -315,7 +318,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     address _optionMarket,
     uint _amountBase,
     uint _quoteLimit
-  ) public override returns (uint quoteSpent, uint baseReceived) {
+  ) public override notPaused(_optionMarket) returns (uint quoteSpent, uint baseReceived) {
     IERC20Decimals quoteAsset = OptionMarket(_optionMarket).quoteAsset();
     IERC20Decimals baseAsset = OptionMarket(_optionMarket).baseAsset();
 
@@ -355,10 +358,10 @@ contract GMXAdapter is BaseExchangeAdapter {
   //////////////
   //  Events  //
   //////////////
-  event MinReturnPercentageUpdate(address optionMarket, uint256 minReturnPercentage);
-  event StaticSwapFeeMultiplierUpdated(address optionMarket, uint256 swapFeeEstimate);
-  event PriceVarianceToleranceUpdated(address optionMarket, uint256 priceVarianceTolerance);
-  event ChainlinkAggregatorUpdated(address asset, address aggregator);
+  event MinReturnPercentageUpdate(address indexed optionMarket, uint256 minReturnPercentage);
+  event StaticSwapFeeMultiplierUpdated(address indexed optionMarket, uint256 swapFeeEstimate);
+  event PriceVarianceToleranceUpdated(address indexed optionMarket, uint256 priceVarianceTolerance);
+  event ChainlinkAggregatorUpdated(address indexed asset, address indexed aggregator);
   event RiskFreeRateUpdated(int256 newRate);
   event GMXVaultAddressUpdated(address vault);
 }

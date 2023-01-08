@@ -28,6 +28,8 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
   // @dev Pause the whole system.
   bool public isGlobalPaused;
 
+  uint[48] private __gap;
+
   ////////////////////
   // Initialization //
   ////////////////////
