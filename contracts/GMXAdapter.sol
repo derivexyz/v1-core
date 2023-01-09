@@ -96,12 +96,21 @@ contract GMXAdapter is BaseExchangeAdapter {
   }
 
   /**
-   * @notice price variance tolerance
+   * @notice set the price variance tolerance
    */
   function setPriceVarianceCBPercent(address _optionMarket, uint _priceVarianceCBPercent) external onlyOwner {
     priceVarianceCBPercent[_optionMarket] = _priceVarianceCBPercent;
 
     emit PriceVarianceToleranceUpdated(_optionMarket, _priceVarianceCBPercent);
+  }
+
+  /**
+   * @notice set the gmx usage threshold
+   */
+  function setGMXUsageThreshold(address _optionMarket, uint _gmxUsageThreshold) external onlyOwner {
+    gmxUsageThreshold[_optionMarket] = _gmxUsageThreshold;
+
+    emit GMXUsageThresholdUpdated(_optionMarket, _gmxUsageThreshold);
   }
 
   /**
@@ -146,11 +155,11 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint minVariance = _getPriceVariance(minPrice, clPrice);
 
     // Prevent opening and closing in the case where the feeds differ by a great amount, but allow force closes.
-    if (
-      (pricing == PriceType.MAX_PRICE || pricing == PriceType.MIN_PRICE) && //
-      (minVariance > priceVarianceCBPercent[optionMarket] || maxVariance > priceVarianceCBPercent[optionMarket])
-    ) {
-      revert PriceVarianceTooHigh(address(this), minPrice, maxPrice, clPrice, priceVarianceCBPercent[optionMarket]);
+    if (pricing == PriceType.MAX_PRICE || pricing == PriceType.MIN_PRICE) {
+      uint varianceThershold = priceVarianceCBPercent[optionMarket];
+      if (minVariance > varianceThershold || maxVariance > varianceThershold) {
+        revert PriceVarianceTooHigh(address(this), minPrice, maxPrice, clPrice, varianceThershold);
+      }
     }
 
     // In the case where the gmxUsageThreshold is crossed, we want to use the worst case price between cl and gmx
@@ -379,6 +388,7 @@ contract GMXAdapter is BaseExchangeAdapter {
   event MinReturnPercentageUpdate(address indexed optionMarket, uint256 minReturnPercentage);
   event StaticSwapFeeMultiplierUpdated(address indexed optionMarket, uint256 swapFeeEstimate);
   event PriceVarianceToleranceUpdated(address indexed optionMarket, uint256 priceVarianceTolerance);
+  event GMXUsageThresholdUpdated(address indexed optionMarket, uint gmxUsageThreshold);
   event ChainlinkAggregatorUpdated(address indexed asset, address indexed aggregator);
   event RiskFreeRateUpdated(int256 newRate);
   event GMXVaultAddressUpdated(address vault);

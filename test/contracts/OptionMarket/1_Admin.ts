@@ -276,12 +276,11 @@ describe('OptionMarket - Admin', () => {
       const tx = await hre.f.c.optionMarket.smClaim();
 
       expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).eq(0);
-      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).eq(0);
+      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).eq(toBN('1'));
 
       const args = getEventArgs(await tx.wait(), 'SMClaimed');
       expect(args.securityModule).eq(hre.f.deployer.address);
       expect(args.quoteAmount).eq(marketBal);
-      expect(args.baseAmount).eq(toBN('1'));
 
       // Can call it even if empty
       await hre.f.c.optionMarket.smClaim();
@@ -303,6 +302,20 @@ describe('OptionMarket - Admin', () => {
       await expect(hre.f.c.optionMarket.forceSettleBoard(hre.f.board.boardId)).revertedWith('BoardAlreadySettled');
       await fastForward(MONTH_SEC);
       await expect(hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId)).revertedWith('BoardAlreadySettled');
+    });
+  });
+
+  describe('recoverFunds', () => {
+    it('cannot recover quote', async () => {
+      await hre.f.c.snx.quoteAsset.mint(hre.f.c.optionMarket.address, toBN('1'));
+      await expect(
+        hre.f.c.optionMarket.recoverFunds(hre.f.c.snx.quoteAsset.address, hre.f.deployer.address),
+      ).revertedWith('CannotRecoverQuote');
+    });
+    it('can recover another token from the contract', async () => {
+      await hre.f.c.snx.baseAsset.mint(hre.f.c.optionMarket.address, toBN('1'));
+      await expect(hre.f.c.optionMarket.recoverFunds(hre.f.c.snx.baseAsset.address, hre.f.deployer.address));
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).eq(0);
     });
   });
 });

@@ -385,7 +385,7 @@ describe('Integration Tests - GMX', () => {
           amount: toBN('10'),
           optionType: OptionType.SHORT_CALL_BASE,
           strikeId: 1,
-          setCollateralTo: toBN('0'),
+          setCollateralTo: 0,
         });
 
         await openPosition(testSystem, 'sETH', {
@@ -725,21 +725,49 @@ describe('Integration Tests - GMX', () => {
 
           await setPrice(testSystem, '2500', testSystem.gmx.eth, testSystem.gmx.ethPriceFeed);
           expect(
-            await testSystem.GMXAdapter.getSpotPriceForMarket(testSystem.optionMarket.address, PricingType.MAX),
+            await testSystem.GMXAdapter.getSpotPriceForMarket(testSystem.optionMarket.address, PricingType.MAX_PRICE),
           ).to.be.eq(toBN('2500'));
           expect(await testSystem.futuresPoolHedger.hasPendingIncrease()).to.be.true;
           expect(await testSystem.futuresPoolHedger.hasPendingDecrease()).to.be.false;
           await testSystem.gmx.positionRouter.connect(deployer).executeIncreasePositions(1, deployer.address);
 
-          // const spot = await testSystem.GMXAdapter.getSpotPriceForMarket(testSystem.optionMarket.address, PricingType.MAX);
+          // const spot = await testSystem.GMXAdapter.getSpotPriceForMarket(testSystem.optionMarket.address, PricingType.MAX_PRICE);
           // expected Hedge is 556 plus a load of trailing.
 
-          expect(await testSystem.gmx.USDC.balanceOf(testSystem.futuresPoolHedger.address)).to.be.gt(toBN('0'));
+          expect(await testSystem.gmx.USDC.balanceOf(testSystem.futuresPoolHedger.address)).to.eq(0);
           expect(await testSystem.futuresPoolHedger.hasPendingIncrease()).to.be.false;
         });
 
-        after(async () => {
+        it('Edge Case: no callback leaves funds in hedger', async () => {
+          const amount = toBN('10');
+          await openPosition(testSystem, 'sETH', {
+            amount: amount,
+            optionType: OptionType.LONG_CALL,
+            strikeId: 1,
+            setCollateralTo: toBN('10'),
+          });
+
+          await testSystem.futuresPoolHedger.connect(deployer).hedgeDelta({ value: toBN('0.01') });
+
+          await setPrice(testSystem, '2500', testSystem.gmx.eth, testSystem.gmx.ethPriceFeed);
+          expect(
+            await testSystem.GMXAdapter.getSpotPriceForMarket(testSystem.optionMarket.address, PricingType.MAX_PRICE),
+          ).to.be.eq(toBN('2500'));
+          expect(await testSystem.futuresPoolHedger.hasPendingIncrease()).to.be.true;
+          expect(await testSystem.futuresPoolHedger.hasPendingDecrease()).to.be.false;
+
+          await testSystem.gmx.positionRouter.connect(deployer).setCallbackGasLimit(0);
+          await testSystem.gmx.positionRouter.connect(deployer).executeIncreasePositions(1, deployer.address);
+
+          expect(await testSystem.gmx.USDC.balanceOf(testSystem.futuresPoolHedger.address)).to.be.gt(0);
+          expect(await testSystem.futuresPoolHedger.hasPendingIncrease()).to.be.false;
+          await testSystem.futuresPoolHedger.sendAllFundsToLP();
+          expect(await testSystem.gmx.USDC.balanceOf(testSystem.futuresPoolHedger.address)).to.eq(0);
+        });
+
+        afterEach(async () => {
           await restoreSnapshot(snapId);
+          snapId = await takeSnapshot();
         });
       });
       describe('cancel increase order', () => {
@@ -855,8 +883,11 @@ describe('Integration Tests - GMX', () => {
             })
           ).wait();
           expect(receipt.events).to.have.length(1);
-          expect(getEvent(receipt, 'MaxLeverageSet').event).to.be.eq('MaxLeverageSet');
-          expect(getEventArgs(receipt, 'MaxLeverageSet').targetLeverage).to.be.eq(targetLeverageOverride);
+          console.log(getEventArgs(receipt, 'FuturesPoolHedgerParamsSet'));
+          expect(getEvent(receipt, 'FuturesPoolHedgerParamsSet').event).to.be.eq('FuturesPoolHedgerParamsSet');
+          expect(getEventArgs(receipt, 'FuturesPoolHedgerParamsSet').futuresPoolHedgerParams.targetLeverage).to.be.eq(
+            targetLeverageOverride,
+          );
         });
 
         it('collateral delta should be negative (decrease collateral)', async () => {
@@ -871,7 +902,7 @@ describe('Integration Tests - GMX', () => {
           expect(getEvent(receipt, 'CollateralOrderPosted').event).to.be.eq('CollateralOrderPosted');
           // hedger is long
           expect(getEventArgs(receipt, 'CollateralOrderPosted').isLong).to.be.true;
-          expect(getEventArgs(receipt, 'CollateralOrderPosted').collateralDelta).to.be.lt(toBN('0'));
+          expect(getEventArgs(receipt, 'CollateralOrderPosted').collateralDelta).to.be.lt(0);
           expect(await testSystem.futuresPoolHedger.hasPendingIncrease()).to.be.false;
           expect(await testSystem.futuresPoolHedger.hasPendingDecrease()).to.be.true;
           const key = await testSystem.futuresPoolHedger.pendingOrderKey();
@@ -988,7 +1019,7 @@ describe('Integration Tests - GMX', () => {
           before('set cap to 0', async () => {
             await testSystem.futuresPoolHedger.connect(deployer).setPoolHedgerParams({
               ...DEFAULT_POOL_HEDGER_PARAMS,
-              hedgeCap: toBN('0'),
+              hedgeCap: 0,
             });
           });
 
@@ -1042,7 +1073,7 @@ describe('Integration Tests - GMX', () => {
           before('set cap to 0', async () => {
             await testSystem.futuresPoolHedger.connect(deployer).setPoolHedgerParams({
               ...DEFAULT_POOL_HEDGER_PARAMS,
-              hedgeCap: toBN('0'),
+              hedgeCap: 0,
             });
           });
 

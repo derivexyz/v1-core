@@ -35,6 +35,11 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
     _decimals = decimals_;
   }
 
+  function setDecimals(uint8 newDecimals) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
+    _decimals = newDecimals;
+  }
+
   function permitMint(address user, bool permit) external {
     require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
     permitted[user] = permit;

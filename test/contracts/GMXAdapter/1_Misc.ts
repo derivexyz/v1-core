@@ -33,10 +33,16 @@ describe('GMXAdapter', async () => {
   });
 
   it('gets spot price', async () => {
-    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX)).eq(
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX_PRICE)).eq(
       DEFAULT_BASE_PRICE.mul(101).div(100),
     );
-    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN)).eq(
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN_PRICE)).eq(
+      DEFAULT_BASE_PRICE.mul(99).div(100),
+    );
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MAX)).eq(
+      DEFAULT_BASE_PRICE.mul(101).div(100),
+    );
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MIN)).eq(
       DEFAULT_BASE_PRICE.mul(99).div(100),
     );
     expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.REFERENCE)).eq(
@@ -50,10 +56,17 @@ describe('GMXAdapter', async () => {
 
     await setCLETHPrice(hre.f.gc, newPrice);
 
-    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX)).eq(
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX_PRICE)).eq(
       newPrice.mul(101).div(100),
     );
-    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN)).eq(
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN_PRICE)).eq(
+      newPrice.mul(99).div(100),
+    );
+
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MAX)).eq(
+      newPrice.mul(101).div(100),
+    );
+    expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MIN)).eq(
       newPrice.mul(99).div(100),
     );
     expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.REFERENCE)).eq(
@@ -230,42 +243,58 @@ describe('GMXAdapter', async () => {
 
     it('Reverts if the spot variance CB is fired', async () => {
       await hre.f.gc.GMXAdapter.setPriceVarianceCBPercent(hre.f.gc.optionMarket.address, toBN('0.01'));
+      await hre.f.gc.GMXAdapter.setGMXUsageThreshold(hre.f.gc.optionMarket.address, toBN('0.01'));
 
       const newFeed = await (await ethers.getContractFactory('MockAggregatorV2V3')).deploy();
       await newFeed.setDecimals(18);
       await hre.f.gc.GMXAdapter.setChainlinkFeed(hre.f.gc.gmx.eth.address, newFeed.address);
-
+      const oldMax = (await hre.f.gc.gmx.vault.getMaxPrice(hre.f.gc.gmx.eth.address))
+        .mul(UNIT)
+        .div(BigNumber.from(10).pow(30));
       const min = (await hre.f.gc.gmx.vault.getMinPrice(hre.f.gc.gmx.eth.address))
         .mul(UNIT)
         .div(BigNumber.from(10).pow(30));
       await newFeed.setLatestAnswer(min, await currentTime());
 
       await expect(
-        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN),
+        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN_PRICE),
       ).revertedWith('PriceVarianceTooHigh');
       await expect(
-        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX),
+        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX_PRICE),
       ).revertedWith('PriceVarianceTooHigh');
-      // Getting reference doesn't revert
+
+      // Getting reference or force prices don't revert
       expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.REFERENCE)).eq(
+        min,
+      );
+      expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MAX)).eq(
+        oldMax,
+      );
+      expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MIN)).eq(
         min,
       );
 
       // Same for setting max price
-      const max = (await hre.f.gc.gmx.vault.getMaxPrice(hre.f.gc.gmx.eth.address))
+      const newMax = (await hre.f.gc.gmx.vault.getMaxPrice(hre.f.gc.gmx.eth.address))
         .mul(UNIT)
         .div(BigNumber.from(10).pow(30));
-      await newFeed.setLatestAnswer(max, await currentTime());
+      await newFeed.setLatestAnswer(newMax, await currentTime());
 
       await expect(
-        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN),
+        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MIN_PRICE),
       ).revertedWith('PriceVarianceTooHigh');
       await expect(
-        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX),
+        hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.MAX_PRICE),
       ).revertedWith('PriceVarianceTooHigh');
       // Getting reference doesn't revert
       expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.REFERENCE)).eq(
-        max,
+        newMax,
+      );
+      expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MAX)).eq(
+        newMax,
+      );
+      expect(await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, PricingType.FORCE_MIN)).eq(
+        min,
       );
     });
   });

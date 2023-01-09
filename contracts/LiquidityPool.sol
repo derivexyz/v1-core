@@ -242,7 +242,7 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
   /// @notice Allow incorrectly sent funds to be recovered
   function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
     if (token == quoteAsset || token == baseAsset) {
-      revert OwnerCannotTransferQuoteBase(address(this));
+      revert CannotRecoverQuoteBase(address(this));
     }
     token.transfer(recipient, token.balanceOf(address(this)));
   }
@@ -438,11 +438,20 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
       } else {
         // On unknown failure reason, return LP tokens and continue
         totalQueuedWithdrawals -= current.amountTokens;
-        liquidityToken.mint(current.beneficiary, current.amountTokens + burnAmount);
+        uint returnAmount = current.amountTokens + burnAmount;
+        liquidityToken.mint(current.beneficiary, returnAmount);
         current.amountTokens = 0;
+        emit WithdrawReverted(
+          msg.sender,
+          current.beneficiary,
+          queuedWithdrawalHead,
+          tokenPriceWithFee,
+          totalQueuedWithdrawals,
+          block.timestamp,
+          returnAmount
+        );
         queuedWithdrawalHead++;
-        // TODO: emit withdrawalReverted();
-        break;
+        continue;
       }
 
       if (current.amountTokens > 0) {
@@ -1210,6 +1219,15 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     uint totalQueuedWithdrawals,
     uint timestamp
   );
+  event WithdrawReverted(
+    address indexed caller,
+    address indexed beneficiary,
+    uint indexed withdrawalQueueId,
+    uint tokenPrice,
+    uint totalQueuedWithdrawals,
+    uint timestamp,
+    uint tokensReturned
+  );
   event WithdrawQueued(
     address indexed withdrawer,
     address indexed beneficiary,
@@ -1240,7 +1258,7 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
   // Admin
   error InvalidLiquidityPoolParameters(address thrower, LiquidityPoolParameters lpParams);
   error InvalidCircuitBreakerParameters(address thrower, CircuitBreakerParameters cbParams);
-  error OwnerCannotTransferQuoteBase(address thrower);
+  error CannotRecoverQuoteBase(address thrower);
 
   // Deposits and withdrawals
   error InvalidBeneficiaryAddress(address thrower, address beneficiary);

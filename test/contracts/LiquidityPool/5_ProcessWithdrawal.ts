@@ -2,6 +2,7 @@ import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import {
   DAY_SEC,
+  getEventArgs,
   getTxTimestamp,
   HOUR_SEC,
   MONTH_SEC,
@@ -37,9 +38,8 @@ import { validateWithdrawalRecord } from './4_InitiateWithdrawal';
 // integration tests
 describe('Process withdrawal', async () => {
   beforeEach(async () => {
-    await seedFixture(); /// seed is probably overriding
+    await seedFixture();
 
-    // console.log("exited seed...")
     await hre.f.c.snx.quoteAsset.mint(hre.f.alice.address, toBN('100000'));
     await hre.f.c.snx.quoteAsset.connect(hre.f.alice).approve(hre.f.c.liquidityPool.address, toBN('100000'));
     await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.alice.address, toBN('10000'));
@@ -382,6 +382,107 @@ describe('Process withdrawal', async () => {
 
       // confirm settling is fully functional even with 100% withdrawal
       await expectCorrectSettlement(positionIds);
+    });
+
+    it('Reverts in the case of the transfer failing (i.e. blacklisting)', async () => {
+      const preWithdrawTokens = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
+
+      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('1000'));
+      expect((await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).lt(preWithdrawTokens)).to.be.true;
+      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.alice.address, toBN('2000'));
+      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[2].address, toBN('3000'));
+
+      await fastForward(+DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay.toString() + 1);
+
+      await hre.f.c.snx.quoteAsset.setForceFail(true);
+
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      let tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+      let args = getEventArgs(await tx.wait(), 'WithdrawReverted');
+      expect(args.beneficiary).eq(hre.f.deployer.address);
+      expect(args.tokensReturned).eq(toBN('1000'));
+
+      // Tokens are returned to the withdrawer (subtract 5000 from amount still pending, meaning the 1000 was returned)
+      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).eq(preWithdrawTokens.sub(toBN('5000')));
+
+      await hre.f.c.snx.quoteAsset.setForceFail(false);
+      tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+      args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
+      expect(args.beneficiary).eq(hre.f.alice.address);
+
+      // Check edge case where 0 tokens are sent successfully
+      await hre.f.c.snx.quoteAsset.setDecimals(1);
+      const lpBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
+      await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, lpBalance.sub(1));
+
+      // Check price below 0.000001 meaning 0 should be transferred given there is only 1dp
+      expect(await hre.f.c.liquidityPool.getTokenPrice()).lt(toBN('0.000001'));
+      tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+      args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
+      expect(args.quoteReceived).gt(0);
+      expect(args.quoteReceived).lt(toBN('0.1'));
+      expect(args.beneficiary).eq(hre.f.signers[2].address);
+      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[2].address)).eq(0);
+    });
+
+    it('partially withdraws then is blocked', async () => {
+      // Setup
+      await hre.f.c.snx.quoteAsset.mint(hre.f.alice.address, toBN('400000'));
+      await hre.f.c.snx.quoteAsset.connect(hre.f.alice).approve(hre.f.c.liquidityPool.address, toBN('100000'));
+      await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.alice.address, toBN('10000'));
+      await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      await hre.f.c.liquidityPool.processDepositQueue(1);
+      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('10000'));
+
+      // Create a partial withdrawal scenario
+      const [, liquidity] = await partiallyFillLiquidityWithLongCall();
+      const oldQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+      expect(liquidity.burnableLiquidity).to.lt(toBN('200000')); // ensure partial fill is correct
+
+      const firstTx = await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('200000'));
+      const postWithdrawTokens = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
+      // prevent withdrawal from triggering CBTimeout
+      await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+        ...DEFAULT_CB_PARAMS,
+        liquidityCBThreshold: toBN('0'),
+      });
+
+      // first partial process
+      await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+      const newQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+      assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('149722.73'), toBN('2'));
+
+      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
+      assertCloseTo(newQuote.sub(oldQuote), toBN('50100.25'), toBN('5'));
+      await validateWithdrawalRecord(
+        1,
+        hre.f.deployer.address,
+        toBN('149722.73'),
+        newQuote.sub(oldQuote),
+        await getTxTimestamp(firstTx),
+      );
+
+      // top off pool
+      await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, toBN('150000'));
+      await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.depositDelay) + 1);
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      await hre.f.c.liquidityPool.processDepositQueue(1);
+
+      await hre.f.c.snx.quoteAsset.setForceFail(true);
+
+      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+      const tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+      const args = getEventArgs(await tx.wait(), 'WithdrawReverted');
+      expect(args.beneficiary).eq(hre.f.deployer.address);
+      assertCloseTo(args.tokensReturned, toBN('149722.73'));
+      // Remaining tokens are returned to the withdrawer
+      assertCloseTo(
+        (await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).sub(postWithdrawTokens),
+        toBN('149722.73'),
+      );
     });
   });
 });

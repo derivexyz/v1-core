@@ -400,18 +400,13 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
     if (quoteBal > 0 && !quoteAsset.transfer(msg.sender, quoteBal)) {
       revert QuoteTransferFailed(address(this), address(this), msg.sender, quoteBal);
     }
-    // While fees cannot accrue in base, this can help reclaim any accidental transfers into this contract
-    uint baseBal = baseAsset.balanceOf(address(this));
-    if (baseBal > 0 && !baseAsset.transfer(msg.sender, baseBal)) {
-      revert BaseTransferFailed(address(this), address(this), msg.sender, baseBal);
-    }
-    emit SMClaimed(msg.sender, quoteBal, baseBal);
+    emit SMClaimed(msg.sender, quoteBal);
   }
 
   /// @notice Allow incorrectly sent funds to be recovered
   function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
-    if (token == quoteAsset || token == baseAsset) {
-      revert OwnerCannotTransferQuoteBase(address(this));
+    if (token == quoteAsset) {
+      revert CannotRecoverQuote(address(this));
     }
     token.transfer(recipient, token.balanceOf(address(this)));
   }
@@ -1197,7 +1192,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
   /**
    * @dev Emitted whenever the security module claims their portion of fees
    */
-  event SMClaimed(address securityModule, uint quoteAmount, uint baseAmount);
+  event SMClaimed(address securityModule, uint quoteAmount);
 
   /**
    * @dev Emitted when a Position is opened, closed or liquidated.
@@ -1236,7 +1231,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
   // Admin
   error InvalidOptionMarketParams(address thrower, OptionMarketParameters optionMarketParams);
-  error OwnerCannotTransferQuoteBase(address thrower);
+  error CannotRecoverQuote(address thrower);
 
   // Board related
   error InvalidBoardId(address thrower, uint boardId);

@@ -5,6 +5,7 @@ import { CircuitBreakerParametersStruct, LiquidityPoolParametersStruct } from '.
 import { DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { seedFixture } from '../../utils/fixture';
 import { hre } from '../../utils/testSetup';
+import { TestERC20SetDecimals } from '../../../typechain-types';
 
 const modLPParams = {
   depositDelay: MONTH_SEC,
@@ -138,5 +139,26 @@ describe('LiquidityPool - Admin', async () => {
     await expectInvalidCBParams({ ivVarianceCBTimeout: 61 * DAY_SEC });
     await expectInvalidCBParams({ skewVarianceCBTimeout: YEAR_SEC * 2 });
     await expectInvalidCBParams({ boardSettlementCBTimeout: YEAR_SEC * 2 });
+  });
+
+  it('recovers funds', async () => {
+    const newAsset: TestERC20SetDecimals = await (
+      await ethers.getContractFactory('TestERC20SetDecimals')
+    ).deploy('test', 'test', 18);
+    await newAsset.mint(hre.f.c.liquidityPool.address, toBN('1000'));
+    await hre.f.c.liquidityPool.recoverFunds(newAsset.address, hre.f.alice.address);
+    expect(await newAsset.balanceOf(hre.f.alice.address)).eq(toBN('1000'));
+    expect(await newAsset.balanceOf(hre.f.c.liquidityPool.address)).eq(0);
+  });
+
+  it('cannot recover quote or base', async () => {
+    await hre.f.c.snx.quoteAsset.mint(hre.f.c.liquidityPool.address, toBN('1000'));
+    await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('2000'));
+    await expect(
+      hre.f.c.liquidityPool.recoverFunds(hre.f.c.snx.quoteAsset.address, hre.f.deployer.address),
+    ).revertedWith('CannotRecoverQuoteBase');
+    await expect(
+      hre.f.c.liquidityPool.recoverFunds(hre.f.c.snx.baseAsset.address, hre.f.deployer.address),
+    ).revertedWith('CannotRecoverQuoteBase');
   });
 });

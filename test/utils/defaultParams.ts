@@ -26,9 +26,11 @@ import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
 import { FuturesPoolHedgerParametersStruct } from '../../typechain-types/GMXFuturesPoolHedger';
 
 export enum PricingType {
-  MIN,
-  MAX,
+  MIN_PRICE,
+  MAX_PRICE, // maximise the spot based on logic in adapter
   REFERENCE,
+  FORCE_MIN,
+  FORCE_MAX,
 }
 
 export const DEFAULT_SHORT_BUFFER = toBN('2');
@@ -164,6 +166,7 @@ export const DEFAULT_GMX_POOL_HEDGER_PARAMS: FuturesPoolHedgerParametersStruct =
   marketDepthBuffer: toBN('1'),
   vaultLiquidityCheckEnabled: true,
   targetLeverage: toBN('1.1'),
+  maxLeverage: toBN('10'),
   leverageBuffer: toBN('0.1'), // leverage < 1 || > 1.2 will trigger updateCollateral
   minCancelDelay: 1200, // 20 minutes
 };
