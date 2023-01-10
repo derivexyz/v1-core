@@ -91,6 +91,9 @@ contract GMXFuturesPoolHedger is
 
   IERC20Decimals public baseAsset;
 
+  // @dev account for weth as a separate asset as fee rebates are airdropped in weth
+  IERC20Decimals public weth;
+
   // Parameters for managing the exposure and minimum liquidity of the hedger
   FuturesPoolHedgerParameters public futuresPoolHedgerParams;
 
@@ -112,7 +115,8 @@ contract GMXFuturesPoolHedger is
     IPositionRouter _positionRouter,
     IRouter _router,
     IERC20Decimals _quoteAsset,
-    IERC20Decimals _baseAsset
+    IERC20Decimals _baseAsset,
+    IERC20Decimals _weth
   ) external onlyOwner initializer {
     liquidityPool = _liquidityPool;
     optionMarket = _optionMarket;
@@ -122,6 +126,7 @@ contract GMXFuturesPoolHedger is
     router = _router;
     quoteAsset = _quoteAsset;
     baseAsset = _baseAsset;
+    weth = _weth;
 
     vault = IVault(positionRouter.vault());
 
@@ -176,6 +181,21 @@ contract GMXFuturesPoolHedger is
    * @dev Sends all quote and base asset in this contract to the `LiquidityPool`. Helps in case of trapped funds.
    */
   function sendAllFundsToLP() public {
+    if (weth != baseAsset) {
+      // Skip this logic for when the baseAsset is weth, as we have more precise logic for swapping in LP.
+      uint wethBalance = weth.balanceOf(address(this));
+      if (wethBalance > 0) {
+        if (!weth.transfer(address(vault), wethBalance)) {
+          revert AssetTransferFailed(address(this), weth, wethBalance, address(vault));
+        }
+
+        // Swap and transfer directly to the requester
+        uint quoteReceived = vault.swap(address(weth), address(quoteAsset), msg.sender);
+
+        emit WETHSold(wethBalance, quoteReceived);
+      }
+    }
+
     uint quoteBal = quoteAsset.balanceOf(address(this));
     if (quoteBal > 0) {
       if (!quoteAsset.transfer(address(liquidityPool), quoteBal)) {
@@ -194,8 +214,8 @@ contract GMXFuturesPoolHedger is
 
   /// @notice Allow incorrectly sent funds to be recovered
   function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
-    if (token == quoteAsset || token == baseAsset) {
-      revert OwnerCannotTransferQuoteBase(address(this));
+    if (token == quoteAsset || token == baseAsset || token == weth) {
+      revert CannotRecoverRestrictedToken(address(this));
     }
     token.transfer(recipient, token.balanceOf(address(this)));
   }
@@ -377,12 +397,13 @@ contract GMXFuturesPoolHedger is
       return true;
     }
 
-    if (increasesPoolDelta && expectedHedge <= 0) {
-      // expected hedge is negative, and trade increases delta of the pool
+    // expected hedge is positive, and trade increases delta of the pool - risk is reduced, so accept trade
+    if (increasesPoolDelta && expectedHedge >= 0) {
       return true;
     }
 
-    if (!increasesPoolDelta && expectedHedge >= 0) {
+    // expected hedge is negative, and trade decreases delta of the pool - risk is reduced, so accept trade
+    if (!increasesPoolDelta && expectedHedge <= 0) {
       return true;
     }
 
@@ -394,12 +415,13 @@ contract GMXFuturesPoolHedger is
         baseAsset.decimals()
       );
     } else {
-      remainingDeltas = ConvertDecimals.convertTo18(
-        (vault.poolAmounts(address(quoteAsset)) - vault.reservedAmounts(address(quoteAsset))),
-        quoteAsset.decimals()
-      );
+      remainingDeltas = ConvertDecimals
+        .convertTo18(
+          (vault.poolAmounts(address(quoteAsset)) - vault.reservedAmounts(address(quoteAsset))),
+          quoteAsset.decimals()
+        )
+        .divideDecimal(spotPrice);
     }
-    // TODO: test both sides
 
     uint absHedgeDiff = (Math.abs(expectedHedge) - Math.abs(currentHedge));
     if (remainingDeltas < absHedgeDiff.multiplyDecimal(futuresPoolHedgerParams.marketDepthBuffer)) {
@@ -1110,6 +1132,11 @@ contract GMXFuturesPoolHedger is
   );
 
   /**
+   * @dev Emitted when WETH held in the contract is sold
+   */
+  event WETHSold(uint amountWeth, uint quoteReceived);
+
+  /**
    * @dev Emitted when proceeds of the short are sent back to the LP.
    */
   event QuoteReturnedToLP(uint amountQuote);
@@ -1150,7 +1177,7 @@ contract GMXFuturesPoolHedger is
   // Admin
   error InvalidFuturesPoolHedgerParams(address thrower, FuturesPoolHedgerParameters futuresPoolHedgerParams);
   error NotEnoughQuoteForMinCollateral(address thrower, uint quoteReceived, uint minCollateral);
-  error OwnerCannotTransferQuoteBase(address thrower);
+  error CannotRecoverRestrictedToken(address thrower);
 
   // Hedging
   error InteractionDelayNotExpired(address thrower, uint lastInteraction, uint interactionDelta, uint currentTime);

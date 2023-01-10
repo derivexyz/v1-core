@@ -4,7 +4,7 @@ import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 
 // import * as _ from 'lodash';
-import { currentTime, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
+import { currentTime, MONTH_SEC, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { LiquidityPool } from '../../../typechain-types';
 import { openDefaultLongPut } from '../../utils/contractHelpers';
 import {
@@ -20,10 +20,11 @@ import {
   initMarketTestSystem,
   TestSystemContractsType,
 } from '../../utils/deployTestSystem';
-import { restoreSnapshot, takeSnapshot } from '../../utils/evm';
+import { fastForward, restoreSnapshot, takeSnapshot } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { mergeDeep } from '../../utils/package/merge';
 import { expect, hre } from '../../utils/testSetup';
+import { createDefaultBoardWithOverrides } from '../../utils/seedTestSystem';
 
 describe('Misc', async () => {
   let c: TestSystemContractsType;
@@ -119,6 +120,16 @@ describe('Misc', async () => {
     await expect(lp.connect(alice).transferQuoteToHedge(DEFAULT_BASE_PRICE)).revertedWith('OnlyPoolHedger');
     await expect(lp.connect(alice).lockPutCollateral(0, 0)).revertedWith('OnlyOptionMarket');
     await expect(lp.connect(alice).sendSettlementValue(alice.address, 0)).revertedWith('OnlyShortCollateral');
+
+    // reclaimInsolventBase failures
+    await c.snx.quoteAsset.setForceFail(true);
+    await expect(lp.reclaimInsolventBase(toBN('1'))).revertedWith('QuoteApprovalFailure');
+    await c.snx.quoteAsset.setForceFail(false);
+
+    await c.snx.baseAsset.mint(lp.address, toBN('1'));
+    await c.snx.baseAsset.setForceFail(true);
+    await expect(lp.exchangeBase()).revertedWith('BaseApprovalFailure');
+    await c.snx.baseAsset.setForceFail(false);
   });
 
   it('reverts if optionValue > total asset value', async () => {

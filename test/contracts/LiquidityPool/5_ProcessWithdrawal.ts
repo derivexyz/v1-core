@@ -385,12 +385,12 @@ describe('Process withdrawal', async () => {
     });
 
     it('Reverts in the case of the transfer failing (i.e. blacklisting)', async () => {
-      const preWithdrawTokens = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
-
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('1000'));
-      expect((await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).lt(preWithdrawTokens)).to.be.true;
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.alice.address, toBN('2000'));
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[2].address, toBN('3000'));
+      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[3].address, toBN('4000'));
+
+      const postWithdrawBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
 
       await fastForward(+DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay.toString() + 1);
 
@@ -403,12 +403,24 @@ describe('Process withdrawal', async () => {
       expect(args.tokensReturned).eq(toBN('1000'));
 
       // Tokens are returned to the withdrawer (subtract 5000 from amount still pending, meaning the 1000 was returned)
-      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).eq(preWithdrawTokens.sub(toBN('5000')));
+      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).eq(postWithdrawBalance.add(toBN('1000')));
 
       await hre.f.c.snx.quoteAsset.setForceFail(false);
+
+      await hre.f.c.snx.quoteAsset.setTransferRevert(true);
+      tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+      args = getEventArgs(await tx.wait(), 'WithdrawReverted');
+      expect(args.beneficiary).eq(hre.f.alice.address);
+      expect(args.tokensReturned).eq(toBN('2000'));
+
+      // Tokens are returned to the beneficiary, rather than withdrawer
+      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('2000'));
+      await hre.f.c.snx.quoteAsset.setTransferRevert(false);
+
+      // following withdrawals can still be withdrawn
       tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
-      expect(args.beneficiary).eq(hre.f.alice.address);
+      expect(args.beneficiary).eq(hre.f.signers[2].address);
 
       // Check edge case where 0 tokens are sent successfully
       await hre.f.c.snx.quoteAsset.setDecimals(1);
@@ -421,8 +433,8 @@ describe('Process withdrawal', async () => {
       args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
       expect(args.quoteReceived).gt(0);
       expect(args.quoteReceived).lt(toBN('0.1'));
-      expect(args.beneficiary).eq(hre.f.signers[2].address);
-      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[2].address)).eq(0);
+      expect(args.beneficiary).eq(hre.f.signers[3].address);
+      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[3].address)).eq(0);
     });
 
     it('partially withdraws then is blocked', async () => {
