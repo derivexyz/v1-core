@@ -10,6 +10,7 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
   bool public forceFail = false;
   bool public transferRevert = false;
   bool public maxApproveFail = false;
+  bool public returnFalseOnNotEnoughBalance = false;
   mapping(address => bool) public permitted;
   uint8 private _decimals;
 
@@ -31,6 +32,11 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
   function setMaxApprovalFail(bool _maxApproveFail) external {
     require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
     maxApproveFail = _maxApproveFail;
+  }
+
+  function setReturnFalseOnNotEnoughBalance(bool _returnFalse) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
+    returnFalseOnNotEnoughBalance = _returnFalse;
   }
 
   // Default setup of decimals in OpenZepellin v4 is done via decimals() override
@@ -71,6 +77,12 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
     }
     if (transferRevert) {
       revert TransferFailure();
+    }
+
+    if (returnFalseOnNotEnoughBalance) {
+      if (balanceOf(msg.sender) < amount) {
+        return false;
+      }
     }
     return super.transfer(receiver, amount);
   }

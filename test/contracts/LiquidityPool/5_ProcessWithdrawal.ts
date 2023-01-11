@@ -264,237 +264,241 @@ describe('Process withdrawal', async () => {
     });
   });
 
-  describe('edge cases', async () => {
-    beforeEach(seedFixture);
-    it('processess withdrawal after value of pool drops 90%', async () => {
-      // remove hedging & reducing slippage
-      await hre.f.c.poolHedger.setPoolHedgerParams({
-        ...DEFAULT_POOL_HEDGER_PARAMS,
-        hedgeCap: toBN('0'),
-      });
+});
 
-      await hre.f.c.optionMarketPricer.setPricingParams({
-        ...DEFAULT_PRICING_PARAMS,
-        standardSize: toBN('5000'),
-      });
 
-      // initiate deposit and withdrawal
-      await seedBalanceAndApprovalFor(hre.f.deployer, hre.f.c, toBN('100000000'));
-      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.alice.address, toBN('100'));
-      await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, toBN('100'));
-      expect(await hre.f.c.liquidityPool.getTokenPrice()).to.eq(toBN('1'));
 
-      await openAllTrades(); // just to mix it up a bit
-      await openPositionWithOverrides(hre.f.c, {
-        strikeId: 2,
-        optionType: OptionType.SHORT_CALL_QUOTE,
-        amount: toBN('6000'),
-        setCollateralTo: toBN('100000000'),
-      });
+describe('edge cases', async () => {
+  beforeEach(seedFixture);
 
-      // ensure optionValue dumps & most NAV is in optionValue
-      assertCloseToPercentage(await hre.f.c.optionGreekCache.getGlobalOptionValue(), toBN('-625000'), toBN('0.05'));
-      assertCloseToPercentage(await hre.f.c.liquidityPool.getTokenPrice(), toBN('1.25'), toBN('0.1'));
-      expect((await getLiquidity()).freeLiquidity).to.lt(toBN('50000'));
-
-      // dump price to make all calls OTM
-      await mockPrice(hre.f.c, toBN('1250'), 'sETH');
-      await fastForward(WEEK_SEC); // let GWAV catch up
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(1);
-      assertCloseToPercentage(await hre.f.c.optionGreekCache.getGlobalOptionValue(), toBN('-19000'), toBN('0.05'));
-      assertCloseToPercentage(await hre.f.c.liquidityPool.getTokenPrice(), toBN('0.065'), toBN('0.1'));
-
-      // process withdrawals
-      await hre.f.c.liquidityPool.processDepositQueue(2);
-      assertCloseToPercentage(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address), toBN('1592.6'), toBN('0.1'));
-
-      await hre.f.c.liquidityPool.processWithdrawalQueue(2);
-      assertCloseToPercentage(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address), toBN('6.5'), toBN('0.1'));
+  it('processess withdrawal after value of pool drops 90%', async () => {
+    // remove hedging & reducing slippage
+    await hre.f.c.poolHedger.setPoolHedgerParams({
+      ...DEFAULT_POOL_HEDGER_PARAMS,
+      hedgeCap: toBN('0'),
     });
 
-    it('liveBoards != 0, open options == 0, can withdraw 100%', async () => {
-      // opening second board to test 100% withdrawal where liveBoards > 0
-      const boardId2 = await createDefaultBoardWithOverrides(hre.f.c, {
-        expiresIn: MONTH_SEC * 2,
-        baseIV: '1',
-        skews: ['0.9', '1', '1.1'],
-        strikePrices: ['1500', '2000', '2500'],
-      });
-
-      // open options on board 1
-      const positionIds: BigNumber[] = await openAllTrades();
-
-      // Initiate withdrawal
-      const tokenBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
-      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, tokenBalance);
-
-      // settle board, 100% liquidity should be able to be withdrawn even with liveBoards > 0
-      await fastForward(MONTH_SEC + 1);
-      await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
-      await hre.f.c.liquidityPool.exchangeBase();
-      await expect(hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId)).revertedWith(
-        'InvalidBoardId',
-      );
-
-      // skip settle CB timeout & process withdrawal
-      await fastForward(HOUR_SEC * 6 + 1);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(boardId2);
-      await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
-
-      // confirm 100% withdrawn, except pool fees and settlement values
-      const liquidity = await hre.f.c.liquidityPool.getLiquidity();
-      assertCloseToPercentage(
-        await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address),
-        toBN('5242.0727'),
-        toBN('0.01'),
-      );
-      assertCloseToPercentage(liquidity.freeLiquidity, toBN('5000'), toBN('0.01'));
-      assertCloseToPercentage(
-        await hre.f.c.liquidityPool.totalOutstandingSettlements(),
-        toBN('242.0727'),
-        toBN('0.01'),
-      );
-
-      // confirm settling is fully functional even with 100% withdrawal
-      await hre.f.c.shortCollateral.settleOptions(positionIds);
-      // await hre.f.c.poolHedger.hedgeDelta();
-      assertCloseToPercentage(
-        await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address),
-        toBN('5000'),
-        toBN('0.01'),
-      );
+    await hre.f.c.optionMarketPricer.setPricingParams({
+      ...DEFAULT_PRICING_PARAMS,
+      standardSize: toBN('5000'),
     });
 
-    it('allows for settlement after 100% withdrawal', async () => {
-      // open various options & initiate withdraw
-      const positionIds: BigNumber[] = await openAllTrades();
-      const tokenBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
-      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, tokenBalance);
+    // initiate deposit and withdrawal
+    await seedBalanceAndApprovalFor(hre.f.deployer, hre.f.c, toBN('100000000'));
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.alice.address, toBN('100'));
+    await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, toBN('100'));
+    expect(await hre.f.c.liquidityPool.getTokenPrice()).to.eq(toBN('1'));
 
-      // settle board and process 100% withdrawal
-      await fastForward(MONTH_SEC + 1);
-      await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
-      await hre.f.c.liquidityPool.exchangeBase();
-      await fastForward(HOUR_SEC * 6 + 1);
-      await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
-
-      // confirm settling is fully functional even with 100% withdrawal
-      await expectCorrectSettlement(positionIds);
+    await openAllTrades(); // just to mix it up a bit
+    await openPositionWithOverrides(hre.f.c, {
+      strikeId: 2,
+      optionType: OptionType.SHORT_CALL_QUOTE,
+      amount: toBN('6000'),
+      setCollateralTo: toBN('100000000'),
     });
 
-    it('Reverts in the case of the transfer failing (i.e. blacklisting)', async () => {
-      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('1000'));
-      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.alice.address, toBN('2000'));
-      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[2].address, toBN('3000'));
-      await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[3].address, toBN('4000'));
+    // ensure optionValue dumps & most NAV is in optionValue
+    assertCloseToPercentage(await hre.f.c.optionGreekCache.getGlobalOptionValue(), toBN('-625000'), toBN('0.05'));
+    assertCloseToPercentage(await hre.f.c.liquidityPool.getTokenPrice(), toBN('1.25'), toBN('0.1'));
+    expect((await getLiquidity()).freeLiquidity).to.lt(toBN('50000'));
 
-      const postWithdrawBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
+    // dump price to make all calls OTM
+    await mockPrice(hre.f.c, toBN('1250'), 'sETH');
+    await fastForward(WEEK_SEC); // let GWAV catch up
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(1);
+    assertCloseToPercentage(await hre.f.c.optionGreekCache.getGlobalOptionValue(), toBN('-19000'), toBN('0.05'));
+    assertCloseToPercentage(await hre.f.c.liquidityPool.getTokenPrice(), toBN('0.065'), toBN('0.1'));
 
-      await fastForward(+DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay.toString() + 1);
+    // process withdrawals
+    await hre.f.c.liquidityPool.processDepositQueue(2);
+    assertCloseToPercentage(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address), toBN('1592.6'), toBN('0.1'));
 
-      await hre.f.c.snx.quoteAsset.setForceFail(true);
+    await hre.f.c.liquidityPool.processWithdrawalQueue(2);
+    assertCloseToPercentage(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.alice.address), toBN('6.5'), toBN('0.1'));
+  });
 
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
-      let tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      let args = getEventArgs(await tx.wait(), 'WithdrawReverted');
-      expect(args.beneficiary).eq(hre.f.deployer.address);
-      expect(args.tokensReturned).eq(toBN('1000'));
-
-      // Tokens are returned to the withdrawer (subtract 5000 from amount still pending, meaning the 1000 was returned)
-      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).eq(postWithdrawBalance.add(toBN('1000')));
-
-      await hre.f.c.snx.quoteAsset.setForceFail(false);
-
-      await hre.f.c.snx.quoteAsset.setTransferRevert(true);
-      tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      args = getEventArgs(await tx.wait(), 'WithdrawReverted');
-      expect(args.beneficiary).eq(hre.f.alice.address);
-      expect(args.tokensReturned).eq(toBN('2000'));
-
-      // Tokens are returned to the beneficiary, rather than withdrawer
-      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('2000'));
-      await hre.f.c.snx.quoteAsset.setTransferRevert(false);
-
-      // following withdrawals can still be withdrawn
-      tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
-      expect(args.beneficiary).eq(hre.f.signers[2].address);
-
-      // Check edge case where 0 tokens are sent successfully
-      await hre.f.c.snx.quoteAsset.setDecimals(1);
-      const lpBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
-      await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, lpBalance.sub(1));
-
-      // Check price below 0.000001 meaning 0 should be transferred given there is only 1dp
-      expect(await hre.f.c.liquidityPool.getTokenPrice()).lt(toBN('0.000001'));
-      tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
-      expect(args.quoteReceived).gt(0);
-      expect(args.quoteReceived).lt(toBN('0.1'));
-      expect(args.beneficiary).eq(hre.f.signers[3].address);
-      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[3].address)).eq(0);
+  it('liveBoards != 0, open options == 0, can withdraw 100%', async () => {
+    // opening second board to test 100% withdrawal where liveBoards > 0
+    const boardId2 = await createDefaultBoardWithOverrides(hre.f.c, {
+      expiresIn: MONTH_SEC * 2,
+      baseIV: '1',
+      skews: ['0.9', '1', '1.1'],
+      strikePrices: ['1500', '2000', '2500'],
     });
 
-    it('partially withdraws then is blocked', async () => {
-      // Setup
-      await hre.f.c.snx.quoteAsset.mint(hre.f.alice.address, toBN('400000'));
-      await hre.f.c.snx.quoteAsset.connect(hre.f.alice).approve(hre.f.c.liquidityPool.address, toBN('100000'));
-      await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.alice.address, toBN('10000'));
-      await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
-      await hre.f.c.liquidityPool.processDepositQueue(1);
-      expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('10000'));
+    // open options on board 1
+    const positionIds: BigNumber[] = await openAllTrades();
 
-      // Create a partial withdrawal scenario
-      const [, liquidity] = await partiallyFillLiquidityWithLongCall();
-      const oldQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
-      expect(liquidity.burnableLiquidity).to.lt(toBN('200000')); // ensure partial fill is correct
+    // Initiate withdrawal
+    const tokenBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, tokenBalance);
 
-      const firstTx = await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('200000'));
-      const postWithdrawTokens = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
-      // prevent withdrawal from triggering CBTimeout
-      await hre.f.c.liquidityPool.setCircuitBreakerParameters({
-        ...DEFAULT_CB_PARAMS,
-        liquidityCBThreshold: toBN('0'),
-      });
+    // settle board, 100% liquidity should be able to be withdrawn even with liveBoards > 0
+    await fastForward(MONTH_SEC + 1);
+    await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
+    await hre.f.c.liquidityPool.exchangeBase();
+    await expect(hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId)).revertedWith(
+      'InvalidBoardId',
+    );
 
-      // first partial process
-      await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
-      await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      const newQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
-      assertCloseTo(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('149722.73'), toBN('2'));
+    // skip settle CB timeout & process withdrawal
+    await fastForward(HOUR_SEC * 6 + 1);
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(boardId2);
+    await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
 
-      expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
-      assertCloseTo(newQuote.sub(oldQuote), toBN('50100.25'), toBN('5'));
-      await validateWithdrawalRecord(
-        1,
-        hre.f.deployer.address,
-        toBN('149722.73'),
-        newQuote.sub(oldQuote),
-        await getTxTimestamp(firstTx),
-      );
+    // confirm 100% withdrawn, except pool fees and settlement values
+    const liquidity = await hre.f.c.liquidityPool.getLiquidity();
+    assertCloseToPercentage(
+      await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address),
+      toBN('5242.0727'),
+      toBN('0.01'),
+    );
+    assertCloseToPercentage(liquidity.freeLiquidity, toBN('5000'), toBN('0.01'));
+    assertCloseToPercentage(
+      await hre.f.c.liquidityPool.totalOutstandingSettlements(),
+      toBN('242.0727'),
+      toBN('0.01'),
+    );
 
-      // top off pool
-      await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, toBN('150000'));
-      await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.depositDelay) + 1);
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
-      await hre.f.c.liquidityPool.processDepositQueue(1);
+    // confirm settling is fully functional even with 100% withdrawal
+    await hre.f.c.shortCollateral.settleOptions(positionIds);
+    // await hre.f.c.poolHedger.hedgeDelta();
+    assertCloseToPercentage(
+      await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address),
+      toBN('5000'),
+      toBN('0.01'),
+    );
+  });
 
-      await hre.f.c.snx.quoteAsset.setForceFail(true);
+  it('allows for settlement after 100% withdrawal', async () => {
+    // open various options & initiate withdraw
+    const positionIds: BigNumber[] = await openAllTrades();
+    const tokenBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, tokenBalance);
 
-      await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
-      const tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      const args = getEventArgs(await tx.wait(), 'WithdrawReverted');
-      expect(args.beneficiary).eq(hre.f.deployer.address);
-      assertCloseTo(args.tokensReturned, toBN('149722.73'));
-      // Remaining tokens are returned to the withdrawer
-      assertCloseTo(
-        (await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).sub(postWithdrawTokens),
-        toBN('149722.73'),
-      );
+    // settle board and process 100% withdrawal
+    await fastForward(MONTH_SEC + 1);
+    await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
+    await hre.f.c.liquidityPool.exchangeBase();
+    await fastForward(HOUR_SEC * 6 + 1);
+    await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).eq(2);
+
+    // confirm settling is fully functional even with 100% withdrawal
+    await expectCorrectSettlement(positionIds);
+  });
+
+  it('Reverts in the case of the transfer failing (i.e. blacklisting)', async () => {
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('1000'));
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.alice.address, toBN('2000'));
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[2].address, toBN('3000'));
+    await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[3].address, toBN('4000'));
+
+    const postWithdrawBalance = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
+
+    await fastForward(+DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay.toString() + 1);
+
+    await hre.f.c.snx.quoteAsset.setForceFail(true);
+
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+    let tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    let args = getEventArgs(await tx.wait(), 'WithdrawReverted');
+    expect(args.beneficiary).eq(hre.f.deployer.address);
+    expect(args.tokensReturned).eq(toBN('1000'));
+
+    // Tokens are returned to the withdrawer (subtract 5000 from amount still pending, meaning the 1000 was returned)
+    expect(await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).eq(postWithdrawBalance.add(toBN('1000')));
+
+    await hre.f.c.snx.quoteAsset.setForceFail(false);
+
+    await hre.f.c.snx.quoteAsset.setTransferRevert(true);
+    tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    args = getEventArgs(await tx.wait(), 'WithdrawReverted');
+    expect(args.beneficiary).eq(hre.f.alice.address);
+    expect(args.tokensReturned).eq(toBN('2000'));
+
+    // Tokens are returned to the beneficiary, rather than withdrawer
+    expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('2000'));
+    await hre.f.c.snx.quoteAsset.setTransferRevert(false);
+
+    // following withdrawals can still be withdrawn
+    tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
+    expect(args.beneficiary).eq(hre.f.signers[2].address);
+
+    // Check edge case where 0 tokens are sent successfully
+    await hre.f.c.snx.quoteAsset.setDecimals(1);
+    const lpBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
+    await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, lpBalance.sub(1));
+
+    // Check price below 0.000001 meaning 0 should be transferred given there is only 1dp
+    expect(await hre.f.c.liquidityPool.getTokenPrice()).lt(toBN('0.000001'));
+    tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    args = getEventArgs(await tx.wait(), 'WithdrawProcessed');
+    expect(args.quoteReceived).gt(0);
+    expect(args.quoteReceived).lt(toBN('0.1'));
+    expect(args.beneficiary).eq(hre.f.signers[3].address);
+    expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.signers[3].address)).eq(0);
+  });
+
+  it('partially withdraws then is blocked', async () => {
+    // Setup
+    await hre.f.c.snx.quoteAsset.mint(hre.f.alice.address, toBN('400000'));
+    await hre.f.c.snx.quoteAsset.connect(hre.f.alice).approve(hre.f.c.liquidityPool.address, toBN('100000'));
+    await hre.f.c.liquidityPool.connect(hre.f.alice).initiateDeposit(hre.f.alice.address, toBN('10000'));
+    await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+    await hre.f.c.liquidityPool.processDepositQueue(1);
+    expect(await hre.f.c.liquidityToken.balanceOf(hre.f.alice.address)).eq(toBN('10000'));
+
+    // Create a partial withdrawal scenario
+    const [, liquidity] = await partiallyFillLiquidityWithLongCall();
+    const oldQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+    expect(liquidity.burnableLiquidity).to.lt(toBN('200000')); // ensure partial fill is correct
+
+    const firstTx = await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('200000'));
+    const postWithdrawTokens = await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address);
+    // prevent withdrawal from triggering CBTimeout
+    await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+      ...DEFAULT_CB_PARAMS,
+      liquidityCBThreshold: toBN('0'),
     });
+
+    // first partial process
+    await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.withdrawalDelay) + 1);
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+    await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    const newQuote = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+    assertCloseToPercentage(await hre.f.c.liquidityPool.totalQueuedWithdrawals(), toBN('149722.73'));
+
+    expect(await hre.f.c.liquidityPool.queuedWithdrawalHead()).to.eq(1);
+    assertCloseTo(newQuote.sub(oldQuote), toBN('50100.25'), toBN('5'));
+    await validateWithdrawalRecord(
+      1,
+      hre.f.deployer.address,
+      toBN('149722.73'),
+      newQuote.sub(oldQuote),
+      await getTxTimestamp(firstTx),
+    );
+
+    // top off pool
+    await hre.f.c.liquidityPool.initiateDeposit(hre.f.alice.address, toBN('150000'));
+    await fastForward(Number(DEFAULT_LIQUIDITY_POOL_PARAMS.depositDelay) + 1);
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+    await hre.f.c.liquidityPool.processDepositQueue(1);
+
+    await hre.f.c.snx.quoteAsset.setForceFail(true);
+
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId);
+    const tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+    const args = getEventArgs(await tx.wait(), 'WithdrawReverted');
+    expect(args.beneficiary).eq(hre.f.deployer.address);
+    assertCloseToPercentage(args.tokensReturned, toBN('149722.73'));
+    // Remaining tokens are returned to the withdrawer
+    assertCloseToPercentage(
+      (await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).sub(postWithdrawTokens),
+      toBN('149722.73')
+    );
   });
 });

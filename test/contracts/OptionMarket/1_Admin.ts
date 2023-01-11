@@ -275,8 +275,9 @@ describe('OptionMarket - Admin', () => {
 
       const tx = await hre.f.c.optionMarket.smClaim();
 
-      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).eq(0);
-      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).eq(toBN('1'));
+      // base isn't taken via smClaim
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.optionMarket.address)).eq(toBN('1'));
+      expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.optionMarket.address)).eq(0);
 
       const args = getEventArgs(await tx.wait(), 'SMClaimed');
       expect(args.securityModule).eq(hre.f.deployer.address);

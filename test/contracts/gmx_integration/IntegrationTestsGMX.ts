@@ -710,9 +710,9 @@ describe('Integration Tests - GMX', () => {
         });
       });
       it('cancel increase order', async () => {
+
         ////////
         // Create a pending increase order
-
         await openPosition(c, 'sETH', {
           amount: toBN('10'),
           optionType: OptionType.LONG_CALL,
@@ -728,6 +728,18 @@ describe('Integration Tests - GMX', () => {
         await expect(c.futuresPoolHedger.connect(deployer).cancelPendingOrder()).revertedWith(
           'CancellationDelayNotPassed',
         );
+
+        await c.futuresPoolHedger.setFuturesPoolHedgerParams({
+          ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
+          minCancelDelay: 0
+        });
+
+        ////////
+        // cancellation failure
+        await c.gmx.positionRouter.setDelayValues(10, 0, 100000);
+        await c.gmx.positionRouter.setPositionKeeper(c.futuresPoolHedger.address, true);
+        await expect(c.futuresPoolHedger.cancelPendingOrder()).revertedWith("OrderCancellationFailure");
+        await c.gmx.positionRouter.setPositionKeeper(c.futuresPoolHedger.address, false);
 
         ////////
         // can cancel a normal order after delay
@@ -745,7 +757,6 @@ describe('Integration Tests - GMX', () => {
       it('cancel decrease order', async () => {
         ////////
         // Create a pending decrease order
-
         const positionId = await openPosition(c, 'sETH', {
           amount: toBN('10'),
           optionType: OptionType.LONG_CALL,
@@ -773,6 +784,18 @@ describe('Integration Tests - GMX', () => {
         await expect(c.futuresPoolHedger.connect(deployer).cancelPendingOrder()).revertedWith(
           'CancellationDelayNotPassed',
         );
+
+        await c.futuresPoolHedger.setFuturesPoolHedgerParams({
+          ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
+          minCancelDelay: 0
+        });
+
+        ////////
+        // cancellation failure
+        await c.gmx.positionRouter.setDelayValues(10, 0, 100000);
+        await c.gmx.positionRouter.setPositionKeeper(c.futuresPoolHedger.address, true);
+        await expect(c.futuresPoolHedger.cancelPendingOrder()).revertedWith("OrderCancellationFailure");
+        await c.gmx.positionRouter.setDelayValues(1, 1, 100000);
 
         ////////
         // can cancel a normal order after delay
@@ -1274,11 +1297,20 @@ describe('Integration Tests - GMX', () => {
       });
     });
 
-    describe('GMX Pool Hedger unreachable states', () => {
+    describe('GMX Pool Hedger hard to reach states', () => {
       // Following are tests that our hedger has both long and short position opened.
       // Which should never happen in real life
 
       let poolHedger: TestGMXFuturesPoolHedger;
+      const emptyPosition = {
+        size: toBN('0'),
+        collateral: toBN('0'),
+        averagePrice: 0,
+        entryFundingRate: 0,
+        unrealisedPnl: 0,
+        lastIncreasedTime: 0,
+        isLong: true
+      };
 
       beforeEach('create a TestGMXFuturesPoolHedger entity', async () => {
         poolHedger = (await ((await ethers.getContractFactory('TestGMXFuturesPoolHedger')) as ContractFactory)
@@ -1296,7 +1328,7 @@ describe('Integration Tests - GMX', () => {
             c.gmx.router.address,
             c.gmx.USDC.address,
             c.gmx.eth.address,
-            c.gmx.btc.address,
+            c.gmx.eth.address,
           );
 
         await poolHedger.connect(deployer).setFuturesPoolHedgerParams({
@@ -1312,6 +1344,13 @@ describe('Integration Tests - GMX', () => {
         // update liquidity pool to use the new hedger
         await c.liquidityPool.setPoolHedger(poolHedger.address);
       });
+
+      it("wont exchange weth if it matches baseAsset", async() => {
+        await c.gmx.eth.mint(poolHedger.address, toBN('1'));
+        const tx = await poolHedger.sendAllFundsToLP();
+        const args = getEventArgs(await tx.wait(), 'BaseReturnedToLP');
+        expect(args.amountBase).eq(toBN('1'));
+      })
 
       it("have unexpected short position when we're supposed to be long", async () => {
         ////////
@@ -1385,12 +1424,137 @@ describe('Integration Tests - GMX', () => {
         ////////
         // calling update collateral should close the long position
         await fastForward(20);
+
         await poolHedger.connect(deployer).updateCollateral({ value: toBN('0.01') });
+
+        // reverts if called consecutively
+        await expect(poolHedger.updateCollateral()).revertedWith("PositionRequestPending");
+
         pendingKey = await poolHedger.pendingOrderKey();
         await c.gmx.positionRouter.connect(deployer).executeDecreasePosition(pendingKey, await deployer.getAddress());
 
         pos = await poolHedger.getPositions();
         expect(pos.longPosition.size.isZero()).to.be.true;
+
+        // skips update if no need to update
+        await poolHedger.updateCollateral({ value: toBN('0.01') });
+        expect(await poolHedger.pendingOrderKey()).eq(toBytes32(""));
+      });
+
+
+      it("fails for various reasons with low LP liquidity", async () => {
+        await c.gmx.USDC.burn(c.liquidityPool.address, await c.gmx.USDC.balanceOf(c.liquidityPool.address));
+
+        await expect(poolHedger.testIncreasePosition(
+          emptyPosition,
+          true,
+          toBN('110'),
+          toBN('100')
+        )).revertedWith("NoQuoteReceivedFromLP");
+
+        await c.gmx.USDC.mint(c.liquidityPool.address, toBN('10'));
+
+        // With too little liquidity returned,
+        await expect(poolHedger.testIncreasePosition(
+          emptyPosition,
+          true,
+          toBN('110'),
+          toBN('100')
+        )).revertedWith("MaxLeverageThresholdCrossed");
+
+        await c.gmx.USDC.mint(c.liquidityPool.address, toBN('1000'));
+
+        // with enough liquidity, passes fine
+        await poolHedger.testIncreasePosition(
+          emptyPosition,
+          true,
+          toBN('110'),
+          toBN('100'),
+          {value: toBN('0.01')}
+        );
+      })
+
+      it("gets swap fee for shorts", async () => {
+        // for shorts the fee is always 0
+        expect(await poolHedger.getSwapFeeBP(false, true, toBN("1000"))).eq(0);
+      })
+
+      it("insolvent longs", async () => {
+        // with enough liquidity, passes fine
+        await poolHedger.testIncreasePosition(
+          emptyPosition,
+          true,
+          toBN('500'), // 5x leverage
+          toBN('100'),
+          {value: toBN('0.01')}
+        );
+        await c.gmx.positionRouter.executeIncreasePosition(
+          await poolHedger.pendingOrderKey(),
+          deployer.address,
+        );
+
+        await setPrice(c, '500', c.gmx.eth, c.gmx.ethPriceFeed);
+
+        expect(await poolHedger.getAllPositionsValue()).eq(0);
+
+        const pos = await poolHedger.getPositions();
+
+        await poolHedger.testDecreasePosition(
+          pos.longPosition,
+          true,
+          toBN('500'), // 5x leverage
+          toBN('100'),
+          false,
+          {value: toBN('0.01')}
+        );
+      });
+
+      it("cap collateralDelta when closing", async () => {
+        // with enough liquidity, passes fine
+        await poolHedger.testIncreasePosition(
+          emptyPosition,
+          true,
+          toBN('500'), // 5x leverage
+          toBN('100'),
+          {value: toBN('0.01')}
+        );
+        await c.gmx.positionRouter.executeIncreasePosition(
+          await poolHedger.pendingOrderKey(),
+          deployer.address,
+        );
+
+        const pos = await poolHedger.getPositions();
+
+        // works fine
+        await poolHedger.testDecreasePosition(
+          pos.longPosition,
+          true,
+          0,
+          toBN('200'),
+          false,
+          {value: toBN('0.01')}
+        );
+
+        assertCloseToPercentage((await c.gmx.positionRouter.decreasePositionRequests(await poolHedger.pendingOrderKey())).collateralDelta, toBN('100', 30))
+      })
+
+      it("insolvent short", async () => {
+        // with enough liquidity, passes fine
+        await poolHedger.testIncreasePosition(
+          emptyPosition,
+          false,
+          toBN('500'), // 5x leverage
+          toBN('100'),
+          {value: toBN('0.01')}
+        );
+        await c.gmx.positionRouter.executeIncreasePosition(
+          await poolHedger.pendingOrderKey(),
+          deployer.address,
+        );
+
+        await setPrice(c, '5000', c.gmx.eth, c.gmx.ethPriceFeed);
+
+        expect(await poolHedger.getAllPositionsValue()).eq(0);
       });
     });
 

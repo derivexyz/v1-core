@@ -17,4 +17,15 @@ contract TestGMXFuturesPoolHedger is GMXFuturesPoolHedger {
     uint spot = _getSpotPrice();
     _increasePosition(pos, isLong, sizeDelta, collateralDelta, spot);
   }
+
+  function testDecreasePosition(
+    PositionDetails memory pos,
+    bool isLong,
+    uint sizeDelta,
+    uint collateralDelta,
+    bool isClose
+  ) external payable {
+    uint spot = _getSpotPrice();
+    _decreasePosition(pos, isLong, sizeDelta, collateralDelta, spot, isClose);
+  }
 }
