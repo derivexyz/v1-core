@@ -122,6 +122,8 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
     uint minTotalCost;
     // revert trade if totalCost is above this value
     uint maxTotalCost;
+    // referrer emitted in Trade event, no on-chain interaction
+    address referrer;
   }
 
   struct TradeParameters {
@@ -137,6 +139,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
   }
 
   struct TradeEventData {
+    uint strikeId;
     uint expiry;
     uint strikePrice;
     OptionType optionType;
@@ -601,9 +604,10 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
     emit Trade(
       msg.sender,
-      params.strikeId,
       result.positionId,
+      params.referrer,
       TradeEventData({
+        strikeId: params.strikeId,
         expiry: trade.expiry,
         strikePrice: trade.strikePrice,
         optionType: params.optionType,
@@ -665,9 +669,10 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
     emit Trade(
       msg.sender,
-      params.strikeId,
       result.positionId,
+      params.referrer,
       TradeEventData({
+        strikeId: params.strikeId,
         expiry: trade.expiry,
         strikePrice: trade.strikePrice,
         optionType: params.optionType,
@@ -848,9 +853,10 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
     emit Trade(
       position.owner,
-      position.strikeId,
       positionId,
+      address(0),
       TradeEventData({
+        strikeId: position.strikeId,
         expiry: trade.expiry,
         strikePrice: trade.strikePrice,
         optionType: position.optionType,
@@ -1199,8 +1205,8 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
    */
   event Trade(
     address indexed trader,
-    uint indexed strikeId,
     uint indexed positionId,
+    address indexed referrer,
     TradeEventData trade,
     OptionMarketPricer.TradeResult[] tradeResults,
     LiquidationEventData liquidation,

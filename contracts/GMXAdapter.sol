@@ -23,30 +23,39 @@ contract GMXAdapter is BaseExchangeAdapter {
   using SafeCast for uint;
   using SafeCast for int;
 
+  /////
+  // View struct
+
+  struct GMXAdapterState {
+    AggregatorV2V3Interface chainlinkFeed;
+    MarketPricingParams marketPricingParams;
+    int rateAndCarry;
+    uint clPrice;
+    uint gmxMinPrice;
+    uint gmxMaxPrice;
+  }
+
+  /////
+  // State struct
+
+  struct MarketPricingParams {
+    uint minReturnPercent;
+    uint staticSwapFeeEstimate;
+    uint gmxUsageThreshold;
+    uint priceVarianceCBPercent;
+    uint chainlinkStalenessCheck;
+  }
+
   IVault public vault;
 
   /// @dev Asset to chainlink feed
   mapping(address => AggregatorV2V3Interface) public chainlinkFeeds;
 
   /// @dev option market to min percentage that swap should return compared to amount calculated by prices. 1e18 is 100%
-  mapping(address => uint) public minReturnPercent;
-
-  /// @dev option market to constant used to estimate fee. 1.01e18 means we always estimate 1% fee to be charged
-  mapping(address => uint) public staticSwapFeeEstimate;
-
-  /// @dev For a given OptionMarket - use GMX price until the difference crosses this threshold, then switch to CL.
-  /// Spot fee must cover this difference to prevent frontrunning
-  mapping(address => uint) public gmxUsageThreshold;
-
-  /// @dev For a given OptionMarket - for opening/closing use the gmx/cl price unless they differ by this % - in which
-  /// case block trading
-  mapping(address => uint) public priceVarianceCBPercent;
+  mapping(address => MarketPricingParams) public marketPricingParams;
 
   /// @dev option market to risk free interest rate
   mapping(address => int) public override rateAndCarry;
-
-  /// @dev option market to chainlink staleness duration
-  mapping(address => uint) public chainlinkStalenessCheck;
 
   uint public constant GMX_PRICE_PRECISION = 10 ** 30;
 
@@ -78,39 +87,21 @@ contract GMXAdapter is BaseExchangeAdapter {
   /**
    * @notice set min return percentage for an option market
    */
-  function setMinReturnPercent(address _optionMarket, uint _minReturnPercent) external onlyOwner {
-    if (_minReturnPercent > 1.2e18 || _minReturnPercent < 0.8e18) revert InvalidMinReturnPercentage();
-    minReturnPercent[_optionMarket] = _minReturnPercent;
+  function setMarketPricingParams(
+    address _optionMarket,
+    MarketPricingParams memory _marketPricingParams
+  ) external onlyOwner {
+    if (
+      _marketPricingParams.minReturnPercent > 1.2e18 || //
+      _marketPricingParams.minReturnPercent < 0.8e18 || //
+      _marketPricingParams.staticSwapFeeEstimate < 1e18
+    ) {
+      revert InvalidMarketPricingParams(_marketPricingParams);
+    }
 
-    emit MinReturnPercentageUpdate(_optionMarket, _minReturnPercent);
-  }
+    marketPricingParams[_optionMarket] = _marketPricingParams;
 
-  /**
-   * @notice set static swap fee multiplier for an option market
-   */
-  function setStaticSwapFeeEstimate(address _optionMarket, uint _staticSwapFeeEstimate) external onlyOwner {
-    if (_staticSwapFeeEstimate < 1e18) revert InvalidStaticSwapFeeEstimate();
-    staticSwapFeeEstimate[_optionMarket] = _staticSwapFeeEstimate;
-
-    emit StaticSwapFeeMultiplierUpdated(_optionMarket, _staticSwapFeeEstimate);
-  }
-
-  /**
-   * @notice set the price variance tolerance
-   */
-  function setPriceVarianceCBPercent(address _optionMarket, uint _priceVarianceCBPercent) external onlyOwner {
-    priceVarianceCBPercent[_optionMarket] = _priceVarianceCBPercent;
-
-    emit PriceVarianceToleranceUpdated(_optionMarket, _priceVarianceCBPercent);
-  }
-
-  /**
-   * @notice set the gmx usage threshold
-   */
-  function setGMXUsageThreshold(address _optionMarket, uint _gmxUsageThreshold) external onlyOwner {
-    gmxUsageThreshold[_optionMarket] = _gmxUsageThreshold;
-
-    emit GMXUsageThresholdUpdated(_optionMarket, _gmxUsageThreshold);
+    emit MarketPricingParamsUpdated(_optionMarket, _marketPricingParams);
   }
 
   /**
@@ -121,7 +112,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     if (_rate > 50e18 || _rate < -50e18) revert InvalidRiskFreeRate();
     rateAndCarry[_optionMarket] = _rate;
 
-    emit RiskFreeRateUpdated(_rate);
+    emit RiskFreeRateUpdated(_optionMarket, _rate);
   }
 
   /////////////
@@ -156,7 +147,7 @@ contract GMXAdapter is BaseExchangeAdapter {
 
     // Prevent opening and closing in the case where the feeds differ by a great amount, but allow force closes.
     if (pricing == PriceType.MAX_PRICE || pricing == PriceType.MIN_PRICE) {
-      uint varianceThershold = priceVarianceCBPercent[optionMarket];
+      uint varianceThershold = marketPricingParams[optionMarket].priceVarianceCBPercent;
       if (minVariance > varianceThershold || maxVariance > varianceThershold) {
         revert PriceVarianceTooHigh(address(this), minPrice, maxPrice, clPrice, varianceThershold);
       }
@@ -164,7 +155,10 @@ contract GMXAdapter is BaseExchangeAdapter {
 
     // In the case where the gmxUsageThreshold is crossed, we want to use the worst case price between cl and gmx
     bool useWorstCase = false;
-    if ((minVariance > gmxUsageThreshold[optionMarket] || maxVariance > gmxUsageThreshold[optionMarket])) {
+    if (
+      (minVariance > marketPricingParams[optionMarket].gmxUsageThreshold ||
+        maxVariance > marketPricingParams[optionMarket].gmxUsageThreshold)
+    ) {
       useWorstCase = true;
     }
 
@@ -223,8 +217,8 @@ contract GMXAdapter is BaseExchangeAdapter {
 
     // use latestRoundData because getLatestAnswer is deprecated
     (, int answer, , uint updatedAt, ) = assetPriceFeed.latestRoundData();
-    if (answer <= 0 || block.timestamp - updatedAt < chainlinkStalenessCheck[optionMarket]) {
-      revert InvalidAnswer(address(this), answer, updatedAt);
+    if (answer <= 0 || block.timestamp - updatedAt > marketPricingParams[optionMarket].chainlinkStalenessCheck) {
+      revert InvalidAnswer(address(this), answer, updatedAt, block.timestamp);
     }
     spotPrice = ConvertDecimals.convertTo18(answer.toUint256(), assetPriceFeed.decimals());
   }
@@ -275,13 +269,13 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenOutPrice,
     uint tokenOutAmt
   ) internal view returns (uint tokenInAmt) {
-    if (staticSwapFeeEstimate[optionMarket] < 1e18) {
+    if (marketPricingParams[optionMarket].staticSwapFeeEstimate < 1e18) {
       revert InvalidStaticSwapFeeEstimate();
     }
     return
       tokenOutPrice
         .multiplyDecimalRound(tokenOutAmt)
-        .multiplyDecimalRound(staticSwapFeeEstimate[optionMarket])
+        .multiplyDecimalRound(marketPricingParams[optionMarket].staticSwapFeeEstimate)
         .divideDecimal(tokenInPrice);
   }
 
@@ -307,11 +301,11 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenInPrice = _getMinPrice(address(baseAsset));
     uint tokenOutPrice = _getMaxPrice(address(quoteAsset));
 
-    if (staticSwapFeeEstimate[_optionMarket] < 1e18) {
+    if (marketPricingParams[_optionMarket].staticSwapFeeEstimate < 1e18) {
       revert InvalidStaticSwapFeeEstimate();
     }
     uint minOut = tokenInPrice
-      .multiplyDecimal(minReturnPercent[_optionMarket])
+      .multiplyDecimal(marketPricingParams[_optionMarket].minReturnPercent)
       .multiplyDecimal(_amountBase)
       .divideDecimal(tokenOutPrice);
 
@@ -372,30 +366,13 @@ contract GMXAdapter is BaseExchangeAdapter {
     return (quoteNeeded, convertedBaseReceived);
   }
 
-  struct GMXAdapterState {
-    AggregatorV2V3Interface chainlinkFeed;
-    uint minReturnPercent;
-    uint staticSwapFeeEstimate;
-    uint gmxUsageThreshold;
-    uint priceVarianceCBPercent;
-    int rateAndCarry;
-    uint chainlinkStalenessCheck;
-    uint clPrice;
-    uint gmxMinPrice;
-    uint gmxMaxPrice;
-  }
-
   function getAdapterState(address _optionMarket) external view returns (GMXAdapterState memory) {
     address baseAsset = address(OptionMarket(_optionMarket).baseAsset());
     return
       GMXAdapterState({
-        chainlinkFeed: chainlinkFeeds[_optionMarket],
-        minReturnPercent: minReturnPercent[_optionMarket],
-        staticSwapFeeEstimate: staticSwapFeeEstimate[_optionMarket],
-        gmxUsageThreshold: gmxUsageThreshold[_optionMarket],
-        priceVarianceCBPercent: priceVarianceCBPercent[_optionMarket],
+        chainlinkFeed: chainlinkFeeds[baseAsset],
+        marketPricingParams: marketPricingParams[_optionMarket],
         rateAndCarry: rateAndCarry[_optionMarket],
-        chainlinkStalenessCheck: chainlinkStalenessCheck[_optionMarket],
         clPrice: _getChainlinkPrice(_optionMarket),
         gmxMinPrice: _getMinPrice(baseAsset),
         gmxMaxPrice: _getMaxPrice(baseAsset)
@@ -405,21 +382,18 @@ contract GMXAdapter is BaseExchangeAdapter {
   ////////////
   // Errors //
   ////////////
-  error InvalidMinReturnPercentage();
+  error InvalidMarketPricingParams(MarketPricingParams params);
   error InvalidStaticSwapFeeEstimate();
   error InvalidPriceFeedAddress(address thrower, AggregatorV2V3Interface inputAddress);
-  error InvalidAnswer(address thrower, int answer, uint updatedAt);
+  error InvalidAnswer(address thrower, int answer, uint updatedAt, uint blockTimestamp);
   error PriceVarianceTooHigh(address thrower, uint minPrice, uint maxPrice, uint clPrice, uint priceVarianceCBPercent);
   error InvalidRiskFreeRate();
 
   //////////////
   //  Events  //
   //////////////
-  event MinReturnPercentageUpdate(address indexed optionMarket, uint256 minReturnPercentage);
-  event StaticSwapFeeMultiplierUpdated(address indexed optionMarket, uint256 swapFeeEstimate);
-  event PriceVarianceToleranceUpdated(address indexed optionMarket, uint256 priceVarianceTolerance);
-  event GMXUsageThresholdUpdated(address indexed optionMarket, uint gmxUsageThreshold);
-  event ChainlinkAggregatorUpdated(address indexed asset, address indexed aggregator);
-  event RiskFreeRateUpdated(int256 newRate);
   event GMXVaultAddressUpdated(address vault);
+  event ChainlinkAggregatorUpdated(address indexed asset, address indexed aggregator);
+  event MarketPricingParamsUpdated(address indexed optionMarket, MarketPricingParams marketPricingParams);
+  event RiskFreeRateUpdated(address indexed optionMarket, int256 newRate);
 }

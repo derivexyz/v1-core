@@ -263,10 +263,7 @@ describe('Process withdrawal', async () => {
       );
     });
   });
-
 });
-
-
 
 describe('edge cases', async () => {
   beforeEach(seedFixture);
@@ -337,9 +334,7 @@ describe('edge cases', async () => {
     await fastForward(MONTH_SEC + 1);
     await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
     await hre.f.c.liquidityPool.exchangeBase();
-    await expect(hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId)).revertedWith(
-      'InvalidBoardId',
-    );
+    await expect(hre.f.c.optionGreekCache.updateBoardCachedGreeks(hre.f.board.boardId)).revertedWith('InvalidBoardId');
 
     // skip settle CB timeout & process withdrawal
     await fastForward(HOUR_SEC * 6 + 1);
@@ -355,11 +350,7 @@ describe('edge cases', async () => {
       toBN('0.01'),
     );
     assertCloseToPercentage(liquidity.freeLiquidity, toBN('5000'), toBN('0.01'));
-    assertCloseToPercentage(
-      await hre.f.c.liquidityPool.totalOutstandingSettlements(),
-      toBN('242.0727'),
-      toBN('0.01'),
-    );
+    assertCloseToPercentage(await hre.f.c.liquidityPool.totalOutstandingSettlements(), toBN('242.0727'), toBN('0.01'));
 
     // confirm settling is fully functional even with 100% withdrawal
     await hre.f.c.shortCollateral.settleOptions(positionIds);
@@ -498,7 +489,7 @@ describe('edge cases', async () => {
     // Remaining tokens are returned to the withdrawer
     assertCloseToPercentage(
       (await hre.f.c.liquidityToken.balanceOf(hre.f.deployer.address)).sub(postWithdrawTokens),
-      toBN('149722.73')
+      toBN('149722.73'),
     );
   });
 });

@@ -1,6 +1,6 @@
 // integration tests
 import { BigNumber, BigNumberish, ContractReceipt } from 'ethers';
-import { getEventArgs, MAX_UINT, OptionType, PositionState, toBN } from '../../../scripts/util/web3utils';
+import { getEventArgs, MAX_UINT, OptionType, PositionState, toBN, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { TradeEvent } from '../../../typechain-types/OptionMarket';
 import { LiquidationFeesStruct } from '../../../typechain-types/OptionToken';
 import { assertCloseToPercentage } from '../../utils/assert';
@@ -61,6 +61,7 @@ describe('Liquidation', () => {
       iterations: 1,
       minTotalCost: 0,
       maxTotalCost: MAX_UINT,
+      referrer: ZERO_ADDRESS,
     });
     const newTraderBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
     // adding 5% buffer for premium - collat
@@ -92,6 +93,7 @@ describe('Liquidation', () => {
         iterations: 1,
         minTotalCost: 0,
         maxTotalCost: MAX_UINT,
+        referrer: ZERO_ADDRESS,
       }),
     ).to.revertedWith('ERC20: transfer amount exceeds balance');
   });

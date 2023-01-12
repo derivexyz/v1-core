@@ -41,7 +41,21 @@ interface IPositionRouter {
   )
     external
     view
-    returns (address account, address[] memory, address, uint, uint, uint, bool, uint, uint, uint, uint, bool, address);
+    returns (
+      address account,
+      address[] memory,
+      address,
+      uint amountIn,
+      uint,
+      uint,
+      bool,
+      uint,
+      uint,
+      uint,
+      uint,
+      bool,
+      address
+    );
 
   function decreasePositionRequests(
     bytes32 key

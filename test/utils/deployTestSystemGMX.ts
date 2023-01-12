@@ -55,6 +55,7 @@ import { mergeDeep } from './package/merge';
 import { deployRealGMX, initVault } from './package/realGMXUtils';
 import chalk from 'chalk';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { DEFAULT_GMX_ADAPTER_PARAMS } from './defaultParams';
 
 export type GMXDeployContractsType = {
   isMockGMX: boolean;
@@ -80,7 +81,7 @@ export type GMXDeployContractsType = {
 };
 
 export type GlobalTestSystemContractsGMX = {
-  GMXAdapter: GMXAdapter; // TODO: change this to gmx adapter
+  GMXAdapter: GMXAdapter;
   lyraRegistry: LyraRegistry;
   blackScholes: BlackScholes;
   gwav: GWAV;
@@ -88,7 +89,6 @@ export type GlobalTestSystemContractsGMX = {
   optionMarketWrapper: OptionMarketWrapper;
   testCurve: TestCurve;
   basicFeeCounter: BasicFeeCounter;
-  // TODO: globalquote asset.
   gmx: GMXDeployContractsType;
 };
 
@@ -169,7 +169,6 @@ export type DeployOverrides = {
   positionRouter?: string;
   router?: string;
   reader?: string;
-  // TODO: could have multiple overrides need to look into it
   priceFeed?: string;
   // set to false to deploy full SNX stack
   // only works when deployed to localhost (not hardhat tests)
@@ -475,7 +474,6 @@ export async function initMarketTestSystemGMX(
       overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
     );
 
-  // TODO: failing here because of the GMXadapter
   await marketTestSystem.liquidityPool
     .connect(deployer)
     .init(
@@ -534,9 +532,12 @@ export async function initMarketTestSystemGMX(
     existingTestSystem.gmx.ethPriceFeed.address,
   );
 
-  await existingTestSystem.GMXAdapter.setMinReturnPercent(marketTestSystem.optionMarket.address, toBN('1.0'));
-  await existingTestSystem.GMXAdapter.setStaticSwapFeeEstimate(marketTestSystem.optionMarket.address, toBN('1.015'));
-  await existingTestSystem.GMXAdapter.setPriceVarianceCBPercent(marketTestSystem.optionMarket.address, toBN('0.015'));
+  await existingTestSystem.GMXAdapter.setMarketPricingParams(marketTestSystem.optionMarket.address, {
+    ...DEFAULT_GMX_ADAPTER_PARAMS,
+    minReturnPercent: toBN('1.0'),
+    staticSwapFeeEstimate: toBN('1.015'),
+    priceVarianceCBPercent: toBN('0.015'),
+  });
 
   await marketTestSystem.GWAVOracle.connect(deployer).init(
     overrides.optionMarket || marketTestSystem.optionMarket.address,
@@ -746,7 +747,6 @@ export async function deployMarketTestContractsGMX(
     keeperHelper,
   };
 
-  // TODO: add some weird writing to a file if necessary
   console.log(chalk.greenBright('market system deployed - GMX'));
 
   return marketSystem;

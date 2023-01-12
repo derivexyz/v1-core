@@ -201,6 +201,7 @@ contract GMXFuturesPoolHedger is
 
   function setPositionRouter(IPositionRouter _positionRouter) external onlyOwner {
     positionRouter = _positionRouter;
+    router.approvePlugin(address(positionRouter));
     emit PositionRouterSet(_positionRouter);
   }
 
@@ -229,7 +230,7 @@ contract GMXFuturesPoolHedger is
         }
 
         // Swap and transfer directly to the requester
-        uint quoteReceived = vault.swap(address(weth), address(quoteAsset), msg.sender);
+        uint quoteReceived = vault.swap(address(weth), address(quoteAsset), address(liquidityPool));
 
         emit WETHSold(wethBalance, quoteReceived);
       }
@@ -956,7 +957,7 @@ contract GMXFuturesPoolHedger is
    * @dev No fees are added in here, as they get re-adjusted every time collateral is adjusted
    * @return value in USD term
    **/
-  function _getAllPositionsValue(CurrentPositions memory positions) internal pure returns (uint) {
+  function _getAllPositionsValue(CurrentPositions memory positions) internal view returns (uint) {
     uint totalValue = 0;
 
     if (positions.longPosition.size > 0) {
@@ -978,6 +979,9 @@ contract GMXFuturesPoolHedger is
         totalValue += uint(shortPositionValue);
       }
     }
+
+    totalValue += _getPendingIncreaseCollateralDelta();
+
     return totalValue;
   }
 
@@ -1111,6 +1115,28 @@ contract GMXFuturesPoolHedger is
       account := mload(add(returndata, 32))
     }
     return account != address(0);
+  }
+
+  function _getPendingIncreaseCollateralDelta() internal view returns (uint collateralDelta) {
+    if (pendingOrderKey == bytes32(0)) {
+      return 0;
+    }
+    bytes memory data = abi.encodeWithSelector(positionRouter.increasePositionRequests.selector, pendingOrderKey);
+    (bool success, bytes memory returndata) = address(positionRouter).staticcall(data);
+
+    if (!success) {
+      revert GetGMXVaultError(address(this));
+    }
+
+    // parse account from the first 32 bytes of returned data
+    // same as: (,,,uint amountIn,,,,,,,,,) = positionRouter.increasePositionRequests(pendingOrderKey);
+
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      collateralDelta := mload(add(returndata, 96))
+    }
+
+    return collateralDelta;
   }
 
   //////////////

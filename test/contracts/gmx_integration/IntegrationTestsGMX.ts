@@ -5,6 +5,7 @@ import {
   DEFAULT_POOL_HEDGER_PARAMS,
   DEFAULT_GMX_POOL_HEDGER_PARAMS,
   PricingType,
+  DEFAULT_GMX_ADAPTER_PARAMS,
 } from '../../utils/defaultParams';
 import { deployGMXTestSystem, TestSystemContractsTypeGMX } from '../../utils/deployTestSystemGMX';
 import { fastForward, restoreSnapshot, takeSnapshot } from '../../utils/evm';
@@ -101,8 +102,10 @@ describe('Integration Tests - GMX', () => {
         const argsRet = getEventArgs(receipt, 'PositionUpdated');
         expect(argsRet.isIncrease).to.be.true;
 
+        // Before the position update is executed, the hedger has value since there is collateral pending in the GMX
+        // router contract.
         const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
-        expect(currentValue.isZero()).to.be.true;
+        expect(currentValue).eq(await c.gmx.USDC.balanceOf(c.gmx.positionRouter.address));
 
         await expect(c.futuresPoolHedger.connect(deployer).hedgeDelta({ value: toBN('0.01') })).revertedWith(
           'InteractionDelayNotExpired',
@@ -133,7 +136,7 @@ describe('Integration Tests - GMX', () => {
         // liquidity is the same as position value
         assertCloseToPercentage(usedDeltaLiquidity, toBN('7555'), toBN('0.01'));
 
-        expect(pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(pendingDeltaLiquidity).eq(0);
 
         const positions = await c.futuresPoolHedger.getPositions();
         expect(positions.isLong).to.be.true;
@@ -159,8 +162,8 @@ describe('Integration Tests - GMX', () => {
         await c.futuresPoolHedger.connect(deployer).hedgeDelta({ value: toBN('0.01') });
         pendingKey = await c.futuresPoolHedger.pendingOrderKey();
 
-        expect((await c.gmx.eth.balanceOf(c.futuresPoolHedger.address)).isZero()).to.be.true;
-        expect((await c.gmx.USDC.balanceOf(c.futuresPoolHedger.address)).isZero()).to.be.true;
+        expect(await c.gmx.eth.balanceOf(c.futuresPoolHedger.address)).eq(0);
+        expect(await c.gmx.USDC.balanceOf(c.futuresPoolHedger.address)).eq(0);
 
         await expect(c.futuresPoolHedger.connect(deployer).hedgeDelta({ value: toBN('0.01') })).revertedWith(
           'InteractionDelayNotExpired',
@@ -243,9 +246,9 @@ describe('Integration Tests - GMX', () => {
 
         // After pending order got executed
         const positionAfterExec = await c.futuresPoolHedger.getPositions();
-        expect(positionAfterExec.shortPosition.size.isZero()).to.be.true;
-        expect(positionAfterExec.longPosition.size.isZero()).to.be.true;
-        expect(positionAfterExec.amountOpen.isZero()).to.be.true;
+        expect(positionAfterExec.shortPosition.size).eq(0);
+        expect(positionAfterExec.longPosition.size).eq(0);
+        expect(positionAfterExec.amountOpen).eq(0);
 
         expect(await c.futuresPoolHedger.hasPendingDecrease()).to.be.false;
         expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.false;
@@ -258,8 +261,8 @@ describe('Integration Tests - GMX', () => {
         expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.true;
 
         const positionAfterHedge2 = await c.futuresPoolHedger.getPositions();
-        expect(positionAfterHedge2.shortPosition.size.isZero()).to.be.true;
-        expect(positionAfterHedge2.amountOpen.isZero()).to.be.true;
+        expect(positionAfterHedge2.shortPosition.size).eq(0);
+        expect(positionAfterHedge2.amountOpen).eq(0);
 
         // After pending order got executed
         pendingKey = await c.futuresPoolHedger.pendingOrderKey();
@@ -282,7 +285,7 @@ describe('Integration Tests - GMX', () => {
         });
 
         const expectedHedge = await c.futuresPoolHedger.getCappedExpectedHedge();
-        expect(expectedHedge.isZero()).to.be.true;
+        expect(expectedHedge).eq(0);
       });
 
       it('Hedge short from zero', async () => {
@@ -383,7 +386,7 @@ describe('Integration Tests - GMX', () => {
         await c.gmx.positionRouter.connect(deployer).executeDecreasePosition(pendingKey, await deployer.getAddress());
 
         const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-        expect(hedged.isZero()).to.be.true;
+        expect(hedged).eq(0);
 
         // ========= Second hedge call: create long ========== //
 
@@ -420,7 +423,7 @@ describe('Integration Tests - GMX', () => {
 
         const hedgingStatusBefore = await c.futuresPoolHedger.getHedgingLiquidity(spot);
         expect(hedgingStatusBefore.pendingDeltaLiquidity.isZero()).to.be.false; // still need liquidity: trade has not gone through
-        expect(hedgingStatusBefore.usedDeltaLiquidity.isZero()).to.be.true; // position not updated yet
+        expect(hedgingStatusBefore.usedDeltaLiquidity).gt(0); // position not updated yet, but collateral is pending
 
         // user close long
         await closePosition(c, 'sETH', {
@@ -434,8 +437,8 @@ describe('Integration Tests - GMX', () => {
         // check the state now
 
         const hedgingStatusAfterTrade = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-        expect(hedgingStatusAfterTrade.pendingDeltaLiquidity.isZero()).to.be.true; // seems like we're balanced again!
-        expect(hedgingStatusAfterTrade.usedDeltaLiquidity.isZero()).to.be.true; // position is updated
+        expect(hedgingStatusAfterTrade.pendingDeltaLiquidity).eq(0); // seems like we're balanced again!
+        expect(hedgingStatusAfterTrade.usedDeltaLiquidity).gt(0); // position is updated
         expect(hedgingStatusAfterTrade.usedDeltaLiquidity.eq(hedgingStatusBefore.usedDeltaLiquidity)).to.be.true;
 
         // ==== Update: execute increase order
@@ -446,9 +449,9 @@ describe('Integration Tests - GMX', () => {
         const hedgingStatusAfterHedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
         // liquidity used is higher than amount needed to hedge (0). pendingDeltaLiquidity is zero
-        expect(hedgingStatusAfterHedge.pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(hedgingStatusAfterHedge.pendingDeltaLiquidity).eq(0);
 
-        expect(hedgingStatusAfterTrade.usedDeltaLiquidity.isZero()).to.be.true;
+        expect(hedgingStatusAfterTrade.usedDeltaLiquidity).gt(0);
         expect(hedgingStatusAfterTrade.usedDeltaLiquidity.eq(hedgingStatusBefore.usedDeltaLiquidity)).to.be.true;
 
         // ==== Update: hedge again =====
@@ -502,7 +505,7 @@ describe('Integration Tests - GMX', () => {
         let hedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
         expect(hedge.usedDeltaLiquidity);
-        expect(hedge.pendingDeltaLiquidity.gt(0)).to.be.true;
+        expect(hedge.pendingDeltaLiquidity).gt(0);
 
         let newTarget = await c.futuresPoolHedger.getCappedExpectedHedge();
 
@@ -518,7 +521,7 @@ describe('Integration Tests - GMX', () => {
         expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.false;
 
         let newHedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-        expect(newHedge.pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(newHedge.pendingDeltaLiquidity).eq(0);
 
         ////////
         // if spot price decreases, hedger needs to long less
@@ -536,7 +539,7 @@ describe('Integration Tests - GMX', () => {
         hedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
         // don't need to add more.
-        expect(hedge.pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(hedge.pendingDeltaLiquidity).eq(0);
 
         newTarget = await c.futuresPoolHedger.getCappedExpectedHedge();
 
@@ -552,7 +555,7 @@ describe('Integration Tests - GMX', () => {
         expect(await c.futuresPoolHedger.hasPendingDecrease()).to.be.false;
 
         newHedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-        expect(newHedge.pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(newHedge.pendingDeltaLiquidity).eq(0);
       });
 
       it('Scenario B): AMM is net long', async () => {
@@ -597,7 +600,7 @@ describe('Integration Tests - GMX', () => {
         let hedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
         expect(hedge.usedDeltaLiquidity);
-        expect(hedge.pendingDeltaLiquidity.gt(0)).to.be.true; // not sure
+        expect(hedge.pendingDeltaLiquidity).gt(0); // not sure
 
         let newTarget = await c.futuresPoolHedger.getCappedExpectedHedge();
 
@@ -613,7 +616,7 @@ describe('Integration Tests - GMX', () => {
         expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.false;
 
         let newHedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-        expect(newHedge.pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(newHedge.pendingDeltaLiquidity).eq(0);
 
         ////////
         // if spot price decreases
@@ -633,7 +636,7 @@ describe('Integration Tests - GMX', () => {
         hedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
         // don't need to add more.
-        expect(hedge.pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(hedge.pendingDeltaLiquidity).eq(0);
 
         newTarget = await c.futuresPoolHedger.getCappedExpectedHedge();
 
@@ -650,7 +653,7 @@ describe('Integration Tests - GMX', () => {
         expect(await c.futuresPoolHedger.hasPendingDecrease()).to.be.false;
 
         newHedge = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-        expect(newHedge.pendingDeltaLiquidity.isZero()).to.be.true;
+        expect(newHedge.pendingDeltaLiquidity).eq(0);
       });
     });
 
@@ -710,7 +713,6 @@ describe('Integration Tests - GMX', () => {
         });
       });
       it('cancel increase order', async () => {
-
         ////////
         // Create a pending increase order
         await openPosition(c, 'sETH', {
@@ -731,14 +733,14 @@ describe('Integration Tests - GMX', () => {
 
         await c.futuresPoolHedger.setFuturesPoolHedgerParams({
           ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
-          minCancelDelay: 0
+          minCancelDelay: 0,
         });
 
         ////////
         // cancellation failure
         await c.gmx.positionRouter.setDelayValues(10, 0, 100000);
         await c.gmx.positionRouter.setPositionKeeper(c.futuresPoolHedger.address, true);
-        await expect(c.futuresPoolHedger.cancelPendingOrder()).revertedWith("OrderCancellationFailure");
+        await expect(c.futuresPoolHedger.cancelPendingOrder()).revertedWith('OrderCancellationFailure');
         await c.gmx.positionRouter.setPositionKeeper(c.futuresPoolHedger.address, false);
 
         ////////
@@ -787,14 +789,14 @@ describe('Integration Tests - GMX', () => {
 
         await c.futuresPoolHedger.setFuturesPoolHedgerParams({
           ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
-          minCancelDelay: 0
+          minCancelDelay: 0,
         });
 
         ////////
         // cancellation failure
         await c.gmx.positionRouter.setDelayValues(10, 0, 100000);
         await c.gmx.positionRouter.setPositionKeeper(c.futuresPoolHedger.address, true);
-        await expect(c.futuresPoolHedger.cancelPendingOrder()).revertedWith("OrderCancellationFailure");
+        await expect(c.futuresPoolHedger.cancelPendingOrder()).revertedWith('OrderCancellationFailure');
         await c.gmx.positionRouter.setDelayValues(1, 1, 100000);
 
         ////////
@@ -866,7 +868,7 @@ describe('Integration Tests - GMX', () => {
 
         leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
 
-        expect(leverageInfo.collateralDelta.isZero()).to.be.true;
+        expect(leverageInfo.collateralDelta).eq(0);
 
         ////////
         // call update collateral again should do nothing
@@ -911,12 +913,12 @@ describe('Integration Tests - GMX', () => {
         ////////
         // hedged delta is 0
         let hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-        expect(hedged.isZero()).to.be.true;
+        expect(hedged).eq(0);
 
         ////////
         // position is empty
         const pos = await c.futuresPoolHedger.getPositions();
-        expect(pos.amountOpen.isZero()).to.be.true;
+        expect(pos.amountOpen).eq(0);
 
         ////////
         // can hedge again
@@ -926,7 +928,7 @@ describe('Integration Tests - GMX', () => {
         await c.gmx.positionRouter.connect(deployer).executeIncreasePosition(key, await deployer.getAddress());
 
         hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-        expect(hedged.gt(0)).to.be.true;
+        expect(hedged).gt(0);
       });
       describe('deactivate hedger', () => {
         it('close a net long position on hedger', async () => {
@@ -958,13 +960,13 @@ describe('Integration Tests - GMX', () => {
 
           ////////
           // hedged delta and capped expected are both 0
-          expect((await c.futuresPoolHedger.getCurrentHedgedNetDelta()).isZero()).to.be.true;
-          expect((await c.futuresPoolHedger.getCappedExpectedHedge()).isZero()).to.be.true;
+          expect(await c.futuresPoolHedger.getCurrentHedgedNetDelta()).eq(0);
+          expect(await c.futuresPoolHedger.getCappedExpectedHedge()).eq(0);
 
           ////////
           // position is empty
           const pos = await c.futuresPoolHedger.getPositions();
-          expect(pos.amountOpen.isZero()).to.be.true;
+          expect(pos.amountOpen).eq(0);
 
           ////////
           // pending liquidity becomes 0
@@ -972,8 +974,8 @@ describe('Integration Tests - GMX', () => {
 
           // the pool is hedged, should not need pending delta liquidity
           const { pendingDeltaLiquidity, usedDeltaLiquidity } = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-          expect(usedDeltaLiquidity.isZero()).to.be.true;
-          expect(pendingDeltaLiquidity.isZero()).to.be.true;
+          expect(usedDeltaLiquidity).eq(0);
+          expect(pendingDeltaLiquidity).eq(0);
         });
 
         it('close a net short position on hedger', async () => {
@@ -1004,13 +1006,13 @@ describe('Integration Tests - GMX', () => {
 
           ////////
           // hedged delta and capped expected are both 0
-          expect((await c.futuresPoolHedger.getCurrentHedgedNetDelta()).isZero()).to.be.true;
-          expect((await c.futuresPoolHedger.getCappedExpectedHedge()).isZero()).to.be.true;
+          expect(await c.futuresPoolHedger.getCurrentHedgedNetDelta()).eq(0);
+          expect(await c.futuresPoolHedger.getCappedExpectedHedge()).eq(0);
 
           ////////
           // position is empty
           const pos = await c.futuresPoolHedger.getPositions();
-          expect(pos.amountOpen.isZero()).to.be.true;
+          expect(pos.amountOpen).eq(0);
         });
       });
       // un-comment after unifying tokens
@@ -1295,6 +1297,10 @@ describe('Integration Tests - GMX', () => {
           'CannotRecoverRestrictedToken',
         );
       });
+      it("can get the full state", async () => {
+        expect((await c.futuresPoolHedger.getHedgerState()).referralCode).eq(toBytes32("LYRA"));
+        expect((await c.GMXAdapter.getAdapterState(c.optionMarket.address)).clPrice).gt(0);
+      });
     });
 
     describe('GMX Pool Hedger hard to reach states', () => {
@@ -1309,7 +1315,7 @@ describe('Integration Tests - GMX', () => {
         entryFundingRate: 0,
         unrealisedPnl: 0,
         lastIncreasedTime: 0,
-        isLong: true
+        isLong: true,
       };
 
       beforeEach('create a TestGMXFuturesPoolHedger entity', async () => {
@@ -1345,12 +1351,12 @@ describe('Integration Tests - GMX', () => {
         await c.liquidityPool.setPoolHedger(poolHedger.address);
       });
 
-      it("wont exchange weth if it matches baseAsset", async() => {
+      it('wont exchange weth if it matches baseAsset', async () => {
         await c.gmx.eth.mint(poolHedger.address, toBN('1'));
         const tx = await poolHedger.sendAllFundsToLP();
         const args = getEventArgs(await tx.wait(), 'BaseReturnedToLP');
         expect(args.amountBase).eq(toBN('1'));
-      })
+      });
 
       it("have unexpected short position when we're supposed to be long", async () => {
         ////////
@@ -1389,7 +1395,7 @@ describe('Integration Tests - GMX', () => {
         await c.gmx.positionRouter.connect(deployer).executeDecreasePosition(pendingKey, await deployer.getAddress());
 
         pos = await poolHedger.getPositions();
-        expect(pos.shortPosition.size.isZero()).to.be.true;
+        expect(pos.shortPosition.size).eq(0);
       });
 
       it("have unexpected long position when we're supposed to be short", async () => {
@@ -1428,70 +1434,54 @@ describe('Integration Tests - GMX', () => {
         await poolHedger.connect(deployer).updateCollateral({ value: toBN('0.01') });
 
         // reverts if called consecutively
-        await expect(poolHedger.updateCollateral()).revertedWith("PositionRequestPending");
+        await expect(poolHedger.updateCollateral()).revertedWith('PositionRequestPending');
 
         pendingKey = await poolHedger.pendingOrderKey();
         await c.gmx.positionRouter.connect(deployer).executeDecreasePosition(pendingKey, await deployer.getAddress());
 
         pos = await poolHedger.getPositions();
-        expect(pos.longPosition.size.isZero()).to.be.true;
+        expect(pos.longPosition.size).eq(0);
 
         // skips update if no need to update
         await poolHedger.updateCollateral({ value: toBN('0.01') });
-        expect(await poolHedger.pendingOrderKey()).eq(toBytes32(""));
+        expect(await poolHedger.pendingOrderKey()).eq(toBytes32(''));
       });
 
-
-      it("fails for various reasons with low LP liquidity", async () => {
+      it('fails for various reasons with low LP liquidity', async () => {
         await c.gmx.USDC.burn(c.liquidityPool.address, await c.gmx.USDC.balanceOf(c.liquidityPool.address));
 
-        await expect(poolHedger.testIncreasePosition(
-          emptyPosition,
-          true,
-          toBN('110'),
-          toBN('100')
-        )).revertedWith("NoQuoteReceivedFromLP");
+        await expect(poolHedger.testIncreasePosition(emptyPosition, true, toBN('110'), toBN('100'))).revertedWith(
+          'NoQuoteReceivedFromLP',
+        );
 
         await c.gmx.USDC.mint(c.liquidityPool.address, toBN('10'));
 
         // With too little liquidity returned,
-        await expect(poolHedger.testIncreasePosition(
-          emptyPosition,
-          true,
-          toBN('110'),
-          toBN('100')
-        )).revertedWith("MaxLeverageThresholdCrossed");
+        await expect(poolHedger.testIncreasePosition(emptyPosition, true, toBN('110'), toBN('100'))).revertedWith(
+          'MaxLeverageThresholdCrossed',
+        );
 
         await c.gmx.USDC.mint(c.liquidityPool.address, toBN('1000'));
 
         // with enough liquidity, passes fine
-        await poolHedger.testIncreasePosition(
-          emptyPosition,
-          true,
-          toBN('110'),
-          toBN('100'),
-          {value: toBN('0.01')}
-        );
-      })
+        await poolHedger.testIncreasePosition(emptyPosition, true, toBN('110'), toBN('100'), { value: toBN('0.01') });
+      });
 
-      it("gets swap fee for shorts", async () => {
+      it('gets swap fee for shorts', async () => {
         // for shorts the fee is always 0
-        expect(await poolHedger.getSwapFeeBP(false, true, toBN("1000"))).eq(0);
-      })
+        expect(await poolHedger.getSwapFeeBP(false, true, toBN('1000'))).eq(0);
+      });
 
-      it("insolvent longs", async () => {
+      it('insolvent longs', async () => {
         // with enough liquidity, passes fine
         await poolHedger.testIncreasePosition(
           emptyPosition,
           true,
           toBN('500'), // 5x leverage
           toBN('100'),
-          {value: toBN('0.01')}
+          { value: toBN('0.01') },
         );
-        await c.gmx.positionRouter.executeIncreasePosition(
-          await poolHedger.pendingOrderKey(),
-          deployer.address,
-        );
+        await c.gmx.positionRouter.executeIncreasePosition(await poolHedger.pendingOrderKey(), deployer.address);
 
         await setPrice(c, '500', c.gmx.eth, c.gmx.ethPriceFeed);
 
@@ -1505,52 +1495,42 @@ describe('Integration Tests - GMX', () => {
           toBN('500'), // 5x leverage
           toBN('100'),
           false,
-          {value: toBN('0.01')}
+          { value: toBN('0.01') },
         );
       });
 
-      it("cap collateralDelta when closing", async () => {
+      it('cap collateralDelta when closing', async () => {
         // with enough liquidity, passes fine
         await poolHedger.testIncreasePosition(
           emptyPosition,
           true,
           toBN('500'), // 5x leverage
           toBN('100'),
-          {value: toBN('0.01')}
+          { value: toBN('0.01') },
         );
-        await c.gmx.positionRouter.executeIncreasePosition(
-          await poolHedger.pendingOrderKey(),
-          deployer.address,
-        );
+        await c.gmx.positionRouter.executeIncreasePosition(await poolHedger.pendingOrderKey(), deployer.address);
 
         const pos = await poolHedger.getPositions();
 
         // works fine
-        await poolHedger.testDecreasePosition(
-          pos.longPosition,
-          true,
-          0,
-          toBN('200'),
-          false,
-          {value: toBN('0.01')}
+        await poolHedger.testDecreasePosition(pos.longPosition, true, 0, toBN('200'), false, { value: toBN('0.01') });
+
+        assertCloseToPercentage(
+          (await c.gmx.positionRouter.decreasePositionRequests(await poolHedger.pendingOrderKey())).collateralDelta,
+          toBN('100', 30),
         );
+      });
 
-        assertCloseToPercentage((await c.gmx.positionRouter.decreasePositionRequests(await poolHedger.pendingOrderKey())).collateralDelta, toBN('100', 30))
-      })
-
-      it("insolvent short", async () => {
+      it('insolvent short', async () => {
         // with enough liquidity, passes fine
         await poolHedger.testIncreasePosition(
           emptyPosition,
           false,
           toBN('500'), // 5x leverage
           toBN('100'),
-          {value: toBN('0.01')}
+          { value: toBN('0.01') },
         );
-        await c.gmx.positionRouter.executeIncreasePosition(
-          await poolHedger.pendingOrderKey(),
-          deployer.address,
-        );
+        await c.gmx.positionRouter.executeIncreasePosition(await poolHedger.pendingOrderKey(), deployer.address);
 
         await setPrice(c, '5000', c.gmx.eth, c.gmx.ethPriceFeed);
 
@@ -1584,7 +1564,10 @@ describe('Integration Tests - GMX', () => {
         });
 
         it('sell base for quote', async () => {
-          await c.GMXAdapter.setMinReturnPercent(c.optionMarket.address, toBN('0.98'));
+          await c.GMXAdapter.setMarketPricingParams(c.optionMarket.address, {
+            ...DEFAULT_GMX_ADAPTER_PARAMS,
+            minReturnPercent: toBN('0.98'),
+          });
           const ethBefore = await c.gmx.eth.balanceOf(deployer.address);
           // sell exactly 1 eth.
           await c.GMXAdapter.exchangeFromExactBase(c.optionMarket.address, toBN('1'));
@@ -1608,22 +1591,22 @@ describe('Integration Tests - GMX', () => {
     it('default state', () => {
       it('hedged delta should return 0', async () => {
         const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-        expect(hedged.isZero()).to.be.true;
+        expect(hedged).eq(0);
       });
       it('positions should be empty', async () => {
         const positions = await c.futuresPoolHedger.getPositions();
-        expect(positions.amountOpen.isZero()).to.be.true;
+        expect(positions.amountOpen).eq(0);
       });
       it('position value should be 0', async () => {
         const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
-        expect(currentValue.isZero()).to.be.true;
+        expect(currentValue).eq(0);
       });
       it('used and pending liquidity should be 0', async () => {
         const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, 2);
 
         const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-        expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
-        expect(hedging.usedDeltaLiquidity.isZero()).to.be.true;
+        expect(hedging.pendingDeltaLiquidity).eq(0);
+        expect(hedging.usedDeltaLiquidity).eq(0);
       });
       it('pending order should be null', async () => {
         expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.false;
@@ -1631,7 +1614,7 @@ describe('Integration Tests - GMX', () => {
       });
       it('default leverage should be 0', async () => {
         const leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
-        expect(leverageInfo.leverage.isZero()).to.be.true;
+        expect(leverageInfo.leverage).eq(0);
         expect(leverageInfo.isLong).to.be.false;
       });
     });
@@ -1648,21 +1631,21 @@ describe('Integration Tests - GMX', () => {
         });
         it('hedged delta should return 0', async () => {
           const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-          expect(hedged.isZero()).to.be.true;
+          expect(hedged).eq(0);
         });
         it('positions should be empty', async () => {
           const positions = await c.futuresPoolHedger.getPositions();
-          expect(positions.amountOpen.isZero()).to.be.true;
+          expect(positions.amountOpen).eq(0);
         });
         it('position value should be 0', async () => {
           const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
-          expect(currentValue.isZero()).to.be.true;
+          expect(currentValue).eq(0);
         });
         it('pending hedging liquidity should not be 0', async () => {
           const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, 2);
           const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
           expect(hedging.pendingDeltaLiquidity.isZero()).to.be.false;
-          expect(hedging.usedDeltaLiquidity.isZero()).to.be.true;
+          expect(hedging.usedDeltaLiquidity).eq(0);
         });
         it('pending order should be null', async () => {
           expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.false;
@@ -1670,7 +1653,7 @@ describe('Integration Tests - GMX', () => {
         });
         it('current leverage should be 0', async () => {
           const leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
-          expect(leverageInfo.leverage.isZero()).to.be.true;
+          expect(leverageInfo.leverage).eq(0);
           expect(leverageInfo.isLong).to.be.false;
         });
       });
@@ -1682,21 +1665,21 @@ describe('Integration Tests - GMX', () => {
         });
         it('hedged delta should return 0', async () => {
           const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-          expect(hedged.isZero()).to.be.true;
+          expect(hedged).eq(0);
         });
         it('positions should be empty', async () => {
           const positions = await c.futuresPoolHedger.getPositions();
-          expect(positions.amountOpen.isZero()).to.be.true;
+          expect(positions.amountOpen).eq(0);
         });
-        it('position value should be 0', async () => {
+        it('position value should be gt 0 (equal to collateralDelta)', async () => {
           const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
-          expect(currentValue.isZero()).to.be.true;
+          expect(currentValue).gt(0);
         });
         it('used hedging liquidity should be updated', async () => {
           const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, 2);
           const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
           expect(hedging.pendingDeltaLiquidity.isZero()).to.be.false; // trade have not gone through
-          expect(hedging.usedDeltaLiquidity.isZero()).to.be.true;
+          expect(hedging.usedDeltaLiquidity).gt(0);
         });
         it('pending increase should be true', async () => {
           expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.true;
@@ -1704,7 +1687,7 @@ describe('Integration Tests - GMX', () => {
         });
         it('current leverage should be 0', async () => {
           const leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
-          expect(leverageInfo.leverage.isZero()).to.be.true;
+          expect(leverageInfo.leverage).eq(0);
           expect(leverageInfo.isLong).to.be.false;
         });
       });
@@ -1722,7 +1705,7 @@ describe('Integration Tests - GMX', () => {
           const positions = await c.futuresPoolHedger.getPositions();
           expect(positions.amountOpen.eq(1)).to.be.true;
           expect(positions.isLong).to.be.true;
-          expect(positions.longPosition.unrealisedPnl.isZero()).to.be.true;
+          expect(positions.longPosition.unrealisedPnl).eq(0);
         });
         it('position value should be positive', async () => {
           const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
@@ -1732,8 +1715,8 @@ describe('Integration Tests - GMX', () => {
         it('used hedging liquidity should be updated', async () => {
           const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, 2);
           const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-          expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
-          expect(hedging.usedDeltaLiquidity.isZero()).to.be.false;
+          expect(hedging.pendingDeltaLiquidity).eq(0);
+          expect(hedging.usedDeltaLiquidity).gt(0);
         });
 
         it('pending order should be null', async () => {
@@ -1773,7 +1756,7 @@ describe('Integration Tests - GMX', () => {
             expect(positions.amountOpen.eq(1)).to.be.true;
             expect(positions.isLong).to.be.true;
             // has unrealised (+) profit
-            expect(positions.longPosition.unrealisedPnl.gt(0)).to.be.true;
+            expect(positions.longPosition.unrealisedPnl).gt(0);
           });
           it('position value should be positive', async () => {
             const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
@@ -1820,7 +1803,7 @@ describe('Integration Tests - GMX', () => {
           });
           it('hedged delta should return positive number', async () => {
             const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-            expect(hedged.gt(0)).to.be.true;
+            expect(hedged).gt(0);
           });
 
           it('positions should be long', async () => {
@@ -1840,7 +1823,7 @@ describe('Integration Tests - GMX', () => {
             const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
             //  pending liquidity is 0, because we can reduce hedged amount.
-            expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
+            expect(hedging.pendingDeltaLiquidity).eq(0);
             expect(hedging.usedDeltaLiquidity.isZero()).to.be.false;
           });
 
@@ -1856,7 +1839,7 @@ describe('Integration Tests - GMX', () => {
             expect(leverageInfo.needUpdate).to.be.true;
 
             // need to add collateral
-            expect(leverageInfo.collateralDelta.gt(0)).to.be.true;
+            expect(leverageInfo.collateralDelta).gt(0);
           });
         });
 
@@ -1898,7 +1881,7 @@ describe('Integration Tests - GMX', () => {
             const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
             //  need to hedge again, because delta of call changed
-            expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
+            expect(hedging.pendingDeltaLiquidity).eq(0);
             expect(hedging.usedDeltaLiquidity.isZero()).to.be.false;
           });
 
@@ -1944,10 +1927,10 @@ describe('Integration Tests - GMX', () => {
           });
           it('hedged delta should return positive number', async () => {
             const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-            expect(hedged.gt(0)).to.be.true;
+            expect(hedged).gt(0);
 
             const target = await c.futuresPoolHedger.getCappedExpectedHedge();
-            expect(target.isZero()).to.be.true;
+            expect(target).eq(0);
           });
 
           it('positions should be long', async () => {
@@ -1965,7 +1948,7 @@ describe('Integration Tests - GMX', () => {
             expect(leverageInfo.needUpdate).to.be.true;
 
             // need to add collateral
-            expect(leverageInfo.collateralDelta.gt(0)).to.be.true;
+            expect(leverageInfo.collateralDelta).gt(0);
           });
         });
 
@@ -1994,7 +1977,7 @@ describe('Integration Tests - GMX', () => {
           });
           it('hedged delta is now 0', async () => {
             const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-            expect(hedged.isZero()).to.be.true;
+            expect(hedged).eq(0);
           });
 
           it('hedging liquidity should be 0', async () => {
@@ -2002,8 +1985,8 @@ describe('Integration Tests - GMX', () => {
             const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
             //  need to hedge again, because delta of call changed
-            expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
-            expect(hedging.usedDeltaLiquidity.isZero()).to.be.true;
+            expect(hedging.pendingDeltaLiquidity).eq(0);
+            expect(hedging.usedDeltaLiquidity).eq(0);
           });
 
           it('should have no pending order', async () => {
@@ -2013,7 +1996,7 @@ describe('Integration Tests - GMX', () => {
 
           it('current leverage is 0', async () => {
             const leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
-            expect(leverageInfo.leverage.isZero()).to.be.true;
+            expect(leverageInfo.leverage).eq(0);
             expect(leverageInfo.needUpdate).to.be.false;
           });
         });
@@ -2035,7 +2018,7 @@ describe('Integration Tests - GMX', () => {
         });
         it('hedged delta should return 0', async () => {
           const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-          expect(hedged.isZero()).to.be.true;
+          expect(hedged).eq(0);
         });
         it('target delta should be negative', async () => {
           const target = await c.futuresPoolHedger.getCappedExpectedHedge();
@@ -2043,17 +2026,17 @@ describe('Integration Tests - GMX', () => {
         });
         it('positions should be empty', async () => {
           const positions = await c.futuresPoolHedger.getPositions();
-          expect(positions.amountOpen.isZero()).to.be.true;
+          expect(positions.amountOpen).eq(0);
         });
         it('position value should be 0', async () => {
           const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
-          expect(currentValue.isZero()).to.be.true;
+          expect(currentValue).eq(0);
         });
         it('pending hedging liquidity should not be 0', async () => {
           const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, 2);
           const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-          expect(hedging.pendingDeltaLiquidity.gt(0)).to.be.true;
-          expect(hedging.usedDeltaLiquidity.isZero()).to.be.true;
+          expect(hedging.pendingDeltaLiquidity).gt(0);
+          expect(hedging.usedDeltaLiquidity).eq(0);
         });
         it('pending order should be null', async () => {
           expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.false;
@@ -2061,33 +2044,33 @@ describe('Integration Tests - GMX', () => {
         });
         it('current leverage should be 0', async () => {
           const leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
-          expect(leverageInfo.leverage.isZero()).to.be.true;
+          expect(leverageInfo.leverage).eq(0);
           expect(leverageInfo.isLong).to.be.false;
         });
       });
 
-      describe('after hedgeDelta is called  ', () => {
+      describe('after hedgeDelta is called', () => {
         before('call hedge', async () => {
           await fastForward(4);
           await c.futuresPoolHedger.connect(deployer).hedgeDelta({ value: toBN('0.01') });
         });
         it('hedged delta should return 0', async () => {
           const hedged = await c.futuresPoolHedger.getCurrentHedgedNetDelta();
-          expect(hedged.isZero()).to.be.true;
+          expect(hedged).eq(0);
         });
         it('positions should be empty', async () => {
           const positions = await c.futuresPoolHedger.getPositions();
-          expect(positions.amountOpen.isZero()).to.be.true;
+          expect(positions.amountOpen).eq(0);
         });
-        it('position value should be 0', async () => {
+        it('position value should be greater than 0', async () => {
           const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
-          expect(currentValue.isZero()).to.be.true;
+          expect(currentValue).gt(0);
         });
         it('used hedging liquidity should be updated', async () => {
           const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, 2);
           const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-          expect(hedging.pendingDeltaLiquidity.gt(0)).to.be.true; // trade have not gone through
-          expect(hedging.usedDeltaLiquidity.isZero()).to.be.true;
+          expect(hedging.pendingDeltaLiquidity).gt(0); // trade have not gone through
+          expect(hedging.usedDeltaLiquidity).gt(0);
         });
         it('pending increase should be true', async () => {
           expect(await c.futuresPoolHedger.hasPendingIncrease()).to.be.true; // increase short!
@@ -2095,7 +2078,7 @@ describe('Integration Tests - GMX', () => {
         });
         it('current leverage should be 0', async () => {
           const leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
-          expect(leverageInfo.leverage.isZero()).to.be.true;
+          expect(leverageInfo.leverage).eq(0);
           expect(leverageInfo.isLong).to.be.false;
         });
       });
@@ -2113,7 +2096,7 @@ describe('Integration Tests - GMX', () => {
           const positions = await c.futuresPoolHedger.getPositions();
           expect(positions.amountOpen.eq(1)).to.be.true;
           expect(positions.isLong).to.be.false;
-          expect(positions.longPosition.unrealisedPnl.isZero()).to.be.true;
+          expect(positions.longPosition.unrealisedPnl).eq(0);
         });
         it('position value should be positive', async () => {
           const currentValue = await c.futuresPoolHedger.getAllPositionsValue();
@@ -2122,7 +2105,7 @@ describe('Integration Tests - GMX', () => {
         it('used hedging liquidity should be updated', async () => {
           const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, 2);
           const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
-          expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
+          expect(hedging.pendingDeltaLiquidity).eq(0);
           expect(hedging.usedDeltaLiquidity.isZero()).to.be.false;
         });
         it('pending order should be null', async () => {
@@ -2198,7 +2181,7 @@ describe('Integration Tests - GMX', () => {
             const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
             // we want to decrease our short position
-            expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
+            expect(hedging.pendingDeltaLiquidity).eq(0);
             expect(hedging.usedDeltaLiquidity.isZero()).to.be.false;
           });
 
@@ -2211,7 +2194,7 @@ describe('Integration Tests - GMX', () => {
             const leverageInfo = await c.futuresPoolHedger.getCurrentLeverage();
             assertCloseToPercentage(leverageInfo.leverage, toBN('1.41'), toBN('0.005')); // 0.5 percent tolerance
             expect(leverageInfo.isLong).to.be.false;
-            expect(leverageInfo.collateralDelta.gt(0)).to.be.true;
+            expect(leverageInfo.collateralDelta).gt(0);
             expect(leverageInfo.needUpdate).to.be.true;
           });
         });
@@ -2247,7 +2230,7 @@ describe('Integration Tests - GMX', () => {
             const hedging = await c.futuresPoolHedger.getHedgingLiquidity(spot);
 
             //  still need to hedge again, because delta of put is not updated
-            expect(hedging.pendingDeltaLiquidity.isZero()).to.be.true;
+            expect(hedging.pendingDeltaLiquidity).eq(0);
             expect(hedging.usedDeltaLiquidity.isZero()).to.be.false;
           });
 

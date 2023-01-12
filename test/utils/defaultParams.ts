@@ -8,6 +8,7 @@ import {
   toBN,
   UNIT,
   WEEK_SEC,
+  YEAR_SEC,
   ZERO_ADDRESS,
 } from '../../scripts/util/web3utils';
 import {
@@ -24,6 +25,7 @@ import {
 import { PartialCollateralParametersStruct } from '../../typechain-types/OptionToken';
 import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
 import { FuturesPoolHedgerParametersStruct } from '../../typechain-types/GMXFuturesPoolHedger';
+import { MarketPricingParamsStruct } from '../../typechain-types/GMXAdapter';
 
 export enum PricingType {
   MIN_PRICE,
@@ -169,6 +171,15 @@ export const DEFAULT_GMX_POOL_HEDGER_PARAMS: FuturesPoolHedgerParametersStruct =
   maxLeverage: toBN('10'),
   leverageBuffer: toBN('0.1'), // leverage < 1 || > 1.2 will trigger updateCollateral
   minCancelDelay: 1200, // 20 minutes
+};
+
+export const DEFAULT_GMX_ADAPTER_PARAMS: MarketPricingParamsStruct = {
+  minReturnPercent: toBN('1.0'),
+  staticSwapFeeEstimate: toBN('1.02'),
+  gmxUsageThreshold: toBN('0.004'),
+  priceVarianceCBPercent: toBN('0.015'),
+  // for testing just make it never stale unless we explicitly want to
+  chainlinkStalenessCheck: YEAR_SEC,
 };
 
 export const DEFAULT_BOARD_PARAMS: BoardParameters = {
