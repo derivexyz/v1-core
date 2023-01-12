@@ -737,7 +737,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
       amount: amount / iterations,
       expiry: board.expiry,
       strikePrice: strike.strikePrice,
-      liquidity: liquidityPool.getLiquidity(), // NOTE: uses PriceType.LATEST
+      liquidity: liquidityPool.getLiquidity(), // NOTE: uses PriceType.REFERENCE
       spotPrice: exchangeAdapter.getSpotPriceForMarket(address(this), pricing)
     });
   }

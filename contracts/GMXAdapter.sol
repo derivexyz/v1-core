@@ -372,6 +372,36 @@ contract GMXAdapter is BaseExchangeAdapter {
     return (quoteNeeded, convertedBaseReceived);
   }
 
+  struct GMXAdapterState {
+    AggregatorV2V3Interface chainlinkFeed;
+    uint minReturnPercent;
+    uint staticSwapFeeEstimate;
+    uint gmxUsageThreshold;
+    uint priceVarianceCBPercent;
+    int rateAndCarry;
+    uint chainlinkStalenessCheck;
+    uint clPrice;
+    uint gmxMinPrice;
+    uint gmxMaxPrice;
+  }
+
+  function getAdapterState(address _optionMarket) external view returns (GMXAdapterState memory) {
+    address baseAsset = address(OptionMarket(_optionMarket).baseAsset());
+    return
+      GMXAdapterState({
+        chainlinkFeed: chainlinkFeeds[_optionMarket],
+        minReturnPercent: minReturnPercent[_optionMarket],
+        staticSwapFeeEstimate: staticSwapFeeEstimate[_optionMarket],
+        gmxUsageThreshold: gmxUsageThreshold[_optionMarket],
+        priceVarianceCBPercent: priceVarianceCBPercent[_optionMarket],
+        rateAndCarry: rateAndCarry[_optionMarket],
+        chainlinkStalenessCheck: chainlinkStalenessCheck[_optionMarket],
+        clPrice: _getChainlinkPrice(_optionMarket),
+        gmxMinPrice: _getMinPrice(baseAsset),
+        gmxMaxPrice: _getMaxPrice(baseAsset)
+      });
+  }
+
   ////////////
   // Errors //
   ////////////

@@ -39,6 +39,45 @@ contract GMXFuturesPoolHedger is
   uint256 public constant GMX_PRICE_PRECISION = 10 ** 30;
   uint256 public constant BASIS_POINTS_DIVISOR = 10000;
 
+  ////
+  // View structs
+  struct GMXFuturesPoolHedgerView {
+    CurrentPositions currentPositions;
+    FuturesPoolHedgerParameters futuresPoolHedgerParams;
+    HedgerAddresses hedgerAddresses;
+    GMXView gmxView;
+    bytes32 referralCode;
+    bytes32 pendingOrderKey;
+    uint lastOrderTimestamp;
+    uint spotPrice;
+    int expectedHedge;
+    int currentHedge;
+    uint currentLeverage;
+    int pendingCollateralDelta;
+    uint baseBal;
+    uint quoteBal;
+    uint wethBal;
+  }
+
+  struct HedgerAddresses {
+    IRouter router;
+    IPositionRouter positionRouter;
+    IVault vault;
+    IERC20Decimals quoteAsset;
+    IERC20Decimals baseAsset;
+    IERC20Decimals weth;
+  }
+
+  struct GMXView {
+    uint basePoolAmount;
+    uint baseReservedAmount;
+    uint quotePoolAmount;
+    uint quoteReservedAmount;
+    uint minExecutionFee;
+  }
+
+  ////
+  // State structs
   struct FuturesPoolHedgerParameters {
     uint acceptableSpotSlippage;
     uint deltaThreshold; // Bypass interaction delay if delta is outside of a certain range.
@@ -626,7 +665,8 @@ contract GMXFuturesPoolHedger is
     // To get to this point, there is either no position open, or a position on the same side as we want.
     bool isLong = expectedHedge > 0;
 
-    uint sizeDelta = Math.abs(expectedHedge - currHedgedNetDelta).multiplyDecimal(spot); // delta is in USD
+    // sizeDelta is the change in current delta required to get to the desired hedge. It is in USD terms
+    uint sizeDelta = Math.abs(expectedHedge - currHedgedNetDelta).multiplyDecimal(spot);
 
     // calculate the expected collateral given the new expected hedge
     uint expectedCollateral = _getTargetCollateral(Math.abs(expectedHedge).multiplyDecimal(spot));
@@ -687,11 +727,8 @@ contract GMXFuturesPoolHedger is
     }
   }
 
-  // sizeDelta is the change in current delta required to get to the desired hedge
-
   /**
    * @dev create increase position order on GMX router
-   * @dev trading fee is taken care of
    */
   function _increasePosition(
     PositionDetails memory currentPos,
@@ -1076,6 +1113,15 @@ contract GMXFuturesPoolHedger is
     return account != address(0);
   }
 
+  //////////////
+  // Callback //
+  //////////////
+
+  function gmxPositionCallback(bytes32 positionKey, bool isExecuted, bool isIncrease) external onlyGMXKeeper {
+    emit GMXPositionCallback(positionKey, isExecuted, isIncrease, _getPositions());
+    sendAllFundsToLP();
+  }
+
   //////////
   // Misc //
   //////////
@@ -1088,13 +1134,44 @@ contract GMXFuturesPoolHedger is
     }
   }
 
-  //////////////
-  // Callback //
-  //////////////
+  function getHedgerState() external view returns (GMXFuturesPoolHedgerView memory) {
+    uint spotPrice = _getSpotPrice();
+    CurrentPositions memory positions = _getPositions();
+    int expectedHedge = _getCappedExpectedHedge();
+    int currentHedge = _getCurrentHedgedNetDeltaWithSpot(positions, spotPrice);
+    (uint currentLeverage, , int collateralDelta) = _getCurrentLeverage(positions);
 
-  function gmxPositionCallback(bytes32 positionKey, bool isExecuted, bool isIncrease) external onlyGMXKeeper {
-    emit GMXPositionCallback(positionKey, isExecuted, isIncrease, _getPositions());
-    sendAllFundsToLP();
+    return
+      GMXFuturesPoolHedgerView({
+        currentPositions: positions,
+        futuresPoolHedgerParams: futuresPoolHedgerParams,
+        hedgerAddresses: HedgerAddresses({
+          router: router,
+          positionRouter: positionRouter,
+          vault: vault,
+          quoteAsset: quoteAsset,
+          baseAsset: baseAsset,
+          weth: weth
+        }),
+        gmxView: GMXView({
+          basePoolAmount: vault.poolAmounts(address(baseAsset)),
+          baseReservedAmount: vault.reservedAmounts(address(baseAsset)),
+          quotePoolAmount: vault.poolAmounts(address(quoteAsset)),
+          quoteReservedAmount: vault.reservedAmounts(address(quoteAsset)),
+          minExecutionFee: _getExecutionFee()
+        }),
+        referralCode: referralCode,
+        pendingOrderKey: pendingOrderKey,
+        lastOrderTimestamp: lastOrderTimestamp,
+        spotPrice: spotPrice,
+        expectedHedge: expectedHedge,
+        currentHedge: currentHedge,
+        currentLeverage: currentLeverage,
+        pendingCollateralDelta: collateralDelta,
+        baseBal: baseAsset.balanceOf(address(this)),
+        quoteBal: quoteAsset.balanceOf(address(this)),
+        wethBal: weth.balanceOf(address(this))
+      });
   }
 
   ///////////////
