@@ -8,12 +8,14 @@ import {
   getExternalContract,
   getLyraContract,
 } from '../util/transactions';
-import { fromBN, toBN, UNIT } from '../util/web3utils';
+import { fromBN, toBN, UNIT, ZERO_ADDRESS } from '../util/web3utils';
 
 enum PriceType {
   MIN_PRICE,
   MAX_PRICE,
   REFERENCE,
+  FORCE_MIN,
+  FORCE_MAX
 }
 
 function convertParams(params: any) {
@@ -103,6 +105,15 @@ export async function initGMXContracts(
     baseTicker,
   );
 
+  let weth;
+  try {
+    weth = getExternalContract(deploymentParams, 'wETH');
+  } catch (e) {
+    if (['mainnet', 'goerli'].includes(deploymentParams.network.split('-')[0])) {
+      throw Error('Missing required wETH address');
+    }
+  }
+
   await executeLyraFunction(
     deploymentParams,
     'GMXFuturesPoolHedger',
@@ -116,6 +127,7 @@ export async function initGMXContracts(
       getExternalContract(deploymentParams, 'GMX_Router').address,
       getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
       getExternalContract(deploymentParams, baseTicker).address,
+      weth?.address || ZERO_ADDRESS,
     ],
     baseTicker,
   );
@@ -213,7 +225,6 @@ export async function initGMXContracts(
     baseTicker,
   );
 
-  // TODO: separate parameter
   await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setRiskFreeRate', [
     getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
     convertParams({
@@ -221,18 +232,21 @@ export async function initGMXContracts(
       ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'GreekCacheParams'),
     }).rateAndCarry,
   ]);
-  // TODO: get parameters
-  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setMinReturnPercent', [
+
+  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setMarketPricingParams', [
     getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    toBN('0.95'),
+    convertParams({
+      ...systemParams.getObj('Parameters', 'MarketPricingParams'),
+      ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'MarketPricingParams'),
+    }),
   ]);
-  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setStaticSwapFeeEstimate', [
+
+  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setMarketPricingParams', [
     getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    toBN('1.05'),
-  ]);
-  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setPriceVarianceCBPercent', [
-    getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    toBN('0.95'),
+    convertParams({
+      ...systemParams.getObj('Parameters', 'MarketPricingParams'),
+      ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'MarketPricingParams'),
+    }),
   ]);
 
   await executeLyraFunction(
@@ -398,7 +412,7 @@ export async function initGMXContracts(
   if (isMockGmx(deploymentParams.deploymentType)) {
     const price = await callLyraFunction(deploymentParams, 'ExchangeAdapter', 'getSpotPriceForMarket', [
       getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      PriceType.MAX_PRICE,
+      PriceType.REFERENCE,
     ]);
     const faucetAmount = toBN('10000').mul(UNIT).div(price);
     console.log('Setting faucet amount:', fromBN(faucetAmount));

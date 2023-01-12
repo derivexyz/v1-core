@@ -225,7 +225,7 @@ export async function addGMXMarket(
       await executeExternalFunction(deploymentParams, `${baseTicker}_PriceFeed`, 'setDecimals', [6]);
       await executeExternalFunction(deploymentParams, `${baseTicker}_PriceFeed`, 'setLatestAnswer', [
         BigNumber.from(10).pow(6).mul(toBN(baseMockRate)).div(UNIT),
-        (await deploymentParams.deployer.provider.getBlock('latest')).number,
+        (await deploymentParams.deployer.provider.getBlock('latest')).timestamp,
       ]);
     }
     await executeExternalFunction(deploymentParams, 'GMX_Vault', 'setFeed', [

@@ -922,7 +922,7 @@ contract GMXFuturesPoolHedger is
     return exchangeAdapter.getSpotPriceForMarket(optionMarket, BaseExchangeAdapter.PriceType.REFERENCE);
   }
 
-  function getSwapFeeBP(bool isLong, bool isIncrease, uint amountIn) public view returns (uint feeBP) {
+  function getSwapFeeBP(bool isLong, bool isIncrease, uint amountIn18) public view returns (uint feeBP) {
     if (!isLong) {
       // only relevant for longs as shorts use the stable asset as collateral
       return 0;
@@ -932,9 +932,7 @@ contract GMXFuturesPoolHedger is
     uint256 priceIn = vault.getMinPrice(inToken);
 
     // adjust usdgAmounts by the same usdgAmount as debt is shifted between the assets
-    uint256 usdgAmount = _convertFromGMXPrecision(
-      ConvertDecimals.convertTo18(amountIn, quoteAsset.decimals()).multiplyDecimal(priceIn)
-    );
+    uint256 usdgAmount = _convertFromGMXPrecision(amountIn18.multiplyDecimal(priceIn));
 
     uint256 baseBps = vault.swapFeeBasisPoints();
     uint256 taxBps = vault.taxBasisPoints();
