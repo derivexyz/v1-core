@@ -79,13 +79,13 @@ contract GMXFuturesPoolHedger is
   ////
   // State structs
   struct FuturesPoolHedgerParameters {
-    uint acceptableSpotSlippage;
+    uint acceptableSpotSlippage; // If spot is off by this % revert hedge. Note this is per trade not the full cycle.
     uint deltaThreshold; // Bypass interaction delay if delta is outside of a certain range.
     uint marketDepthBuffer; // delta buffer. 50 -> 50 eth buffer
     uint targetLeverage; // target leverage ratio
     uint maxLeverage; // the max leverage for increasePosition before the hedger will revert
-    uint leverageBuffer; // leverage tolerance before allowing collateral updates
     uint minCancelDelay; // seconds until an order can be cancelled
+    uint minCollateralUpdate;
     bool vaultLiquidityCheckEnabled; // if true, block opening trades if the vault is low on liquidity
   }
 
@@ -192,7 +192,7 @@ contract GMXFuturesPoolHedger is
    * @param _futuresPoolHedgerParams targetLeverage needs to be higher than 1 to avoid dust error
    */
   function setFuturesPoolHedgerParams(FuturesPoolHedgerParameters memory _futuresPoolHedgerParams) external onlyOwner {
-    if (_futuresPoolHedgerParams.targetLeverage <= 1e18 || _futuresPoolHedgerParams.maxLeverage <= 1e18) {
+    if (_futuresPoolHedgerParams.targetLeverage <= 1e18 || _futuresPoolHedgerParams.maxLeverage <= 1e18 || _futuresPoolHedgerParams.minCollateralUpdate > 1000e18) {
       revert InvalidFuturesPoolHedgerParams(address(this), futuresPoolHedgerParams);
     }
     futuresPoolHedgerParams = _futuresPoolHedgerParams;
@@ -422,7 +422,7 @@ contract GMXFuturesPoolHedger is
   /**
    * @dev Return whether the hedger can hedge the additional delta risk introduced by the option being traded.
    */
-  function canHedge(uint /* amountOptions */, bool increasesPoolDelta) external view override returns (bool) {
+  function canHedge(uint /* amountOptions */, bool increasesPoolDelta, uint /* strikeId */) external view override returns (bool) {
     if (!futuresPoolHedgerParams.vaultLiquidityCheckEnabled) {
       return true;
     }
@@ -602,7 +602,7 @@ contract GMXFuturesPoolHedger is
     } else if (_hasPendingPositionRequest()) {
       // set needUpdate to false if there's a pending order (either to hedge or to updateCollateral)
       needUpdate = false;
-    } else if (collateralDelta == 0) {
+    } else if (Math.abs(collateralDelta) <= futuresPoolHedgerParams.minCollateralUpdate) {
       needUpdate = false;
     }
   }
@@ -738,14 +738,14 @@ contract GMXFuturesPoolHedger is
     uint collateralDelta,
     uint spot
   ) internal {
+    // add margin fee
+    // when we increase position, fee always got deducted from collateral
+    collateralDelta += _getPositionFee(currentPos.size, sizeDelta, currentPos.entryFundingRate);
+
     if (isLong) {
       uint swapFeeBP = getSwapFeeBP(isLong, true, collateralDelta);
       collateralDelta = (collateralDelta * (BASIS_POINTS_DIVISOR + swapFeeBP)) / BASIS_POINTS_DIVISOR;
     }
-
-    // add margin fee
-    // when we increase position, fee always got deducted from collateral
-    collateralDelta += _getPositionFee(currentPos.size, sizeDelta, currentPos.entryFundingRate);
 
     address[] memory path;
     uint acceptableSpot;
@@ -780,6 +780,9 @@ contract GMXFuturesPoolHedger is
       uint finalCollat = currentPos.collateral + collateralDelta;
       if (finalSize.divideDecimal(finalCollat) > futuresPoolHedgerParams.maxLeverage) {
         revert MaxLeverageThresholdCrossed(address(this), finalSize, finalCollat, currentPos);
+      }
+      if (finalCollat < futuresPoolHedgerParams.minCollateralUpdate) {
+        revert FinalCollateralTooLow(address(this), finalCollat, currentPos, futuresPoolHedgerParams.minCollateralUpdate);
       }
     }
 
@@ -1126,11 +1129,9 @@ contract GMXFuturesPoolHedger is
       revert GetGMXVaultError(address(this));
     }
 
-    // parse account from the first 32 bytes of returned data
-    // same as: (,,,uint amountIn,,,,,,,,,) = positionRouter.increasePositionRequests(pendingOrderKey);
-
     // solhint-disable-next-line no-inline-assembly
     assembly {
+      // same as: (,,,uint minOut,,,,,,,,,) = positionRouter.increasePositionRequests(pendingOrderKey);
       collateralDelta := mload(add(returndata, 96))
     }
 
@@ -1285,6 +1286,7 @@ contract GMXFuturesPoolHedger is
   error PositionRequestPending(address thrower, bytes32 key);
   error OrderCancellationFailure(address thrower, bytes32 pendingOrderKey);
   error MaxLeverageThresholdCrossed(address thrower, uint finalSize, uint finalCollat, PositionDetails currentPos);
+  error FinalCollateralTooLow(address thrower, uint finalCollat, PositionDetails currentPos, uint minCollateralUpdate);
 
   // Token transfers
   error NoQuoteReceivedFromLP(address thrower);

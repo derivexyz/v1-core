@@ -39,7 +39,6 @@ contract GMXAdapter is BaseExchangeAdapter {
   // State struct
 
   struct MarketPricingParams {
-    uint minReturnPercent;
     uint staticSwapFeeEstimate;
     uint gmxUsageThreshold;
     uint priceVarianceCBPercent;
@@ -91,11 +90,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     address _optionMarket,
     MarketPricingParams memory _marketPricingParams
   ) external onlyOwner {
-    if (
-      _marketPricingParams.minReturnPercent > 1.2e18 || //
-      _marketPricingParams.minReturnPercent < 0.8e18 || //
-      _marketPricingParams.staticSwapFeeEstimate < 1e18
-    ) {
+    if (_marketPricingParams.staticSwapFeeEstimate < 1e18) {
       revert InvalidMarketPricingParams(_marketPricingParams);
     }
 
@@ -147,9 +142,9 @@ contract GMXAdapter is BaseExchangeAdapter {
 
     // Prevent opening and closing in the case where the feeds differ by a great amount, but allow force closes.
     if (pricing == PriceType.MAX_PRICE || pricing == PriceType.MIN_PRICE) {
-      uint varianceThershold = marketPricingParams[optionMarket].priceVarianceCBPercent;
-      if (minVariance > varianceThershold || maxVariance > varianceThershold) {
-        revert PriceVarianceTooHigh(address(this), minPrice, maxPrice, clPrice, varianceThershold);
+      uint varianceThreshold = marketPricingParams[optionMarket].priceVarianceCBPercent;
+      if (minVariance > varianceThreshold || maxVariance > varianceThreshold) {
+        revert PriceVarianceTooHigh(address(this), minPrice, maxPrice, clPrice, varianceThreshold);
       }
     }
 
@@ -238,7 +233,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenInPrice = _getMinPrice(address(OptionMarket(_optionMarket).baseAsset()));
     uint tokenOutPrice = _getMaxPrice(address(OptionMarket(_optionMarket).quoteAsset()));
 
-    return _estimateExchangeFee(_optionMarket, tokenInPrice, tokenOutPrice, _amountQuote);
+    return _estimateExchangeCost(_optionMarket, tokenInPrice, tokenOutPrice, _amountQuote);
   }
 
   /**
@@ -252,7 +247,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenInPrice = _getMinPrice(address(OptionMarket(_optionMarket).quoteAsset()));
     uint tokenOutPrice = _getMaxPrice(address(OptionMarket(_optionMarket).baseAsset()));
 
-    return _estimateExchangeFee(_optionMarket, tokenInPrice, tokenOutPrice, _amountBase);
+    return _estimateExchangeCost(_optionMarket, tokenInPrice, tokenOutPrice, _amountBase);
   }
 
   /**
@@ -261,9 +256,9 @@ contract GMXAdapter is BaseExchangeAdapter {
    * @param tokenInPrice input token price
    * @param tokenOutPrice output token price
    * @param tokenOutAmt amount of output token needed
-   * @param tokenInAmt of amount needed, considering a fee estimation
+   * @param tokenInAmt amount needed, considering fees
    */
-  function _estimateExchangeFee(
+  function _estimateExchangeCost(
     address optionMarket,
     uint tokenInPrice,
     uint tokenOutPrice,
@@ -298,14 +293,15 @@ contract GMXAdapter is BaseExchangeAdapter {
     IERC20Decimals baseAsset = OptionMarket(_optionMarket).baseAsset();
     IERC20Decimals quoteAsset = OptionMarket(_optionMarket).quoteAsset();
 
-    uint tokenInPrice = _getMinPrice(address(baseAsset));
+    uint tokenInPrice = _getChainlinkPrice(_optionMarket);
     uint tokenOutPrice = _getMaxPrice(address(quoteAsset));
 
     if (marketPricingParams[_optionMarket].staticSwapFeeEstimate < 1e18) {
       revert InvalidStaticSwapFeeEstimate();
     }
+
     uint minOut = tokenInPrice
-      .multiplyDecimal(marketPricingParams[_optionMarket].minReturnPercent)
+      .divideDecimal(marketPricingParams[_optionMarket].staticSwapFeeEstimate)
       .multiplyDecimal(_amountBase)
       .divideDecimal(tokenOutPrice);
 
@@ -320,7 +316,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     quoteReceived = ConvertDecimals.convertTo18(rawQuoteReceived, quoteAsset.decimals());
 
     if (quoteReceived < minOut) {
-      revert InsufficientSwap(quoteReceived, minOut, baseAsset, quoteAsset, msg.sender);
+      revert InsufficientSwap(address(this), quoteReceived, minOut, baseAsset, quoteAsset, msg.sender);
     }
 
     emit BaseSwappedForQuote(_optionMarket, msg.sender, scaledAmtBase, quoteReceived);
@@ -359,7 +355,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint convertedBaseReceived = ConvertDecimals.convertTo18(baseReceived, baseAsset.decimals());
 
     if (convertedBaseReceived < _amountBase) {
-      revert InsufficientSwap(convertedBaseReceived, _amountBase, quoteAsset, baseAsset, msg.sender);
+      revert InsufficientSwap(address(this), convertedBaseReceived, _amountBase, quoteAsset, baseAsset, msg.sender);
     }
 
     emit QuoteSwappedForBase(_optionMarket, msg.sender, quoteSpent, convertedBaseReceived);

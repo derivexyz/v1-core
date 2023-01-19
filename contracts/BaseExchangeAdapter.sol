@@ -287,6 +287,7 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
   error AssetTransferFailed(address thrower, IERC20Decimals asset, address sender, address receiver, uint amount);
   error TransferFailed(address thrower, IERC20Decimals asset, address from, address to, uint amount);
   error InsufficientSwap(
+    address thrower,
     uint amountOut,
     uint minAcceptedOut,
     IERC20Decimals tokenIn,

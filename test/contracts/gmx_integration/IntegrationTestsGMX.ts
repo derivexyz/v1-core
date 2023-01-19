@@ -1046,8 +1046,8 @@ describe('Integration Tests - GMX', () => {
             ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
             vaultLiquidityCheckEnabled: false,
           });
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.true;
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.true;
         });
         it('if the pool has negative net delta (hedger going long)', async () => {
           await c.futuresPoolHedger.setPoolHedgerParams({
@@ -1062,8 +1062,8 @@ describe('Integration Tests - GMX', () => {
 
           await increaseDeltaExposure(c);
 
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.true;
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.true;
 
           await c.futuresPoolHedger.setFuturesPoolHedgerParams({
             ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
@@ -1071,19 +1071,19 @@ describe('Integration Tests - GMX', () => {
           });
 
           // Check if a trade which drops the pool delta (i.e. opening a long call) is blocked
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.false;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.false;
           // but the opposite should go through
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.true;
 
           await reduceDeltaExposure(c);
 
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.false;
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.false;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.true;
 
           await reduceDeltaExposure(c, 4);
 
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.true;
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.true;
         });
         it('if the pool has positive net delta (hedger going short)', async () => {
           await c.futuresPoolHedger.setPoolHedgerParams({
@@ -1098,8 +1098,8 @@ describe('Integration Tests - GMX', () => {
 
           await reduceDeltaExposure(c, 2);
 
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.true;
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.true;
 
           await c.futuresPoolHedger.setFuturesPoolHedgerParams({
             ...DEFAULT_GMX_POOL_HEDGER_PARAMS,
@@ -1107,22 +1107,22 @@ describe('Integration Tests - GMX', () => {
           });
 
           // Check if a trade which increases the pool delta (i.e. opening a long put) is blocked
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.false;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.false;
           // but the opposite should go through
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.true;
 
           await increaseDeltaExposure(c);
 
           expect(await c.futuresPoolHedger.getCappedExpectedHedge()).lt(0);
           expect(await c.futuresPoolHedger.getCurrentHedgedNetDelta()).lt(0);
 
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.false;
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.false;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.true;
 
           await increaseDeltaExposure(c, 4);
 
-          expect(await c.futuresPoolHedger.canHedge(0, true)).to.be.true;
-          expect(await c.futuresPoolHedger.canHedge(0, false)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, true, 0)).to.be.true;
+          expect(await c.futuresPoolHedger.canHedge(0, false, 0)).to.be.true;
         });
       });
     });
@@ -1566,7 +1566,7 @@ describe('Integration Tests - GMX', () => {
         it('sell base for quote', async () => {
           await c.GMXAdapter.setMarketPricingParams(c.optionMarket.address, {
             ...DEFAULT_GMX_ADAPTER_PARAMS,
-            minReturnPercent: toBN('0.98'),
+            staticSwapFeeEstimate: toBN('1.02'),
           });
           const ethBefore = await c.gmx.eth.balanceOf(deployer.address);
           // sell exactly 1 eth.
@@ -2328,14 +2328,6 @@ async function reduceDeltaExposure(c: TestSystemContractsTypeGMX, multiplier: nu
 async function executeIncreaseHedge(c: TestSystemContractsTypeGMX) {
   await c.futuresPoolHedger.hedgeDelta({ value: toBN('0.01') });
   await c.gmx.positionRouter.executeIncreasePosition(
-    await c.futuresPoolHedger.pendingOrderKey(),
-    await c.futuresPoolHedger.signer.getAddress(),
-  );
-}
-
-async function executeDecreaseHedge(c: TestSystemContractsTypeGMX) {
-  await c.futuresPoolHedger.hedgeDelta({ value: toBN('0.01') });
-  await c.gmx.positionRouter.executeDecreasePosition(
     await c.futuresPoolHedger.pendingOrderKey(),
     await c.futuresPoolHedger.signer.getAddress(),
   );

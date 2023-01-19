@@ -257,7 +257,7 @@ contract SNXFuturesPoolHedger is PoolHedger, Owned, SimpleInitializable, Reentra
     emit CollateralUpdated(newCollateral, margin);
   }
 
-  function canHedge(uint, bool deltaIncrease) external view override returns (bool) {
+  function canHedge(uint, bool deltaIncrease, uint) external view override returns (bool) {
     int expectedHedge = _getCappedExpectedHedge();
     int currentHedge = _getCurrentHedgedNetDelta();
 

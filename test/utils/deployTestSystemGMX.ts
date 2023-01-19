@@ -534,7 +534,6 @@ export async function initMarketTestSystemGMX(
 
   await existingTestSystem.GMXAdapter.setMarketPricingParams(marketTestSystem.optionMarket.address, {
     ...DEFAULT_GMX_ADAPTER_PARAMS,
-    minReturnPercent: toBN('1.0'),
     staticSwapFeeEstimate: toBN('1.015'),
     priceVarianceCBPercent: toBN('0.015'),
   });

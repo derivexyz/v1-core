@@ -10,7 +10,7 @@ contract TestShortPoolHedger is ShortPoolHedger {
     canPoolHedge = _canHedge;
   }
 
-  function canHedge(uint, bool) external view override returns (bool) {
+  function canHedge(uint, bool, uint) external view override returns (bool) {
     return canPoolHedge;
   }
 

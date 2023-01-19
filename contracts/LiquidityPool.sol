@@ -594,12 +594,12 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
    * @param amount The amount of quote to lock.
    * @param freeLiquidity The amount of free collateral that can be locked.
    */
-  function lockPutCollateral(uint amount, uint freeLiquidity) external onlyOptionMarket {
+  function lockPutCollateral(uint amount, uint freeLiquidity, uint strikeId) external onlyOptionMarket {
     if (amount.multiplyDecimal(lpParams.putCollatScalingFactor) > freeLiquidity) {
       revert LockingMoreQuoteThanIsFree(address(this), amount, freeLiquidity, lockedCollateral);
     }
 
-    _checkCanHedge(amount, true);
+    _checkCanHedge(amount, true, strikeId);
 
     lockedCollateral.quote += amount;
     emit PutCollateralLocked(amount, lockedCollateral.quote);
@@ -610,8 +610,8 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
    *
    * @param amount The amount of quote to lock.
    */
-  function lockCallCollateral(uint amount, uint spotPrice, uint freeLiquidity) external onlyOptionMarket {
-    _checkCanHedge(amount, false);
+  function lockCallCollateral(uint amount, uint spotPrice, uint freeLiquidity, uint strikeId) external onlyOptionMarket {
+    _checkCanHedge(amount, false, strikeId);
 
     if (amount.multiplyDecimal(spotPrice).multiplyDecimal(lpParams.callCollatScalingFactor) > freeLiquidity) {
       revert LockingMoreQuoteThanIsFree(
@@ -675,7 +675,8 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     uint premium,
     uint freeLiquidity,
     uint reservedFee,
-    bool isCall
+    bool isCall,
+    uint strikeId
   ) external onlyOptionMarket {
     if (premium + reservedFee > freeLiquidity) {
       revert SendPremiumNotEnoughCollateral(address(this), premium, reservedFee, freeLiquidity);
@@ -684,7 +685,7 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     // only blocks opening new positions if cannot hedge
     // Since this is opening a short, pool delta exposure is the same direction as if it were a call
     // (user opens a short call, the pool acquires on a long call)
-    _checkCanHedge(amountContracts, isCall);
+    _checkCanHedge(amountContracts, isCall, strikeId);
     _sendPremium(recipient, premium, reservedFee);
   }
 
@@ -1054,12 +1055,12 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     return (0, 0);
   }
 
-  function _checkCanHedge(uint amountOptions, bool increasesPoolDelta) internal view {
+  function _checkCanHedge(uint amountOptions, bool increasesPoolDelta, uint strikeId) internal view {
     if (address(poolHedger) == address(0)) {
       return;
     }
-    if (!poolHedger.canHedge(amountOptions, increasesPoolDelta)) {
-      revert UnableToHedgeDelta(address(this), amountOptions, increasesPoolDelta);
+    if (!poolHedger.canHedge(amountOptions, increasesPoolDelta, strikeId)) {
+      revert UnableToHedgeDelta(address(this), amountOptions, increasesPoolDelta, strikeId);
     }
   }
 
@@ -1284,5 +1285,5 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
   error BaseApprovalFailure(address thrower, address approvee, uint amount);
 
   // @dev Emmitted whenever a position can not be opened as the hedger is unable to hedge
-  error UnableToHedgeDelta(address thrower, uint amountOptions, bool increasesDelta);
+  error UnableToHedgeDelta(address thrower, uint amountOptions, bool increasesDelta, uint strikeId);
 }

@@ -4,7 +4,7 @@ import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 
 // import * as _ from 'lodash';
-import { currentTime, MONTH_SEC, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
+import { currentTime, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { LiquidityPool } from '../../../typechain-types';
 import { openDefaultLongPut } from '../../utils/contractHelpers';
 import {
@@ -20,11 +20,10 @@ import {
   initMarketTestSystem,
   TestSystemContractsType,
 } from '../../utils/deployTestSystem';
-import { fastForward, restoreSnapshot, takeSnapshot } from '../../utils/evm';
+import { restoreSnapshot, takeSnapshot } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { mergeDeep } from '../../utils/package/merge';
 import { expect, hre } from '../../utils/testSetup';
-import { createDefaultBoardWithOverrides } from '../../utils/seedTestSystem';
 
 describe('Misc', async () => {
   let c: TestSystemContractsType;
@@ -89,8 +88,8 @@ describe('Misc', async () => {
   });
 
   it('reverts in a number of scenarios', async () => {
-    await expect(lp.lockPutCollateral(1, 0)).revertedWith('LockingMoreQuoteThanIsFree');
-    await expect(lp.sendShortPremium(ZERO_ADDRESS, 1, 1, 0, 0, false)).revertedWith('SendPremiumNotEnoughCollateral');
+    await expect(lp.lockPutCollateral(1, 0, 0)).revertedWith('LockingMoreQuoteThanIsFree');
+    await expect(lp.sendShortPremium(ZERO_ADDRESS, 1, 1, 0, 0, false, 0)).revertedWith('SendPremiumNotEnoughCollateral');
     await lp.boardSettlement(0, 0, 0, 0);
     const time = BigNumber.from(await currentTime());
     expect(await lp.CBTimestamp()).eq(time.add(DEFAULT_CB_PARAMS.boardSettlementCBTimeout));
@@ -105,7 +104,7 @@ describe('Misc', async () => {
     await c.snx.quoteAsset.mint(lp.address, toBN('1000'));
 
     await c.snx.quoteAsset.setForceFail(true);
-    await expect(lp.sendShortPremium(alice.address, toBN('1'), toBN('1'), toBN('1000'), 0, false)).revertedWith(
+    await expect(lp.sendShortPremium(alice.address, toBN('1'), toBN('1'), toBN('1000'), 0, false, 0)).revertedWith(
       'QuoteTransferFailed',
     );
     await c.snx.quoteAsset.setForceFail(false);
@@ -118,7 +117,7 @@ describe('Misc', async () => {
     await expect(lp.reclaimInsolventQuote(toBN('1000'))).revertedWith('NotEnoughFreeToReclaimInsolvency');
 
     await expect(lp.connect(alice).transferQuoteToHedge(DEFAULT_BASE_PRICE)).revertedWith('OnlyPoolHedger');
-    await expect(lp.connect(alice).lockPutCollateral(0, 0)).revertedWith('OnlyOptionMarket');
+    await expect(lp.connect(alice).lockPutCollateral(0, 0, 0)).revertedWith('OnlyOptionMarket');
     await expect(lp.connect(alice).sendSettlementValue(alice.address, 0)).revertedWith('OnlyShortCollateral');
 
     // reclaimInsolventBase failures

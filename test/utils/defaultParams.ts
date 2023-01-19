@@ -169,12 +169,11 @@ export const DEFAULT_GMX_POOL_HEDGER_PARAMS: FuturesPoolHedgerParametersStruct =
   vaultLiquidityCheckEnabled: true,
   targetLeverage: toBN('1.1'),
   maxLeverage: toBN('10'),
-  leverageBuffer: toBN('0.1'), // leverage < 1 || > 1.2 will trigger updateCollateral
+  minCollateralUpdate: toBN('5'),
   minCancelDelay: 1200, // 20 minutes
 };
 
 export const DEFAULT_GMX_ADAPTER_PARAMS: MarketPricingParamsStruct = {
-  minReturnPercent: toBN('1.0'),
   staticSwapFeeEstimate: toBN('1.02'),
   gmxUsageThreshold: toBN('0.004'),
   priceVarianceCBPercent: toBN('0.015'),

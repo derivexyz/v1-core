@@ -598,7 +598,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
     uint reservedFee = result.totalFee.multiplyDecimal(optionMarketParams.feePortionReserved);
 
-    _routeLPFundsOnOpen(trade, result.totalCost, reservedFee);
+    _routeLPFundsOnOpen(trade, result.totalCost, reservedFee, params.strikeId);
     _routeUserCollateral(trade.optionType, pendingCollateral);
     liquidityPool.updateCBs();
 
@@ -726,11 +726,11 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
       pricing = BaseExchangeAdapter.PriceType.REFERENCE;
     } else if (optionType == OptionType.LONG_CALL || optionType == OptionType.SHORT_PUT_QUOTE) {
       pricing = _tradeDirection == TradeDirection.OPEN
-        ? (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MAX : BaseExchangeAdapter.PriceType.MAX_PRICE)
+        ? BaseExchangeAdapter.PriceType.MAX_PRICE
         : (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MIN : BaseExchangeAdapter.PriceType.MIN_PRICE);
     } else {
       pricing = _tradeDirection == TradeDirection.OPEN
-        ? (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MIN : BaseExchangeAdapter.PriceType.MIN_PRICE)
+        ? BaseExchangeAdapter.PriceType.MIN_PRICE
         : (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MAX : BaseExchangeAdapter.PriceType.MAX_PRICE);
     }
 
@@ -889,17 +889,17 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
   //////////////////
 
   /// @dev send/receive quote or base to/from LiquidityPool on position open
-  function _routeLPFundsOnOpen(TradeParameters memory trade, uint totalCost, uint feePortion) internal {
+  function _routeLPFundsOnOpen(TradeParameters memory trade, uint totalCost, uint feePortion, uint strikeId) internal {
     if (trade.amount == 0) {
       return;
     }
 
     if (trade.optionType == OptionType.LONG_CALL) {
-      liquidityPool.lockCallCollateral(trade.amount, trade.spotPrice, trade.liquidity.freeLiquidity);
+      liquidityPool.lockCallCollateral(trade.amount, trade.spotPrice, trade.liquidity.freeLiquidity, strikeId);
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.LONG_PUT) {
-      liquidityPool.lockPutCollateral(trade.amount.multiplyDecimal(trade.strikePrice), trade.liquidity.freeLiquidity);
+      liquidityPool.lockPutCollateral(trade.amount.multiplyDecimal(trade.strikePrice), trade.liquidity.freeLiquidity, strikeId);
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.SHORT_CALL_BASE) {
@@ -909,7 +909,8 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
         totalCost,
         trade.liquidity.freeLiquidity,
         feePortion,
-        true
+        true,
+        strikeId
       );
     } else {
       // OptionType.SHORT_CALL_QUOTE || OptionType.SHORT_PUT_QUOTE
@@ -919,7 +920,8 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
         totalCost,
         trade.liquidity.freeLiquidity,
         feePortion,
-        trade.optionType == OptionType.SHORT_CALL_QUOTE
+        trade.optionType == OptionType.SHORT_CALL_QUOTE,
+        strikeId
       );
     }
   }

@@ -17,7 +17,7 @@ describe('GMXAdapter', async () => {
 
     await hre.f.gc.GMXAdapter.setMarketPricingParams(hre.f.gc.optionMarket.address, {
       ...DEFAULT_GMX_ADAPTER_PARAMS,
-      minReturnPercent: toBN('0.99'),
+      staticSwapFeeEstimate: toBN('1.01'),
     });
   });
 
@@ -118,6 +118,11 @@ describe('GMXAdapter', async () => {
   it('exchanges from base', async () => {
     const preBaseBal = await hre.f.gc.gmx.eth.balanceOf(hre.f.deployer.address);
     const preQuoteBal = await hre.f.gc.gmx.USDC.balanceOf(hre.f.deployer.address);
+    await expect(hre.f.gc.GMXAdapter.exchangeFromExactBase(hre.f.gc.optionMarket.address, toBN('1'))).revertedWith("InsufficientSwap");
+    await hre.f.gc.GMXAdapter.setMarketPricingParams(hre.f.gc.optionMarket.address, {
+      ...DEFAULT_GMX_ADAPTER_PARAMS,
+      staticSwapFeeEstimate: toBN('1.05'),
+    })
     await hre.f.gc.GMXAdapter.exchangeFromExactBase(hre.f.gc.optionMarket.address, toBN('1'));
     expect(preBaseBal.sub(await hre.f.gc.gmx.eth.balanceOf(hre.f.deployer.address))).eq(
       toBN('1', DEFAULT_DECIMALS.ETH),
@@ -129,20 +134,6 @@ describe('GMXAdapter', async () => {
 
   describe('reverts for various misc reasons', async () => {
     it('reverts when setting bad parameters', async () => {
-      await expect(
-        hre.f.gc.GMXAdapter.setMarketPricingParams(hre.f.gc.optionMarket.address, {
-          ...DEFAULT_GMX_ADAPTER_PARAMS,
-          minReturnPercent: toBN('1.21'),
-        }),
-      ).revertedWith('InvalidMarketPricingParams');
-
-      await expect(
-        hre.f.gc.GMXAdapter.setMarketPricingParams(hre.f.gc.optionMarket.address, {
-          ...DEFAULT_GMX_ADAPTER_PARAMS,
-          minReturnPercent: toBN('0.79'),
-        }),
-      ).revertedWith('InvalidMarketPricingParams');
-
       await expect(
         hre.f.gc.GMXAdapter.setMarketPricingParams(hre.f.gc.optionMarket.address, {
           ...DEFAULT_GMX_ADAPTER_PARAMS,
@@ -160,7 +151,7 @@ describe('GMXAdapter', async () => {
     it('reverts when insufficient returned from swap', async () => {
       await hre.f.gc.GMXAdapter.setMarketPricingParams(hre.f.gc.optionMarket.address, {
         ...DEFAULT_GMX_ADAPTER_PARAMS,
-        minReturnPercent: toBN('1.02'),
+        staticSwapFeeEstimate: toBN('1'),
       });
       await expect(hre.f.gc.GMXAdapter.exchangeFromExactBase(hre.f.gc.optionMarket.address, toBN('1'))).revertedWith(
         'InsufficientSwap',
@@ -241,12 +232,10 @@ describe('GMXAdapter', async () => {
       await tokenForceFailBase.setForceFail(true);
       await tokenForceFailQuote.setForceFail(true);
 
-      await expect(hre.f.gc.GMXAdapter.exchangeFromExactBase(testMarket.address, toBN('1'))).revertedWith(
-        'InvalidStaticSwapFeeEstimate',
-      );
-      await expect(
-        hre.f.gc.GMXAdapter.exchangeToExactBaseWithLimit(testMarket.address, toBN('1'), toBN('1000')),
-      ).revertedWith('InvalidStaticSwapFeeEstimate');
+      await hre.f.gc.GMXAdapter.setMarketPricingParams(testMarket.address, {
+        ...DEFAULT_GMX_ADAPTER_PARAMS,
+        staticSwapFeeEstimate: toBN('1.02'),
+      });
 
       await hre.f.gc.GMXAdapter.setMarketPricingParams(testMarket.address, {
         ...DEFAULT_GMX_ADAPTER_PARAMS,
