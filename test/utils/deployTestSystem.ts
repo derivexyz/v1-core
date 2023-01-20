@@ -25,7 +25,6 @@ import {
   TestCollateralShort,
   TestCurve,
   TestDelegateApprovals,
-  TestERC20Fail,
   TestERC20SetDecimalsFail,
   TestExchanger,
   TestExchangeRates,
@@ -430,17 +429,12 @@ export async function deployMarketTestContracts(
 
   if (overrides.mockSNX || overrides.mockSNX == undefined) {
     const baseName = 'Synthetic ' + market.slice(1);
-    if (overrides.baseDecimals) {
-      marketSystem.snx.baseAsset = (await (
-        (await ethers.getContractFactory('TestERC20SetDecimalsFail')) as ContractFactory
-      )
-        .connect(deployer)
-        .deploy(baseName, market, overrides.baseDecimals)) as TestERC20SetDecimalsFail;
-    } else {
-      marketSystem.snx.baseAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
-        .connect(deployer)
-        .deploy(baseName, market)) as TestERC20Fail;
-    }
+
+    marketSystem.snx.baseAsset = (await (
+      (await ethers.getContractFactory('TestERC20SetDecimalsFail')) as ContractFactory
+    )
+      .connect(deployer)
+      .deploy(baseName, market, overrides?.baseDecimals ? overrides.baseDecimals : 18)) as TestERC20SetDecimalsFail;
   } else {
     marketSystem.snx.baseAsset = await getLocalRealSynthetixContract(deployer, 'local', `Proxy${market}`);
   }
@@ -824,16 +818,13 @@ export async function deployMockGlobalSNX(deployer: Signer, overrides?: DeployOv
     .connect(deployer)
     .deploy()) as TestExchangeRates;
 
-  let quoteAsset;
-  if (overrides?.quoteDecimals) {
-    quoteAsset = (await ((await ethers.getContractFactory('TestERC20SetDecimalsFail')) as ContractFactory)
-      .connect(deployer)
-      .deploy('Synthetic USD', 'sUSD', overrides.quoteDecimals)) as TestERC20SetDecimalsFail;
-  } else {
-    quoteAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
-      .connect(deployer)
-      .deploy('Synthetic USD', 'sUSD')) as TestERC20Fail;
-  }
+  const quoteAsset = (await ((await ethers.getContractFactory('TestERC20SetDecimalsFail')) as ContractFactory)
+    .connect(deployer)
+    .deploy(
+      'Synthetic USD',
+      'sUSD',
+      overrides?.quoteDecimals ? overrides.quoteDecimals : 18,
+    )) as TestERC20SetDecimalsFail;
 
   const synthetix = (await ((await ethers.getContractFactory('TestSynthetixReturnZero')) as ContractFactory)
     .connect(deployer)

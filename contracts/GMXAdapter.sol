@@ -23,24 +23,40 @@ contract GMXAdapter is BaseExchangeAdapter {
   using SafeCast for uint;
   using SafeCast for int;
 
+  /////
+  // View struct
+
+  struct GMXAdapterState {
+    AggregatorV2V3Interface chainlinkFeed;
+    MarketPricingParams marketPricingParams;
+    int rateAndCarry;
+    uint clPrice;
+    uint gmxMinPrice;
+    uint gmxMaxPrice;
+  }
+
+  /////
+  // State struct
+
+  struct MarketPricingParams {
+    uint staticSwapFeeEstimate;
+    uint gmxUsageThreshold;
+    uint priceVarianceCBPercent;
+    uint chainlinkStalenessCheck;
+  }
+
   IVault public vault;
 
   /// @dev Asset to chainlink feed
   mapping(address => AggregatorV2V3Interface) public chainlinkFeeds;
 
   /// @dev option market to min percentage that swap should return compared to amount calculated by prices. 1e18 is 100%
-  mapping(address => uint) public minReturnPercent;
-
-  /// @dev option market to constant used to estimate fee. 1.01e18 means we always estimate 1% fee to be charged
-  mapping(address => uint) public staticSwapFeeEstimate;
-
-  /// @dev option market to max price variance tolerance percentage
-  mapping(address => uint) public priceVarianceCBPercent;
+  mapping(address => MarketPricingParams) public marketPricingParams;
 
   /// @dev option market to risk free interest rate
-  mapping(address => int256) public override rateAndCarry;
+  mapping(address => int) public override rateAndCarry;
 
-  uint256 public constant GMX_PRICE_PRECISION = 10 ** 30;
+  uint public constant GMX_PRICE_PRECISION = 10 ** 30;
 
   ///////////
   // Admin //
@@ -70,30 +86,17 @@ contract GMXAdapter is BaseExchangeAdapter {
   /**
    * @notice set min return percentage for an option market
    */
-  function setMinReturnPercent(address _optionMarket, uint _minReturnPercent) external onlyOwner {
-    if (_minReturnPercent > 1.2e18 || _minReturnPercent < 0.8e18) revert InvalidMinReturnPercentage();
-    minReturnPercent[_optionMarket] = _minReturnPercent;
+  function setMarketPricingParams(
+    address _optionMarket,
+    MarketPricingParams memory _marketPricingParams
+  ) external onlyOwner {
+    if (_marketPricingParams.staticSwapFeeEstimate < 1e18) {
+      revert InvalidMarketPricingParams(_marketPricingParams);
+    }
 
-    emit MinReturnPercentageUpdate(_optionMarket, _minReturnPercent);
-  }
+    marketPricingParams[_optionMarket] = _marketPricingParams;
 
-  /**
-   * @notice set static swap fee multiplier for an option market
-   */
-  function setStaticSwapFeeEstimate(address _optionMarket, uint _staticSwapFeeEstimate) external onlyOwner {
-    if (_staticSwapFeeEstimate < 1e18) revert InvalidStaticSwapFeeEstimate();
-    staticSwapFeeEstimate[_optionMarket] = _staticSwapFeeEstimate;
-
-    emit StaticSwapFeeMultiplierUpdated(_optionMarket, _staticSwapFeeEstimate);
-  }
-
-  /**
-   * @notice price variance tolerance
-   */
-  function setPriceVarianceCBPercent(address _optionMarket, uint _priceVarianceCBPercent) external onlyOwner {
-    priceVarianceCBPercent[_optionMarket] = _priceVarianceCBPercent;
-
-    emit PriceVarianceToleranceUpdated(_optionMarket, _priceVarianceCBPercent);
+    emit MarketPricingParamsUpdated(_optionMarket, _marketPricingParams);
   }
 
   /**
@@ -104,7 +107,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     if (_rate > 50e18 || _rate < -50e18) revert InvalidRiskFreeRate();
     rateAndCarry[_optionMarket] = _rate;
 
-    emit RiskFreeRateUpdated(_rate);
+    emit RiskFreeRateUpdated(_optionMarket, _rate);
   }
 
   /////////////
@@ -123,8 +126,10 @@ contract GMXAdapter is BaseExchangeAdapter {
   ) external view override notPaused(optionMarket) returns (uint spotPrice) {
     uint clPrice = _getChainlinkPrice(optionMarket);
 
-    // skip variance check on max and min if refernce price is requested
-    if (pricing == PriceType.REFERENCE) return clPrice;
+    // skip variance check on max and min if reference price is requested
+    if (pricing == PriceType.REFERENCE) {
+      return clPrice;
+    }
 
     address baseAsset = address(OptionMarket(optionMarket).baseAsset());
 
@@ -132,21 +137,38 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint maxPrice = _getMaxPrice(baseAsset);
     uint minPrice = _getMinPrice(baseAsset);
 
-    _checkPriceVariance(optionMarket, maxPrice, clPrice);
-    _checkPriceVariance(optionMarket, minPrice, clPrice);
+    uint maxVariance = _getPriceVariance(maxPrice, clPrice);
+    uint minVariance = _getPriceVariance(minPrice, clPrice);
 
-    if (pricing == PriceType.MAX_PRICE) return maxPrice;
-    else return minPrice;
+    // Prevent opening and closing in the case where the feeds differ by a great amount, but allow force closes.
+    if (pricing == PriceType.MAX_PRICE || pricing == PriceType.MIN_PRICE) {
+      uint varianceThreshold = marketPricingParams[optionMarket].priceVarianceCBPercent;
+      if (minVariance > varianceThreshold || maxVariance > varianceThreshold) {
+        revert PriceVarianceTooHigh(address(this), minPrice, maxPrice, clPrice, varianceThreshold);
+      }
+    }
+
+    // In the case where the gmxUsageThreshold is crossed, we want to use the worst case price between cl and gmx
+    bool useWorstCase = false;
+    if (
+      (minVariance > marketPricingParams[optionMarket].gmxUsageThreshold ||
+        maxVariance > marketPricingParams[optionMarket].gmxUsageThreshold)
+    ) {
+      useWorstCase = true;
+    }
+
+    if (pricing == PriceType.FORCE_MIN || pricing == PriceType.MIN_PRICE) {
+      return (useWorstCase && minPrice > clPrice) ? clPrice : minPrice;
+    } else {
+      return (useWorstCase && maxPrice < clPrice) ? clPrice : maxPrice;
+    }
   }
 
   /**
    * @dev check that the price is within variance tolerance with the reference price
    */
-  function _checkPriceVariance(address optionMarket, uint price, uint refPrice) internal view {
-    uint diffPercent = Math.abs(price.divideDecimalRound(refPrice).toInt256() - SignedDecimalMath.UNIT);
-    if (diffPercent > priceVarianceCBPercent[optionMarket]) {
-      revert PriceVarianceTooHigh(address(this), price, refPrice, priceVarianceCBPercent[optionMarket]);
-    }
+  function _getPriceVariance(uint price, uint refPrice) internal pure returns (uint variance) {
+    return Math.abs(price.divideDecimalRound(refPrice).toInt256() - SignedDecimalMath.UNIT);
   }
 
   /**
@@ -189,9 +211,9 @@ contract GMXAdapter is BaseExchangeAdapter {
     }
 
     // use latestRoundData because getLatestAnswer is deprecated
-    (, int answer, , , ) = assetPriceFeed.latestRoundData();
-    if (answer <= 0) {
-      revert InvalidAnswer(address(this), answer);
+    (, int answer, , uint updatedAt, ) = assetPriceFeed.latestRoundData();
+    if (answer <= 0 || block.timestamp - updatedAt > marketPricingParams[optionMarket].chainlinkStalenessCheck) {
+      revert InvalidAnswer(address(this), answer, updatedAt, block.timestamp);
     }
     spotPrice = ConvertDecimals.convertTo18(answer.toUint256(), assetPriceFeed.decimals());
   }
@@ -211,7 +233,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenInPrice = _getMinPrice(address(OptionMarket(_optionMarket).baseAsset()));
     uint tokenOutPrice = _getMaxPrice(address(OptionMarket(_optionMarket).quoteAsset()));
 
-    return _estimateExchangeFee(_optionMarket, tokenInPrice, tokenOutPrice, _amountQuote);
+    return _estimateExchangeCost(_optionMarket, tokenInPrice, tokenOutPrice, _amountQuote);
   }
 
   /**
@@ -225,7 +247,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint tokenInPrice = _getMinPrice(address(OptionMarket(_optionMarket).quoteAsset()));
     uint tokenOutPrice = _getMaxPrice(address(OptionMarket(_optionMarket).baseAsset()));
 
-    return _estimateExchangeFee(_optionMarket, tokenInPrice, tokenOutPrice, _amountBase);
+    return _estimateExchangeCost(_optionMarket, tokenInPrice, tokenOutPrice, _amountBase);
   }
 
   /**
@@ -234,18 +256,21 @@ contract GMXAdapter is BaseExchangeAdapter {
    * @param tokenInPrice input token price
    * @param tokenOutPrice output token price
    * @param tokenOutAmt amount of output token needed
-   * @param tokenInAmt of amount needed, considering a fee estimation
+   * @param tokenInAmt amount needed, considering fees
    */
-  function _estimateExchangeFee(
+  function _estimateExchangeCost(
     address optionMarket,
     uint tokenInPrice,
     uint tokenOutPrice,
     uint tokenOutAmt
   ) internal view returns (uint tokenInAmt) {
+    if (marketPricingParams[optionMarket].staticSwapFeeEstimate < 1e18) {
+      revert InvalidStaticSwapFeeEstimate();
+    }
     return
       tokenOutPrice
         .multiplyDecimalRound(tokenOutAmt)
-        .multiplyDecimalRound(staticSwapFeeEstimate[optionMarket])
+        .multiplyDecimalRound(marketPricingParams[optionMarket].staticSwapFeeEstimate)
         .divideDecimal(tokenInPrice);
   }
 
@@ -261,15 +286,22 @@ contract GMXAdapter is BaseExchangeAdapter {
    * @param _amountBase the amount of base to be swapped. In 18 decimals
    * @return quoteReceived amount quote received in 18 decimals
    */
-  function exchangeFromExactBase(address _optionMarket, uint _amountBase) public override returns (uint quoteReceived) {
+  function exchangeFromExactBase(
+    address _optionMarket,
+    uint _amountBase
+  ) public override notPaused(_optionMarket) returns (uint quoteReceived) {
     IERC20Decimals baseAsset = OptionMarket(_optionMarket).baseAsset();
     IERC20Decimals quoteAsset = OptionMarket(_optionMarket).quoteAsset();
 
-    uint tokenInPrice = _getMinPrice(address(baseAsset));
+    uint tokenInPrice = _getChainlinkPrice(_optionMarket);
     uint tokenOutPrice = _getMaxPrice(address(quoteAsset));
 
+    if (marketPricingParams[_optionMarket].staticSwapFeeEstimate < 1e18) {
+      revert InvalidStaticSwapFeeEstimate();
+    }
+
     uint minOut = tokenInPrice
-      .multiplyDecimal(minReturnPercent[_optionMarket])
+      .divideDecimal(marketPricingParams[_optionMarket].staticSwapFeeEstimate)
       .multiplyDecimal(_amountBase)
       .divideDecimal(tokenOutPrice);
 
@@ -284,7 +316,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     quoteReceived = ConvertDecimals.convertTo18(rawQuoteReceived, quoteAsset.decimals());
 
     if (quoteReceived < minOut) {
-      revert InsufficientSwap(quoteReceived, minOut, baseAsset, quoteAsset, msg.sender);
+      revert InsufficientSwap(address(this), quoteReceived, minOut, baseAsset, quoteAsset, msg.sender);
     }
 
     emit BaseSwappedForQuote(_optionMarket, msg.sender, scaledAmtBase, quoteReceived);
@@ -303,7 +335,7 @@ contract GMXAdapter is BaseExchangeAdapter {
     address _optionMarket,
     uint _amountBase,
     uint _quoteLimit
-  ) public override returns (uint quoteSpent, uint baseReceived) {
+  ) public override notPaused(_optionMarket) returns (uint quoteSpent, uint baseReceived) {
     IERC20Decimals quoteAsset = OptionMarket(_optionMarket).quoteAsset();
     IERC20Decimals baseAsset = OptionMarket(_optionMarket).baseAsset();
 
@@ -323,30 +355,41 @@ contract GMXAdapter is BaseExchangeAdapter {
     uint convertedBaseReceived = ConvertDecimals.convertTo18(baseReceived, baseAsset.decimals());
 
     if (convertedBaseReceived < _amountBase) {
-      revert InsufficientSwap(convertedBaseReceived, _amountBase, quoteAsset, baseAsset, msg.sender);
+      revert InsufficientSwap(address(this), convertedBaseReceived, _amountBase, quoteAsset, baseAsset, msg.sender);
     }
 
-    emit QuoteSwappedForBase(_optionMarket, msg.sender, quoteSpent, baseReceived);
-    return (quoteNeeded, baseReceived);
+    emit QuoteSwappedForBase(_optionMarket, msg.sender, quoteSpent, convertedBaseReceived);
+    return (quoteNeeded, convertedBaseReceived);
+  }
+
+  function getAdapterState(address _optionMarket) external view returns (GMXAdapterState memory) {
+    address baseAsset = address(OptionMarket(_optionMarket).baseAsset());
+    return
+      GMXAdapterState({
+        chainlinkFeed: chainlinkFeeds[baseAsset],
+        marketPricingParams: marketPricingParams[_optionMarket],
+        rateAndCarry: rateAndCarry[_optionMarket],
+        clPrice: _getChainlinkPrice(_optionMarket),
+        gmxMinPrice: _getMinPrice(baseAsset),
+        gmxMaxPrice: _getMaxPrice(baseAsset)
+      });
   }
 
   ////////////
   // Errors //
   ////////////
-  error InvalidMinReturnPercentage();
+  error InvalidMarketPricingParams(MarketPricingParams params);
   error InvalidStaticSwapFeeEstimate();
   error InvalidPriceFeedAddress(address thrower, AggregatorV2V3Interface inputAddress);
-  error InvalidAnswer(address thrower, int answer);
-  error PriceVarianceTooHigh(address thrower, uint price, uint refPrice, uint priceVarianceCBPercent);
+  error InvalidAnswer(address thrower, int answer, uint updatedAt, uint blockTimestamp);
+  error PriceVarianceTooHigh(address thrower, uint minPrice, uint maxPrice, uint clPrice, uint priceVarianceCBPercent);
   error InvalidRiskFreeRate();
 
   //////////////
   //  Events  //
   //////////////
-  event MinReturnPercentageUpdate(address optionMarket, uint256 minReturnPercentage);
-  event StaticSwapFeeMultiplierUpdated(address optionMarket, uint256 swapFeeEstimate);
-  event PriceVarianceToleranceUpdated(address optionMarket, uint256 priceVarianceTolerance);
-  event ChainlinkAggregatorUpdated(address asset, address aggregator);
-  event RiskFreeRateUpdated(int256 newRate);
   event GMXVaultAddressUpdated(address vault);
+  event ChainlinkAggregatorUpdated(address indexed asset, address indexed aggregator);
+  event MarketPricingParamsUpdated(address indexed optionMarket, MarketPricingParams marketPricingParams);
+  event RiskFreeRateUpdated(address indexed optionMarket, int256 newRate);
 }

@@ -2,7 +2,16 @@ import { Signer } from 'ethers';
 
 import { deployGMXTestSystem } from 'gmx/scripts/core/deployGMXComplete';
 import { ethers } from 'hardhat';
-import { MockAggregatorV2V3, PriceFeed, Router, TestERC20SetDecimals, USDG, Vault } from '../../../typechain-types';
+import {
+  MockAggregatorV2V3,
+  PriceFeed,
+  Router,
+  TestERC20SetDecimals,
+  TestERC20SetDecimalsFail,
+  TestWETH,
+  USDG,
+  Vault,
+} from '../../../typechain-types';
 import { GMXDeployContractsType } from '../deployTestSystemGMX';
 
 const errors = [
@@ -67,9 +76,9 @@ const errors = [
 export async function deployRealGMX(
   deployer: Signer,
   contractOverrides?: {
-    USDC: TestERC20SetDecimals;
-    eth: TestERC20SetDecimals;
-    btc: TestERC20SetDecimals;
+    USDC: TestERC20SetDecimalsFail;
+    eth: TestWETH;
+    btc: TestERC20SetDecimalsFail;
     usdcPriceFeed: MockAggregatorV2V3;
     ethPriceFeed: MockAggregatorV2V3;
     btcPriceFeed: MockAggregatorV2V3;

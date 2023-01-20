@@ -1,5 +1,5 @@
 import { BigNumber, BigNumberish } from 'ethers';
-import { MONTH_SEC, OptionType, toBN } from '../../../scripts/util/web3utils';
+import { MONTH_SEC, OptionType, toBN, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { assertCloseTo } from '../../utils/assert';
 import {
   createBoard,
@@ -12,7 +12,7 @@ import {
   setETHPrice,
   settleBoardAtPrice,
 } from '../../utils/contractHelpers';
-import { DEFAULT_PRICING_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_POOL_HEDGER_PARAMS, DEFAULT_PRICING_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { createDefaultBoardWithOverrides, seedBalanceAndApprovalFor } from '../../utils/seedTestSystem';
@@ -534,5 +534,12 @@ describe('OptionMarket - SettleBoard', () => {
       await hre.f.c.shortCollateral.settleOptions(positions.slice(1));
       expect(await hre.f.c.shortCollateral.LPQuoteExcess()).to.eq(0);
     });
+  });
+
+  it('can settle board if there is no poolHedger', async () => {
+    await hre.f.c.liquidityPool.setPoolHedger(ZERO_ADDRESS);
+    const boardId = await createDefaultBoardWithOverrides(hre.f.c);
+    await fastForward(MONTH_SEC);
+    await hre.f.c.optionMarket.settleExpiredBoard(boardId);
   });
 });

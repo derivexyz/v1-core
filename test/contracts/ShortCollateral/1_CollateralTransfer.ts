@@ -137,8 +137,8 @@ describe('Collateral transfer', async () => {
   describe('boardSettlement', async () => {
     it('sends balance even if amount > balance', async () => {
       const tx = await c.shortCollateral.boardSettlement(toBN('1.1'), toBN('110'));
-      expect(getEventArgs(await tx.wait(), 'BaseSent').amount).eq(toBN('1'));
-      expect(getEventArgs(await tx.wait(), 'QuoteSent').amount).eq(toBN('100'));
+      expect(getEventArgs(await tx.wait(), 'BaseSent').nativeAmount).eq(toBN('1'));
+      expect(getEventArgs(await tx.wait(), 'QuoteSent').nativeAmount).eq(toBN('100'));
       expect(await c.shortCollateral.LPBaseExcess()).eq(toBN('0.1'));
       expect(await c.shortCollateral.LPQuoteExcess()).eq(toBN('10'));
     });

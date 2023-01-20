@@ -31,6 +31,7 @@ pragma solidity 0.8.16;
 abstract contract AbstractOwned {
   address public owner;
   address public nominatedOwner;
+  uint[48] private __gap;
 
   function nominateNewOwner(address _owner) external onlyOwner {
     nominatedOwner = _owner;

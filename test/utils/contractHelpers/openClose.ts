@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber, BigNumberish, ContractTransaction } from 'ethers';
-import { getEventArgs, MAX_UINT128, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
+import { getEventArgs, MAX_UINT128, OptionType, toBN, UNIT, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { TradeEvent, TradeInputParametersStruct } from '../../../typechain-types/OptionMarket';
 import { PositionWithOwnerStructOutput, TradeParametersStruct } from '../../../typechain-types/OptionToken';
 import { assertCloseToPercentage } from '../assert';
@@ -31,6 +31,7 @@ function getMarketTradeArgs(
     minTotalCost: parameters.minTotalCost === undefined ? 0 : parameters.minTotalCost,
     maxTotalCost: parameters.maxTotalCost === undefined ? MAX_UINT128 : parameters.maxTotalCost,
     optionType: parameters.optionType,
+    referrer: ZERO_ADDRESS,
   };
 }
 

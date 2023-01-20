@@ -122,6 +122,8 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
     uint minTotalCost;
     // revert trade if totalCost is above this value
     uint maxTotalCost;
+    // referrer emitted in Trade event, no on-chain interaction
+    address referrer;
   }
 
   struct TradeParameters {
@@ -137,6 +139,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
   }
 
   struct TradeEventData {
+    uint strikeId;
     uint expiry;
     uint strikePrice;
     OptionType optionType;
@@ -400,12 +403,15 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
     if (quoteBal > 0 && !quoteAsset.transfer(msg.sender, quoteBal)) {
       revert QuoteTransferFailed(address(this), address(this), msg.sender, quoteBal);
     }
-    // While fees cannot accrue in base, this can help reclaim any accidental transfers into this contract
-    uint baseBal = baseAsset.balanceOf(address(this));
-    if (baseBal > 0 && !baseAsset.transfer(msg.sender, baseBal)) {
-      revert BaseTransferFailed(address(this), address(this), msg.sender, baseBal);
+    emit SMClaimed(msg.sender, quoteBal);
+  }
+
+  /// @notice Allow incorrectly sent funds to be recovered
+  function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
+    if (token == quoteAsset) {
+      revert CannotRecoverQuote(address(this));
     }
-    emit SMClaimed(msg.sender, quoteBal, baseBal);
+    token.transfer(recipient, token.balanceOf(address(this)));
   }
 
   ///////////
@@ -592,15 +598,16 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
     uint reservedFee = result.totalFee.multiplyDecimal(optionMarketParams.feePortionReserved);
 
-    _routeLPFundsOnOpen(trade, result.totalCost, reservedFee);
+    _routeLPFundsOnOpen(trade, result.totalCost, reservedFee, params.strikeId);
     _routeUserCollateral(trade.optionType, pendingCollateral);
     liquidityPool.updateCBs();
 
     emit Trade(
       msg.sender,
-      params.strikeId,
       result.positionId,
+      params.referrer,
       TradeEventData({
+        strikeId: params.strikeId,
         expiry: trade.expiry,
         strikePrice: trade.strikePrice,
         optionType: params.optionType,
@@ -662,9 +669,10 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
     emit Trade(
       msg.sender,
-      params.strikeId,
       result.positionId,
+      params.referrer,
       TradeEventData({
+        strikeId: params.strikeId,
         expiry: trade.expiry,
         strikePrice: trade.strikePrice,
         optionType: params.optionType,
@@ -719,11 +727,11 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
     } else if (optionType == OptionType.LONG_CALL || optionType == OptionType.SHORT_PUT_QUOTE) {
       pricing = _tradeDirection == TradeDirection.OPEN
         ? BaseExchangeAdapter.PriceType.MAX_PRICE
-        : BaseExchangeAdapter.PriceType.MIN_PRICE;
+        : (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MIN : BaseExchangeAdapter.PriceType.MIN_PRICE);
     } else {
       pricing = _tradeDirection == TradeDirection.OPEN
         ? BaseExchangeAdapter.PriceType.MIN_PRICE
-        : BaseExchangeAdapter.PriceType.MAX_PRICE;
+        : (isForceClose ? BaseExchangeAdapter.PriceType.FORCE_MAX : BaseExchangeAdapter.PriceType.MAX_PRICE);
     }
 
     trade = TradeParameters({
@@ -734,7 +742,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
       amount: amount / iterations,
       expiry: board.expiry,
       strikePrice: strike.strikePrice,
-      liquidity: liquidityPool.getLiquidity(), // NOTE: uses PriceType.LATEST
+      liquidity: liquidityPool.getLiquidity(), // NOTE: uses PriceType.REFERENCE
       spotPrice: exchangeAdapter.getSpotPriceForMarket(address(this), pricing)
     });
   }
@@ -845,9 +853,10 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
     emit Trade(
       position.owner,
-      position.strikeId,
       positionId,
+      address(0),
       TradeEventData({
+        strikeId: position.strikeId,
         expiry: trade.expiry,
         strikePrice: trade.strikePrice,
         optionType: position.optionType,
@@ -880,17 +889,17 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
   //////////////////
 
   /// @dev send/receive quote or base to/from LiquidityPool on position open
-  function _routeLPFundsOnOpen(TradeParameters memory trade, uint totalCost, uint feePortion) internal {
+  function _routeLPFundsOnOpen(TradeParameters memory trade, uint totalCost, uint feePortion, uint strikeId) internal {
     if (trade.amount == 0) {
       return;
     }
 
     if (trade.optionType == OptionType.LONG_CALL) {
-      liquidityPool.lockCallCollateral(trade.amount, trade.spotPrice, trade.liquidity.freeLiquidity);
+      liquidityPool.lockCallCollateral(trade.amount, trade.spotPrice, trade.liquidity.freeLiquidity, strikeId);
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.LONG_PUT) {
-      liquidityPool.lockPutCollateral(trade.amount.multiplyDecimal(trade.strikePrice), trade.liquidity.freeLiquidity);
+      liquidityPool.lockPutCollateral(trade.amount.multiplyDecimal(trade.strikePrice), trade.liquidity.freeLiquidity, strikeId);
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.SHORT_CALL_BASE) {
@@ -900,7 +909,8 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
         totalCost,
         trade.liquidity.freeLiquidity,
         feePortion,
-        true
+        true,
+        strikeId
       );
     } else {
       // OptionType.SHORT_CALL_QUOTE || OptionType.SHORT_PUT_QUOTE
@@ -910,7 +920,8 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
         totalCost,
         trade.liquidity.freeLiquidity,
         feePortion,
-        false
+        trade.optionType == OptionType.SHORT_CALL_QUOTE,
+        strikeId
       );
     }
   }
@@ -959,7 +970,10 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
           uint(pendingCollateral),
           baseAsset.decimals()
         );
-        if (!baseAsset.transferFrom(msg.sender, address(shortCollateral), uint(pendingCollateralConverted))) {
+        if (
+          pendingCollateralConverted > 0 &&
+          !baseAsset.transferFrom(msg.sender, address(shortCollateral), uint(pendingCollateralConverted))
+        ) {
           revert BaseTransferFailed(
             address(this),
             msg.sender,
@@ -1186,15 +1200,15 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
   /**
    * @dev Emitted whenever the security module claims their portion of fees
    */
-  event SMClaimed(address securityModule, uint quoteAmount, uint baseAmount);
+  event SMClaimed(address securityModule, uint quoteAmount);
 
   /**
    * @dev Emitted when a Position is opened, closed or liquidated.
    */
   event Trade(
     address indexed trader,
-    uint indexed strikeId,
     uint indexed positionId,
+    address indexed referrer,
     TradeEventData trade,
     OptionMarketPricer.TradeResult[] tradeResults,
     LiquidationEventData liquidation,
@@ -1225,6 +1239,7 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
 
   // Admin
   error InvalidOptionMarketParams(address thrower, OptionMarketParameters optionMarketParams);
+  error CannotRecoverQuote(address thrower);
 
   // Board related
   error InvalidBoardId(address thrower, uint boardId);

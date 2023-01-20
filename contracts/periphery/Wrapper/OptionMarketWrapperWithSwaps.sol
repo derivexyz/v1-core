@@ -610,7 +610,8 @@ contract OptionMarketWrapperWithSwaps is Owned {
         amount: params.amount,
         setCollateralTo: params.setCollateralTo,
         minTotalCost: params.minCost,
-        maxTotalCost: params.maxCost
+        maxTotalCost: params.maxCost,
+        referrer: address(0)
       });
   }
 

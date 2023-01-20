@@ -1,6 +1,6 @@
 import { BigNumber, Contract, ContractFactory, Signer } from 'ethers';
 import { ethers, tracer } from 'hardhat';
-import { currentTime, toBN } from '../../scripts/util/web3utils';
+import { currentTime, toBN, ZERO_ADDRESS } from '../../scripts/util/web3utils';
 import {
   BasicFeeCounter,
   BasicLiquidityCounter,
@@ -37,6 +37,7 @@ import {
   TestGMXVaultChainlinkPrice,
   Timelock,
   TestWETH,
+  TestERC20SetDecimalsFail,
 } from '../../typechain-types';
 import { CircuitBreakerParametersStruct, LiquidityPoolParametersStruct } from '../../typechain-types/LiquidityPool';
 import { GreekCacheParametersStruct, MinCollateralParametersStruct } from '../../typechain-types/OptionGreekCache';
@@ -54,11 +55,12 @@ import { mergeDeep } from './package/merge';
 import { deployRealGMX, initVault } from './package/realGMXUtils';
 import chalk from 'chalk';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { DEFAULT_GMX_ADAPTER_PARAMS } from './defaultParams';
 
 export type GMXDeployContractsType = {
   isMockGMX: boolean;
-  USDC: TestERC20SetDecimals; // quote asset
-  btc: TestERC20SetDecimals;
+  USDC: TestERC20SetDecimalsFail; // quote asset
+  btc: TestERC20SetDecimalsFail;
   eth: TestWETH; // base asset
   vault: Vault;
   timelock: Timelock;
@@ -79,7 +81,7 @@ export type GMXDeployContractsType = {
 };
 
 export type GlobalTestSystemContractsGMX = {
-  GMXAdapter: GMXAdapter; // TODO: change this to gmx adapter
+  GMXAdapter: GMXAdapter;
   lyraRegistry: LyraRegistry;
   blackScholes: BlackScholes;
   gwav: GWAV;
@@ -87,7 +89,6 @@ export type GlobalTestSystemContractsGMX = {
   optionMarketWrapper: OptionMarketWrapper;
   testCurve: TestCurve;
   basicFeeCounter: BasicFeeCounter;
-  // TODO: globalquote asset.
   gmx: GMXDeployContractsType;
 };
 
@@ -168,7 +169,6 @@ export type DeployOverrides = {
   positionRouter?: string;
   router?: string;
   reader?: string;
-  // TODO: could have multiple overrides need to look into it
   priceFeed?: string;
   // set to false to deploy full SNX stack
   // only works when deployed to localhost (not hardhat tests)
@@ -189,6 +189,8 @@ export type DeployOverrides = {
   ethFeedDecimals?: number;
   btcDecimals?: number;
   btcFeedDecimals?: number;
+
+  wethAddress?: string;
 };
 
 export async function deployGMXTestSystem(
@@ -472,7 +474,6 @@ export async function initMarketTestSystemGMX(
       overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
     );
 
-  // TODO: failing here because of the GMXadapter
   await marketTestSystem.liquidityPool
     .connect(deployer)
     .init(
@@ -531,9 +532,11 @@ export async function initMarketTestSystemGMX(
     existingTestSystem.gmx.ethPriceFeed.address,
   );
 
-  await existingTestSystem.GMXAdapter.setMinReturnPercent(marketTestSystem.optionMarket.address, toBN('1.0'));
-  await existingTestSystem.GMXAdapter.setStaticSwapFeeEstimate(marketTestSystem.optionMarket.address, toBN('1.015'));
-  await existingTestSystem.GMXAdapter.setPriceVarianceCBPercent(marketTestSystem.optionMarket.address, toBN('0.015'));
+  await existingTestSystem.GMXAdapter.setMarketPricingParams(marketTestSystem.optionMarket.address, {
+    ...DEFAULT_GMX_ADAPTER_PARAMS,
+    staticSwapFeeEstimate: toBN('1.015'),
+    priceVarianceCBPercent: toBN('0.015'),
+  });
 
   await marketTestSystem.GWAVOracle.connect(deployer).init(
     overrides.optionMarket || marketTestSystem.optionMarket.address,
@@ -590,18 +593,18 @@ export async function initMarketTestSystemGMX(
       marketTestSystem.optionGreekCache.address,
     );
 
-  await marketTestSystem.futuresPoolHedger
-    .connect(deployer)
-    .init(
-      overrides.liquidityPool || marketTestSystem.liquidityPool.address,
-      overrides.optionMarket || marketTestSystem.optionMarket.address,
-      overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
-      overrides.exchangeAdapter || existingTestSystem.GMXAdapter.address,
-      overrides.positionRouter || existingTestSystem.gmx.positionRouter.address,
-      overrides.router || existingTestSystem.gmx.router.address,
-      overrides.quoteAsset || existingTestSystem.gmx.USDC.address,
-      overrides.baseAsset || existingTestSystem.gmx.eth.address,
-    );
+  await marketTestSystem.futuresPoolHedger.connect(deployer).init(
+    overrides.liquidityPool || marketTestSystem.liquidityPool.address,
+    overrides.optionMarket || marketTestSystem.optionMarket.address,
+    overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
+    overrides.exchangeAdapter || existingTestSystem.GMXAdapter.address,
+    overrides.positionRouter || existingTestSystem.gmx.positionRouter.address,
+    overrides.router || existingTestSystem.gmx.router.address,
+    overrides.quoteAsset || existingTestSystem.gmx.USDC.address,
+    overrides.baseAsset || existingTestSystem.gmx.eth.address,
+    // NOTE: for testing we put in btc as all the integration tests use weth already...
+    overrides.wethAddress || existingTestSystem.gmx.btc.address,
+  );
 
   ////////////////////////
   // Lyra Market Params //
@@ -743,7 +746,6 @@ export async function deployMarketTestContractsGMX(
     keeperHelper,
   };
 
-  // TODO: add some weird writing to a file if necessary
   console.log(chalk.greenBright('market system deployed - GMX'));
 
   return marketSystem;
@@ -818,21 +820,21 @@ export async function deployGlobalTestContractsGMX(
   //////////////////
 
   const contractOverrides: {
-    USDC: TestERC20SetDecimals;
+    USDC: TestERC20SetDecimalsFail;
     eth: TestWETH;
-    btc: TestERC20SetDecimals;
+    btc: TestERC20SetDecimalsFail;
     usdcPriceFeed: MockAggregatorV2V3;
     ethPriceFeed: MockAggregatorV2V3;
     btcPriceFeed: MockAggregatorV2V3;
   } = {
     USDC: (await (
-      await ethers.getContractFactory('TestERC20SetDecimals', deployer)
+      await ethers.getContractFactory('TestERC20SetDecimalsFail', deployer)
     ).deploy('USDC', 'USDC', _overrides.usdcDecimals || 18)) as any,
     eth: (await (
       await ethers.getContractFactory('TestWETH', deployer)
     ).deploy('WETH', 'WETH', _overrides.ethDecimals || 18)) as any,
     btc: (await (
-      await ethers.getContractFactory('TestERC20SetDecimals', deployer)
+      await ethers.getContractFactory('TestERC20SetDecimalsFail', deployer)
     ).deploy('wBTC', 'wBTC', _overrides.btcDecimals || 18)) as any,
     usdcPriceFeed: (await ((await ethers.getContractFactory('MockAggregatorV2V3')) as ContractFactory)
       .connect(deployer)

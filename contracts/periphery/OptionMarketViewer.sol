@@ -250,11 +250,11 @@ contract OptionMarketViewer is Owned {
     if (!isGlobalPaused && !isMarketPaused) {
       minSpotPrice = exchangeAdapter.getSpotPriceForMarket(
         address(marketC.optionMarket),
-        BaseExchangeAdapter.PriceType.MIN_PRICE
+        BaseExchangeAdapter.PriceType.FORCE_MIN
       );
       maxSpotPrice = exchangeAdapter.getSpotPriceForMarket(
         address(marketC.optionMarket),
-        BaseExchangeAdapter.PriceType.MAX_PRICE
+        BaseExchangeAdapter.PriceType.FORCE_MAX
       );
       spotPrice = exchangeAdapter.getSpotPriceForMarket(
         address(marketC.optionMarket),

@@ -239,6 +239,14 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     emit PoolHedgerUpdated(poolHedger);
   }
 
+  /// @notice Allow incorrectly sent funds to be recovered
+  function recoverFunds(IERC20Decimals token, address recipient) external onlyOwner {
+    if (token == quoteAsset || token == baseAsset) {
+      revert CannotRecoverQuoteBase(address(this));
+    }
+    token.transfer(recipient, token.balanceOf(address(this)));
+  }
+
   //////////////////////////////
   // Deposits and Withdrawals //
   //////////////////////////////
@@ -424,8 +432,27 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
       totalQueuedWithdrawals -= burnAmount;
 
       uint quoteAmount = burnAmount.multiplyDecimal(tokenPriceWithFee);
-      current.quoteSent += quoteAmount;
-      _transferQuote(current.beneficiary, quoteAmount);
+      if (_tryTransferQuote(current.beneficiary, quoteAmount)) {
+        // success
+        current.quoteSent += quoteAmount;
+      } else {
+        // On unknown failure reason, return LP tokens and continue
+        totalQueuedWithdrawals -= current.amountTokens;
+        uint returnAmount = current.amountTokens + burnAmount;
+        liquidityToken.mint(current.beneficiary, returnAmount);
+        current.amountTokens = 0;
+        emit WithdrawReverted(
+          msg.sender,
+          current.beneficiary,
+          queuedWithdrawalHead,
+          tokenPriceWithFee,
+          totalQueuedWithdrawals,
+          block.timestamp,
+          returnAmount
+        );
+        queuedWithdrawalHead++;
+        continue;
+      }
 
       if (current.amountTokens > 0) {
         emit WithdrawPartiallyProcessed(
@@ -567,12 +594,12 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
    * @param amount The amount of quote to lock.
    * @param freeLiquidity The amount of free collateral that can be locked.
    */
-  function lockPutCollateral(uint amount, uint freeLiquidity) external onlyOptionMarket {
+  function lockPutCollateral(uint amount, uint freeLiquidity, uint strikeId) external onlyOptionMarket {
     if (amount.multiplyDecimal(lpParams.putCollatScalingFactor) > freeLiquidity) {
       revert LockingMoreQuoteThanIsFree(address(this), amount, freeLiquidity, lockedCollateral);
     }
 
-    _checkCanHedge(amount, false);
+    _checkCanHedge(amount, true, strikeId);
 
     lockedCollateral.quote += amount;
     emit PutCollateralLocked(amount, lockedCollateral.quote);
@@ -583,8 +610,8 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
    *
    * @param amount The amount of quote to lock.
    */
-  function lockCallCollateral(uint amount, uint spotPrice, uint freeLiquidity) external onlyOptionMarket {
-    _checkCanHedge(amount, true);
+  function lockCallCollateral(uint amount, uint spotPrice, uint freeLiquidity, uint strikeId) external onlyOptionMarket {
+    _checkCanHedge(amount, false, strikeId);
 
     if (amount.multiplyDecimal(spotPrice).multiplyDecimal(lpParams.callCollatScalingFactor) > freeLiquidity) {
       revert LockingMoreQuoteThanIsFree(
@@ -648,14 +675,17 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     uint premium,
     uint freeLiquidity,
     uint reservedFee,
-    bool isCall
+    bool isCall,
+    uint strikeId
   ) external onlyOptionMarket {
     if (premium + reservedFee > freeLiquidity) {
       revert SendPremiumNotEnoughCollateral(address(this), premium, reservedFee, freeLiquidity);
     }
 
     // only blocks opening new positions if cannot hedge
-    _checkCanHedge(amountContracts, isCall);
+    // Since this is opening a short, pool delta exposure is the same direction as if it were a call
+    // (user opens a short call, the pool acquires on a long call)
+    _checkCanHedge(amountContracts, isCall, strikeId);
     _sendPremium(recipient, premium, reservedFee);
   }
 
@@ -804,7 +834,7 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     // It is better for the contract to revert if there is not enough here (due to rounding) to keep accounting in
     // ShortCollateral correct. baseAsset can be donated (sent) to this contract to allow this to pass.
     uint realBase = ConvertDecimals.convertFrom18(amountBase, baseAsset.decimals());
-    if (!baseAsset.transfer(address(shortCollateral), realBase)) {
+    if (realBase > 0 && !baseAsset.transfer(address(shortCollateral), realBase)) {
       revert BaseTransferFailed(address(this), address(this), address(shortCollateral), realBase);
     }
 
@@ -1025,12 +1055,12 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     return (0, 0);
   }
 
-  function _checkCanHedge(uint amountOptions, bool increasesDelta) internal view {
+  function _checkCanHedge(uint amountOptions, bool increasesPoolDelta, uint strikeId) internal view {
     if (address(poolHedger) == address(0)) {
       return;
     }
-    if (!poolHedger.canHedge(amountOptions, increasesDelta)) {
-      revert UnableToHedgeDelta(address(this), amountOptions, increasesDelta);
+    if (!poolHedger.canHedge(amountOptions, increasesPoolDelta, strikeId)) {
+      revert UnableToHedgeDelta(address(this), amountOptions, increasesPoolDelta, strikeId);
     }
   }
 
@@ -1061,6 +1091,18 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
         revert QuoteTransferFailed(address(this), address(this), to, amount);
       }
     }
+  }
+
+  function _tryTransferQuote(address to, uint amount) internal returns (bool success) {
+    amount = ConvertDecimals.convertFrom18(amount, quoteAsset.decimals());
+    if (amount > 0) {
+      try quoteAsset.transfer(to, amount) returns (bool res) {
+        return res;
+      } catch {
+        return false;
+      }
+    }
+    return true;
   }
 
   ///////////////
@@ -1178,6 +1220,15 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
     uint totalQueuedWithdrawals,
     uint timestamp
   );
+  event WithdrawReverted(
+    address indexed caller,
+    address indexed beneficiary,
+    uint indexed withdrawalQueueId,
+    uint tokenPrice,
+    uint totalQueuedWithdrawals,
+    uint timestamp,
+    uint tokensReturned
+  );
   event WithdrawQueued(
     address indexed withdrawer,
     address indexed beneficiary,
@@ -1208,6 +1259,7 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
   // Admin
   error InvalidLiquidityPoolParameters(address thrower, LiquidityPoolParameters lpParams);
   error InvalidCircuitBreakerParameters(address thrower, CircuitBreakerParameters cbParams);
+  error CannotRecoverQuoteBase(address thrower);
 
   // Deposits and withdrawals
   error InvalidBeneficiaryAddress(address thrower, address beneficiary);
@@ -1233,5 +1285,5 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
   error BaseApprovalFailure(address thrower, address approvee, uint amount);
 
   // @dev Emmitted whenever a position can not be opened as the hedger is unable to hedge
-  error UnableToHedgeDelta(address thrower, uint amountOptions, bool increasesDelta);
+  error UnableToHedgeDelta(address thrower, uint amountOptions, bool increasesDelta, uint strikeId);
 }

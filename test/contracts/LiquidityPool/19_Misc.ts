@@ -88,8 +88,8 @@ describe('Misc', async () => {
   });
 
   it('reverts in a number of scenarios', async () => {
-    await expect(lp.lockPutCollateral(1, 0)).revertedWith('LockingMoreQuoteThanIsFree');
-    await expect(lp.sendShortPremium(ZERO_ADDRESS, 1, 1, 0, 0, false)).revertedWith('SendPremiumNotEnoughCollateral');
+    await expect(lp.lockPutCollateral(1, 0, 0)).revertedWith('LockingMoreQuoteThanIsFree');
+    await expect(lp.sendShortPremium(ZERO_ADDRESS, 1, 1, 0, 0, false, 0)).revertedWith('SendPremiumNotEnoughCollateral');
     await lp.boardSettlement(0, 0, 0, 0);
     const time = BigNumber.from(await currentTime());
     expect(await lp.CBTimestamp()).eq(time.add(DEFAULT_CB_PARAMS.boardSettlementCBTimeout));
@@ -104,7 +104,7 @@ describe('Misc', async () => {
     await c.snx.quoteAsset.mint(lp.address, toBN('1000'));
 
     await c.snx.quoteAsset.setForceFail(true);
-    await expect(lp.sendShortPremium(alice.address, toBN('1'), toBN('1'), toBN('1000'), 0, false)).revertedWith(
+    await expect(lp.sendShortPremium(alice.address, toBN('1'), toBN('1'), toBN('1000'), 0, false, 0)).revertedWith(
       'QuoteTransferFailed',
     );
     await c.snx.quoteAsset.setForceFail(false);
@@ -117,8 +117,18 @@ describe('Misc', async () => {
     await expect(lp.reclaimInsolventQuote(toBN('1000'))).revertedWith('NotEnoughFreeToReclaimInsolvency');
 
     await expect(lp.connect(alice).transferQuoteToHedge(DEFAULT_BASE_PRICE)).revertedWith('OnlyPoolHedger');
-    await expect(lp.connect(alice).lockPutCollateral(0, 0)).revertedWith('OnlyOptionMarket');
+    await expect(lp.connect(alice).lockPutCollateral(0, 0, 0)).revertedWith('OnlyOptionMarket');
     await expect(lp.connect(alice).sendSettlementValue(alice.address, 0)).revertedWith('OnlyShortCollateral');
+
+    // reclaimInsolventBase failures
+    await c.snx.quoteAsset.setForceFail(true);
+    await expect(lp.reclaimInsolventBase(toBN('1'))).revertedWith('QuoteApprovalFailure');
+    await c.snx.quoteAsset.setForceFail(false);
+
+    await c.snx.baseAsset.mint(lp.address, toBN('1'));
+    await c.snx.baseAsset.setForceFail(true);
+    await expect(lp.exchangeBase()).revertedWith('BaseApprovalFailure');
+    await c.snx.baseAsset.setForceFail(false);
   });
 
   it('reverts if optionValue > total asset value', async () => {

@@ -4,7 +4,7 @@ import { ethers } from 'hardhat';
 import { TestBaseExchangeAdapter } from '../../../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-describe('GMXAdapter', async () => {
+describe('BaseExchangeAdapter', async () => {
   let exchangeAdapter: TestBaseExchangeAdapter;
   let deployer: SignerWithAddress;
   before(async () => {

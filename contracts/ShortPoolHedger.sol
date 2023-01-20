@@ -121,7 +121,7 @@ contract ShortPoolHedger is PoolHedger, Owned, SimpleInitializable, ReentrancyGu
     synthetixAdapter.delegateApprovals().approveExchangeOnBehalf(address(synthetixAdapter));
   }
 
-  function canHedge(uint, bool) external view virtual override returns (bool) {
+  function canHedge(uint, bool, uint) external view virtual override returns (bool) {
     return true;
   }
 

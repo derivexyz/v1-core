@@ -8,7 +8,9 @@ import "./ITestERC20.sol";
 // This test may need to be depricated as decimals are overridden hardcoded in decimals() now
 contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
   bool public forceFail = false;
+  bool public transferRevert = false;
   bool public maxApproveFail = false;
+  bool public returnFalseOnNotEnoughBalance = false;
   mapping(address => bool) public permitted;
   uint8 private _decimals;
 
@@ -18,11 +20,23 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
   }
 
   function setForceFail(bool _forceFail) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
     forceFail = _forceFail;
   }
 
+  function setTransferRevert(bool _transferRevert) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
+    transferRevert = _transferRevert;
+  }
+
   function setMaxApprovalFail(bool _maxApproveFail) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
     maxApproveFail = _maxApproveFail;
+  }
+
+  function setReturnFalseOnNotEnoughBalance(bool _returnFalse) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
+    returnFalseOnNotEnoughBalance = _returnFalse;
   }
 
   // Default setup of decimals in OpenZepellin v4 is done via decimals() override
@@ -33,6 +47,11 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
 
   function _setupDecimals(uint8 decimals_) internal {
     _decimals = decimals_;
+  }
+
+  function setDecimals(uint8 newDecimals) external {
+    require(permitted[msg.sender], "TestERC20SetDecimals: only permitted");
+    _decimals = newDecimals;
   }
 
   function permitMint(address user, bool permit) external {
@@ -56,12 +75,24 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
     if (forceFail) {
       return false;
     }
+    if (transferRevert) {
+      revert TransferFailure();
+    }
+
+    if (returnFalseOnNotEnoughBalance) {
+      if (balanceOf(msg.sender) < amount) {
+        return false;
+      }
+    }
     return super.transfer(receiver, amount);
   }
 
   function transferFrom(address sender, address receiver, uint amount) public override(ERC20, IERC20) returns (bool) {
     if (forceFail) {
       return false;
+    }
+    if (transferRevert) {
+      revert TransferFailure();
     }
     return super.transferFrom(sender, receiver, amount);
   }
@@ -76,4 +107,6 @@ contract TestERC20SetDecimalsFail is ITestERC20, ERC20 {
     }
     return super.approve(spender, amount);
   }
+
+  error TransferFailure();
 }
