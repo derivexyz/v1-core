@@ -1,5 +1,16 @@
-import { DAY_SEC, HOUR_SEC, MAX_UINT, MONTH_SEC, toBN, WEEK_SEC, ZERO_ADDRESS } from '../../scripts/util/web3utils';
-import { LiquidityPoolParametersStruct } from '../../typechain-types/LiquidityPool';
+import { LiquidityPoolParametersStruct, CircuitBreakerParametersStruct } from '../../typechain-types/LiquidityPool';
+import {
+  DAY_SEC,
+  DEFAULT_DECIMALS,
+  HOUR_SEC,
+  MAX_UINT,
+  MONTH_SEC,
+  toBN,
+  UNIT,
+  WEEK_SEC,
+  YEAR_SEC,
+  ZERO_ADDRESS,
+} from '../../scripts/util/web3utils';
 import {
   ForceCloseParametersStruct,
   GreekCacheParametersStruct,
@@ -13,27 +24,44 @@ import {
 } from '../../typechain-types/OptionMarketPricer';
 import { PartialCollateralParametersStruct } from '../../typechain-types/OptionToken';
 import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
+import { FuturesPoolHedgerParametersStruct } from '../../typechain-types/GMXFuturesPoolHedger';
+import { MarketPricingParamsStruct } from '../../typechain-types/GMXAdapter';
+
+export enum PricingType {
+  MIN_PRICE,
+  MAX_PRICE, // maximise the spot based on logic in adapter
+  REFERENCE,
+  FORCE_MIN,
+  FORCE_MAX,
+}
 
 export const DEFAULT_SHORT_BUFFER = toBN('2');
 export const DEFAULT_BASE_PRICE = toBN('1742.01337');
 export const DEFAULT_FEE_RATE_FOR_BASE = toBN('0.0075');
 export const DEFAULT_FEE_RATE_FOR_QUOTE = toBN('0.005');
+export const DEFAULT_RATE_AND_CARRY = toBN('0.05');
 
 export const DEFAULT_LIQUIDITY_POOL_PARAMS: LiquidityPoolParametersStruct = {
   minDepositWithdraw: toBN('1'),
   depositDelay: WEEK_SEC,
   withdrawalDelay: WEEK_SEC,
   withdrawalFee: toBN('0.01'),
+  guardianMultisig: ZERO_ADDRESS,
+  guardianDelay: WEEK_SEC * 2,
+  adjustmentNetScalingFactor: toBN('0.9'),
+  callCollatScalingFactor: toBN('1'),
+  putCollatScalingFactor: toBN('1'),
+};
+
+export const DEFAULT_CB_PARAMS: CircuitBreakerParametersStruct = {
   liquidityCBThreshold: toBN('0.01'),
   liquidityCBTimeout: DAY_SEC * 3,
   ivVarianceCBThreshold: toBN('0.1'),
   skewVarianceCBThreshold: toBN('0.35'),
   ivVarianceCBTimeout: HOUR_SEC * 12,
   skewVarianceCBTimeout: HOUR_SEC * 12,
-  guardianMultisig: ZERO_ADDRESS,
-  guardianDelay: WEEK_SEC * 2,
   boardSettlementCBTimeout: HOUR_SEC * 6,
-  maxFeePaid: toBN('0.01'),
+  contractAdjustmentCBTimeout: HOUR_SEC * 12,
 };
 
 export const DEFAULT_GREEK_CACHE_PARAMS: GreekCacheParametersStruct = {
@@ -46,7 +74,6 @@ export const DEFAULT_GREEK_CACHE_PARAMS: GreekCacheParametersStruct = {
   optionValueSkewGWAVPeriod: DAY_SEC * 3,
   gwavSkewFloor: toBN('0.5'),
   gwavSkewCap: toBN('2'),
-  rateAndCarry: toBN('0.05'),
 };
 
 export const DEFAULT_MIN_COLLATERAL_PARAMS: MinCollateralParametersStruct = {
@@ -59,6 +86,8 @@ export const DEFAULT_MIN_COLLATERAL_PARAMS: MinCollateralParametersStruct = {
   callSpotPriceShock: toBN('1.2'),
   putSpotPriceShock: toBN('0.8'),
 };
+
+export const DEFAULT_FUTURES_MAX_LEVERAGE_PARAMS = UNIT;
 
 export const DEFAULT_FORCE_CLOSE_PARAMS: ForceCloseParametersStruct = {
   ivGWAVPeriod: HOUR_SEC * 12,
@@ -133,6 +162,25 @@ export const DEFAULT_POOL_HEDGER_PARAMS: PoolHedgerParametersStruct = {
   hedgeCap: MAX_UINT,
 };
 
+export const DEFAULT_GMX_POOL_HEDGER_PARAMS: FuturesPoolHedgerParametersStruct = {
+  acceptableSpotSlippage: toBN('1.05'),
+  deltaThreshold: toBN('100'),
+  marketDepthBuffer: toBN('1'),
+  vaultLiquidityCheckEnabled: true,
+  targetLeverage: toBN('1.1'),
+  maxLeverage: toBN('10'),
+  minCollateralUpdate: toBN('5'),
+  minCancelDelay: 1200, // 20 minutes
+};
+
+export const DEFAULT_GMX_ADAPTER_PARAMS: MarketPricingParamsStruct = {
+  staticSwapFeeEstimate: toBN('1.02'),
+  gmxUsageThreshold: toBN('0.004'),
+  priceVarianceCBPercent: toBN('0.015'),
+  // for testing just make it never stale unless we explicitly want to
+  chainlinkStalenessCheck: YEAR_SEC,
+};
+
 export const DEFAULT_BOARD_PARAMS: BoardParameters = {
   expiresIn: MONTH_SEC,
   baseIV: '1',
@@ -202,9 +250,12 @@ export function getStrikePrices(market?: string): string[] {
 }
 
 export const DEFAULT_POOL_DEPOSIT = toBN('500000');
+export const DEFAULT_POOL_DEPOSIT_USDC = toBN('500000', DEFAULT_DECIMALS.USDC);
 
 export const DEFAULT_QUOTE_BALANCE = toBN('1000000');
+export const DEFAULT_QUOTE_BALANCE_USDC = toBN('1000000', DEFAULT_DECIMALS.USDC);
 
 export const DEFAULT_BASE_BALANCE = toBN('10000');
+export const DEFAULT_BASE_BALANCE_BTC = toBN('10000', DEFAULT_DECIMALS.wBTC);
 
 export const DEFAULT_MARKET_ID = 0;

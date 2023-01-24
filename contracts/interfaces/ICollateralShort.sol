@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity ^0.8.9;
+pragma solidity 0.8.16;
 
 interface ICollateralShort {
   struct Loan {
@@ -23,19 +23,7 @@ interface ICollateralShort {
     uint lastInteraction;
   }
 
-  function loans(uint id)
-    external
-    returns (
-      uint,
-      address,
-      uint,
-      bytes32,
-      uint,
-      bool,
-      uint,
-      uint,
-      uint
-    );
+  function loans(uint id) external returns (uint, address, uint, bytes32, uint, bool, uint, uint, uint);
 
   function minCratio() external returns (uint);
 
@@ -43,28 +31,16 @@ interface ICollateralShort {
 
   function issueFeeRate() external returns (uint);
 
-  function open(
-    uint collateral,
-    uint amount,
-    bytes32 currency
-  ) external returns (uint id);
+  function open(uint collateral, uint amount, bytes32 currency) external returns (uint id);
 
-  function repay(
-    address borrower,
-    uint id,
-    uint amount
-  ) external returns (uint short, uint collateral);
+  function repay(address borrower, uint id, uint amount) external returns (uint short, uint collateral);
 
   function repayWithCollateral(uint id, uint repayAmount) external returns (uint short, uint collateral);
 
   function draw(uint id, uint amount) external returns (uint short, uint collateral);
 
   // Same as before
-  function deposit(
-    address borrower,
-    uint id,
-    uint amount
-  ) external returns (uint short, uint collateral);
+  function deposit(address borrower, uint id, uint amount) external returns (uint short, uint collateral);
 
   // Same as before
   function withdraw(uint id, uint amount) external returns (uint short, uint collateral);

@@ -1,11 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.9;
+//SPDX-License-Identifier: ISC
+pragma solidity 0.8.16;
 
 import "../synthetix/DecimalMath.sol";
 import "../interfaces/ICurve.sol";
 import "./TestERC20.sol";
 import "../synthetix/Owned.sol";
-import "hardhat/console.sol";
 
 /// @title Router token swapping functionality
 /// @notice Functions for swapping tokens via Curve

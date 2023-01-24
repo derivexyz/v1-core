@@ -20,7 +20,7 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-pragma solidity ^0.8.9;
+pragma solidity 0.8.16;
 
 /**
  * @title DecimalMath
@@ -35,11 +35,11 @@ library DecimalMath {
   uint8 public constant highPrecisionDecimals = 27;
 
   /* The number representing 1.0. */
-  uint public constant UNIT = 10**uint(decimals);
+  uint public constant UNIT = 10 ** uint(decimals);
 
   /* The number representing 1.0 for higher fidelity numbers. */
-  uint public constant PRECISE_UNIT = 10**uint(highPrecisionDecimals);
-  uint private constant UNIT_TO_HIGH_PRECISION_CONVERSION_FACTOR = 10**uint(highPrecisionDecimals - decimals);
+  uint public constant PRECISE_UNIT = 10 ** uint(highPrecisionDecimals);
+  uint private constant UNIT_TO_HIGH_PRECISION_CONVERSION_FACTOR = 10 ** uint(highPrecisionDecimals - decimals);
 
   /**
    * @return Provides an interface to UNIT.
@@ -81,11 +81,7 @@ library DecimalMath {
    * Rounding is useful when you need to retain fidelity for small decimal numbers
    * (eg. small fractions or percentages).
    */
-  function _multiplyDecimalRound(
-    uint x,
-    uint y,
-    uint precisionUnit
-  ) private pure returns (uint) {
+  function _multiplyDecimalRound(uint x, uint y, uint precisionUnit) private pure returns (uint) {
     /* Divide by UNIT to remove the extra factor introduced by the product. */
     uint quotientTimesTen = (x * y) / (precisionUnit / 10);
 
@@ -150,11 +146,7 @@ library DecimalMath {
    * is evaluated, so the product of x and the specified precision unit must
    * be less than 2**256. The result is rounded to the nearest increment.
    */
-  function _divideDecimalRound(
-    uint x,
-    uint y,
-    uint precisionUnit
-  ) private pure returns (uint) {
+  function _divideDecimalRound(uint x, uint y, uint precisionUnit) private pure returns (uint) {
     uint resultTimesTen = (x * (precisionUnit * 10)) / y;
 
     if (resultTimesTen % 10 >= 5) {

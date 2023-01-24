@@ -1,5 +1,5 @@
 import { BigNumberish } from '@ethersproject/bignumber';
-import { BigNumber } from '@ethersproject/contracts/node_modules/@ethersproject/bignumber';
+import { BigNumber } from 'ethers';
 import { DAY_SEC, OptionType, toBN, toBytes32, UNIT, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { assertCloseToPercentage } from '../../utils/assert';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../utils/contractHelpers';
 import {
   DEFAULT_BASE_PRICE,
+  DEFAULT_CB_PARAMS,
   DEFAULT_GREEK_CACHE_PARAMS,
   DEFAULT_LIQUIDITY_POOL_PARAMS,
 } from '../../utils/defaultParams';
@@ -121,15 +122,17 @@ describe('OptionGreekCache - Stale Cache Checks', () => {
       await progressivelyUpdateBoards(boards);
     });
     it('ignores iv/skew variance changes', async () => {
+      await hre.f.c.liquidityPool.setLiquidityPoolParameters({
+        ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+      });
+      await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+        ...DEFAULT_CB_PARAMS,
+        skewVarianceCBThreshold: toBN('0.001'),
+        ivVarianceCBThreshold: toBN('0.001'),
+      });
       let ivVariance;
       let skewVariance;
       for (let i = 0; i < 3; i++) {
-        await hre.f.c.liquidityPool.setLiquidityPoolParameters({
-          ...DEFAULT_LIQUIDITY_POOL_PARAMS,
-          skewVarianceCBThreshold: toBN('0.001'),
-          ivVarianceCBThreshold: toBN('0.001'),
-        });
-
         await openPositionWithOverrides(hre.f.c, {
           strikeId: 3 * (i + 1),
           optionType: OptionType.LONG_CALL,

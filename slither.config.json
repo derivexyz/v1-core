@@ -1,0 +1,8 @@
+{
+  "exclude_informational": true,
+  "exclude_low": true,
+  "exclude_medium": false,
+  "exclude_high": false,
+  "filter_paths": "(contracts/interfaces/|contracts/test-helpers/|contracts/periphery/|node_modules/gmx|node_modules/openzeppelin|SynthetixAdapter.sol|SNXFuturesPoolHedger.sol|ShortPoolHedger.sol)",
+  "legacy_ast": false
+}

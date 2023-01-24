@@ -1,7 +1,6 @@
 import { currentTime, DAY_SEC, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { assertCloseToPercentage } from '../../utils/assert';
-import { getLiquidity, openDefaultLongCall } from '../../utils/contractHelpers';
-import { DEFAULT_POOL_DEPOSIT } from '../../utils/defaultParams';
+import { openDefaultLongCall } from '../../utils/contractHelpers';
 import { fastForward } from '../../utils/evm';
 import { deployFixture, seedFixture } from '../../utils/fixture';
 import { expect, hre } from '../../utils/testSetup';
@@ -18,7 +17,7 @@ describe('TokenPriceAndSupply', async () => {
 
   it('gets price on first deposit', async () => {
     expect(await hre.f.c.liquidityPool.getTokenPrice()).to.eq(toBN('1'));
-    expect(await hre.f.c.liquidityPool.getTotalTokenSupply()).to.eq(DEFAULT_POOL_DEPOSIT);
+    expect(await hre.f.c.liquidityPool.getTotalTokenSupply()).to.eq(toBN('500000'));
   });
 
   it('accounts for withdrawal fee during 100% withdrawal', async () => {
@@ -78,8 +77,6 @@ describe('TokenPriceAndSupply', async () => {
     await openDefaultLongCall();
     await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, toBN('500000'));
     await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-    console.log('liquidity', (await getLiquidity()).freeLiquidity.toString());
-
     expect(await hre.f.c.liquidityPool.CBTimestamp()).to.be.gt(await currentTime());
     await fastForward(DAY_SEC);
     const result = await hre.f.c.liquidityPool.getTokenPriceWithCheck();

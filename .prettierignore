@@ -10,6 +10,7 @@ typechain/
 typechain-types/
 contracts/mocks/
 contracts/test/
+random-scripts/
 
 # files
 coverage.json

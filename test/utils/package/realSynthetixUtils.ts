@@ -10,13 +10,14 @@ let snxIntegration = {} as any;
 try {
   snxIntegration = require('synthetix/test/integration/utils/deploy');
 } catch (e) {
+  console.log({ e });
   snxIntegration = {} as any;
 }
 
 export async function compileAndDeployRealSynthetix(compileSNX: boolean) {
   const synthsToAdd = [{ asset: 'USD' }];
 
-  const network = 'local';
+  const network = 'local'; // changed from local
   const useOvm = false;
 
   const buildPath = path.join('.snx', 'contracts');
@@ -28,8 +29,13 @@ export async function compileAndDeployRealSynthetix(compileSNX: boolean) {
       buildPath,
     });
   }
-
-  await snxIntegration.prepareDeploy({ network, synthsToAdd, useOvm, useReleases: false, useSips: false });
+  try {
+    console.log('snx integration', snxIntegration);
+    await snxIntegration.prepareDeploy({ network, synthsToAdd, useOvm, useReleases: false, useSips: false });
+  } catch (e: any) {
+    console.log('snx integration error');
+    console.log(e);
+  }
 
   console.log('\ndeployInstance\n');
   await snxIntegration.deployInstance({
@@ -85,19 +91,39 @@ export async function changeRate(c: TestSystemContractsType, price: BigNumber, m
   await aggregator.setLatestAnswer(price, await currentTime());
 }
 
-export async function mintBase(c: TestSystemContractsType, market: string, receiver: Signer, amount: BigNumber) {
+export async function mintBase(
+  c: TestSystemContractsType,
+  market: string,
+  receiver: Signer,
+  amount: BigNumber,
+  useBTC?: boolean,
+) {
   // deployer is the original caller of lyraCore.deploy()
   const rate = ((await c.snx.exchangeRates.rateForCurrency(toBytes32(market))) as BigNumber).div(UNIT).mul(toBN('1.1'));
-  const quoteToSwap = amount.div(UNIT).mul(rate);
 
-  // rate = await callSynthetixFunction(deploymentParams, 'ExchangeRates', 'rateForCurrency', [toBytes32(market || 'SNX')]);
+  let quoteToSwap;
+  if (useBTC) {
+    quoteToSwap = amount.div(1e8).mul(rate);
+  } else {
+    quoteToSwap = amount.div(UNIT).mul(rate);
+  }
+
+  // rate = await callExternalFunction(deploymentParams, 'ExchangeRates', 'rateForCurrency', [toBytes32(market || 'SNX')]);
   // console.log('After rate:', fromBN(rate));
   await swapForBase(c, quoteToSwap, market);
   await c.snx.baseAsset.transfer(receiver.getAddress(), amount);
 }
 
-export async function mintQuote(testSystem: TestSystemContractsType, receiver: Signer, amount: BigNumber) {
+export async function mintQuote(
+  testSystem: TestSystemContractsType,
+  receiver: Signer,
+  amount: BigNumber,
+  useUSDC?: boolean,
+) {
   // deployer is the original caller of lyraCore.deploy()
+  if (useUSDC) {
+    amount = amount.div(1e12); // convert to 6 decimals
+  }
   await testSystem.snx.quoteAsset.transfer(receiver.getAddress(), amount);
 }
 
@@ -106,3 +132,5 @@ export async function changeRates(c: TestSystemContractsType) {
   await changeRate(c, toBN('100'), 'sETH');
   await changeRate(c, toBN('1000'), 'sBTC');
 }
+
+// compileAndDeployRealSynthetix(false).then(console.log).catch(console.log);

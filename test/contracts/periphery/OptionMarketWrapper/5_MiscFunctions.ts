@@ -251,7 +251,7 @@ describe('OptionMarketWrapper viewer / misc function tests', () => {
       };
 
       let tx = await hre.f.c.optionMarketWrapper.openPosition(params);
-      let openEvent = getEventArgs(await tx.wait(), 'PositionTraded');
+      const openEvent = getEventArgs(await tx.wait(), 'PositionTraded');
       const openFees = await hre.f.c.basicFeeCounter.totalFeesPerMarket(
         hre.f.c.optionMarket.address,
         hre.f.deployer.address,
@@ -276,7 +276,7 @@ describe('OptionMarketWrapper viewer / misc function tests', () => {
       };
 
       tx = await hre.f.c.optionMarketWrapper.closePosition(params);
-      let closeEvent = getEventArgs(await tx.wait(), 'PositionTraded');
+      const closeEvent = getEventArgs(await tx.wait(), 'PositionTraded');
       const totalFees = await hre.f.c.basicFeeCounter.totalFeesPerMarket(
         hre.f.c.optionMarket.address,
         hre.f.deployer.address,
@@ -291,8 +291,8 @@ describe('OptionMarketWrapper viewer / misc function tests', () => {
     it('no trading rewards', async () => {
       // Update trading rewards contract to ZERO ADDRESS
       await hre.f.c.optionMarketWrapper.updateContractParams(
+        hre.f.c.snx.baseAsset.address,
         hre.f.c.testCurve.address,
-        hre.f.c.synthetixAdapter.address,
         ZERO_ADDRESS,
         toBN('0.98'),
       );

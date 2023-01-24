@@ -42,7 +42,7 @@ export const expectBalanceCloseTo = async (tokenContract: Contract, expectedVal:
 };
 
 export async function getSpotPrice() {
-  return await hre.f.c.synthetixAdapter.getSpotPrice(toBytes32('sETH'));
+  return await hre.f.c.synthetixAdapter.getSpotPriceForMarket(hre.f.c.optionMarket.address, 2);
 }
 
 export async function mockPrice(market: string, rate: BigNumberish) {

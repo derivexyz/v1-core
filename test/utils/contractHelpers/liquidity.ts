@@ -1,5 +1,5 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { BigNumber } from 'ethers';
+import { BigNumber, BigNumberish } from 'ethers';
 import { getSpotPrice, getTotalCost, openPosition } from '.';
 import { currentTime, MONTH_SEC, OptionType, toBN, UNIT } from '../../../scripts/util/web3utils';
 import { LiquidityStructOutput } from '../../../typechain-types/LiquidityPool';
@@ -7,7 +7,7 @@ import { DEFAULT_POOL_DEPOSIT, DEFAULT_PRICING_PARAMS } from '../defaultParams';
 import { hre } from '../testSetup';
 
 export async function getLiquidity() {
-  return await hre.f.c.liquidityPool.getCurrentLiquidity();
+  return await hre.f.c.liquidityPool.getLiquidity();
 }
 
 export async function setFreeLiquidityToZero() {
@@ -17,7 +17,7 @@ export async function setFreeLiquidityToZero() {
 }
 
 export async function fillLiquidityWithLongCall(): Promise<[BigNumber, LiquidityStructOutput, BigNumber]> {
-  return await openLongCallAndGetLiquidity(toBN('200'));
+  return await openLongCallAndGetLiquidity(toBN('250'));
 }
 
 export async function fillLiquidityWithLongPut(): Promise<[BigNumber, LiquidityStructOutput, BigNumber]> {
@@ -55,7 +55,7 @@ export async function fillLiquidityWithShortPut(): Promise<[BigNumber, Liquidity
 }
 
 export async function partiallyFillLiquidityWithLongCall(): Promise<[BigNumber, LiquidityStructOutput, BigNumber]> {
-  return await openLongCallAndGetLiquidity(toBN('100'));
+  return await openLongCallAndGetLiquidity(toBN('200'));
 }
 
 export async function openLongCallAndGetLiquidity(
@@ -70,33 +70,34 @@ export async function openLongCallAndGetLiquidity(
   const [totalCost, reservedFee] = await getTotalCost(tx);
   const liquidity = await getLiquidity();
 
-  const exchangeParams = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
-  const toBaseFee = exchangeParams.quoteBaseFeeRate;
-  const snxFee = toBaseFee.mul(amount).mul(exchangeParams.spotPrice).div(UNIT).div(UNIT);
+  // const exchangeParams = await hre.f.c.exchangeAdapter.getExchangeParams(hre.f.c.optionMarket.address);
+  // const toBaseFee = exchangeParams.quoteBaseFeeRate;
+  // const snxFee = toBaseFee.mul(amount).mul(exchangeParams.spotPrice).div(UNIT).div(UNIT);
 
   const availableQuoteForHedge = DEFAULT_POOL_DEPOSIT.add(totalCost)
     .sub(reservedFee)
-    .sub(liquidity.usedCollatLiquidity)
-    .sub(snxFee);
+    .sub(liquidity.reservedCollatLiquidity);
+  // .sub(snxFee);
   return [availableQuoteForHedge, liquidity, positionId];
 }
 
 export async function openLongPutAndGetLiquidity(
   amount: BigNumber,
+  strikeId?: BigNumberish,
 ): Promise<[BigNumber, LiquidityStructOutput, BigNumber]> {
-  const result = await openPosition({
-    strikeId: 2,
+  const [tx, posId] = await openPosition({
+    strikeId: strikeId || 2,
     iterations: 5,
     optionType: OptionType.LONG_PUT,
     amount: amount,
   });
-  const [totalCost, reservedFee] = await getTotalCost(result[0]);
+  const [totalCost, reservedFee] = await getTotalCost(tx);
   const liquidity = await getLiquidity();
 
   const availableQuoteForHedge = DEFAULT_POOL_DEPOSIT.add(totalCost)
     .sub(reservedFee)
-    .sub(liquidity.usedCollatLiquidity);
-  return [availableQuoteForHedge, liquidity, result[1]];
+    .sub(liquidity.reservedCollatLiquidity);
+  return [availableQuoteForHedge, liquidity, posId];
 }
 
 export async function openShortCallBaseAndGetLiquidity(
@@ -115,7 +116,27 @@ export async function openShortCallBaseAndGetLiquidity(
 
   const availableQuoteForHedge = DEFAULT_POOL_DEPOSIT.sub(totalCost)
     .sub(reservedFee)
-    .sub(liquidity.usedCollatLiquidity);
+    .sub(liquidity.reservedCollatLiquidity);
+  return [availableQuoteForHedge, liquidity, result[1]];
+}
+
+export async function openShortCallQuoteAndGetLiquidity(
+  amount: BigNumber,
+  setCollateralTo: BigNumber,
+): Promise<[BigNumber, LiquidityStructOutput, BigNumber]> {
+  const result = await openPosition({
+    strikeId: 2,
+    iterations: 5,
+    optionType: OptionType.SHORT_CALL_QUOTE,
+    setCollateralTo: setCollateralTo,
+    amount: amount,
+  });
+  const [totalCost, reservedFee] = await getTotalCost(result[0]);
+  const liquidity = await getLiquidity();
+
+  const availableQuoteForHedge = DEFAULT_POOL_DEPOSIT.sub(totalCost)
+    .sub(reservedFee)
+    .sub(liquidity.reservedCollatLiquidity);
   return [availableQuoteForHedge, liquidity, result[1]];
 }
 
@@ -135,7 +156,7 @@ export async function openShortPutAndGetLiquidity(
 
   const availableQuoteForHedge = DEFAULT_POOL_DEPOSIT.sub(totalCost)
     .sub(reservedFee)
-    .sub(liquidity.usedCollatLiquidity);
+    .sub(liquidity.reservedCollatLiquidity);
   return [availableQuoteForHedge, liquidity, result[1]];
 }
 

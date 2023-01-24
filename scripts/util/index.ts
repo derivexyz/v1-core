@@ -1,5 +1,4 @@
 import { Wallet } from 'ethers';
-import { ethers } from 'hardhat';
 import {
   LiquidityPool,
   // BlackScholes,
@@ -13,7 +12,6 @@ import {
   ShortCollateral,
   TestERC20,
 } from '../../typechain-types';
-// import { MultistepSwapper } from '../../typechain-types/MultistepSwapper';
 
 (global as any).hashes = [];
 
@@ -72,7 +70,6 @@ export type AllParams = {
     optionValueSkewGWAVPeriod: number;
     gwavSkewFloor: string;
     gwavSkewCap: string;
-    rateAndCarry: string;
   };
   MinCollateralParams: {
     minStaticBaseCollateral: string;
@@ -204,12 +201,44 @@ export type SystemParams = {
   Seed: SeedParams;
 };
 
-export type AllowedNetworks = 'goerli-ovm' | 'mainnet-ovm' | 'local';
-export const allNetworks = ['goerli-ovm', 'mainnet-ovm', 'local'];
+export type AllowedNetworks = 'goerli-ovm' | 'goerli-arbi' | 'mainnet-ovm' | 'mainnet-arbi' | 'local';
+export const allNetworks = ['goerli-ovm', 'goerli-arbi', 'mainnet-ovm', 'mainnet-arbi', 'local'];
+
+export enum DeploymentType {
+  MockSnxMockPricing = 'mockSnx',
+  MockGmxMockPricing = 'mockGmx',
+  MockSnxRealPricing = 'realPricingMockSnx',
+  MockGmxRealPricing = 'realPricingMockGmx',
+  GMX = 'realGMX',
+  SNX = 'realSNX',
+}
 
 export type DeploymentParams = {
   network: AllowedNetworks;
-  mockSnx: boolean;
-  realPricing: boolean;
+  deploymentType: DeploymentType;
   deployer: Wallet;
 };
+
+export function isMockSnx(deploymentType: DeploymentType) {
+  return [DeploymentType.MockSnxMockPricing, DeploymentType.MockSnxRealPricing].includes(deploymentType);
+}
+
+export function isRealSnx(deploymentType: DeploymentType) {
+  return [DeploymentType.SNX].includes(deploymentType);
+}
+
+export function isMockGmx(deploymentType: DeploymentType) {
+  return [DeploymentType.MockGmxMockPricing, DeploymentType.MockGmxRealPricing].includes(deploymentType);
+}
+
+export function isRealGmx(deploymentType: DeploymentType) {
+  return [DeploymentType.GMX].includes(deploymentType);
+}
+
+export function getSelectedNetwork(): AllowedNetworks {
+  const network = process.env.HARDHAT_NETWORK == undefined ? '' : process.env.HARDHAT_NETWORK;
+  if (allNetworks.includes(network) || network == undefined) {
+    return network as AllowedNetworks;
+  }
+  throw Error('Invalid network ' + network);
+}

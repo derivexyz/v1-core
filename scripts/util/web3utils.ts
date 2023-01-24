@@ -12,6 +12,10 @@ export const YEAR_SEC = 365 * DAY_SEC;
 export const MAX_UINT = ethers.BigNumber.from(2).pow(256).sub(1);
 export const MAX_UINT128 = ethers.BigNumber.from(2).pow(128).sub(1);
 export const UNIT = ethers.BigNumber.from(10).pow(18);
+export const CONVERTUSDC = ethers.BigNumber.from(10).pow(12);
+export const CONVERTWBTC = ethers.BigNumber.from(10).pow(10);
+
+export const DEFAULT_DECIMALS = { ETH: 8, wBTC: 8, USDC: 6 };
 
 export enum OptionType {
   LONG_CALL,
@@ -36,8 +40,13 @@ export enum TradeDirection {
   LIQUIDATE,
 }
 
+export function toBN18(val: string) {
+  return toBN(val, 18);
+}
+
 // allow for decimals to be passed in up to 9dp of precision
-export function toBN(val: string) {
+export function toBN(val: string, decimals?: number) {
+  decimals = decimals || 18;
   // multiplier is to handle decimals
   if (val.includes('e')) {
     if (parseFloat(val) > 1) {
@@ -50,22 +59,22 @@ export function toBN(val: string) {
     } else {
       console.warn(
         `Warning: toBN of val with exponent, converting to float. (${val}) converted to (${parseFloat(val).toFixed(
-          18,
+          decimals,
         )})`,
       );
-      val = parseFloat(val).toFixed(18);
+      val = parseFloat(val).toFixed(decimals);
     }
-  } else if (val.includes('.') && val.split('.')[1].length > 18) {
-    console.warn(`Warning: toBN of val with more than 18 decimals. Stripping excess. (${val})`);
+  } else if (val.includes('.') && val.split('.')[1].length > decimals) {
+    console.warn(`Warning: toBN of val with more than ${decimals} decimals. Stripping excess. (${val})`);
     const x = val.split('.');
-    x[1] = x[1].slice(0, 18);
+    x[1] = x[1].slice(0, decimals);
     val = x[0] + '.' + x[1];
   }
-  return ethers.utils.parseUnits(val, 18);
+  return ethers.utils.parseUnits(val, decimals);
 }
 
-export function fromBN(val: BigNumberish): string {
-  return ethers.utils.formatUnits(val, 18);
+export function fromBN(val: BigNumberish, dec?: number): string {
+  return ethers.utils.formatUnits(val, dec || 18);
 }
 
 export function toBytes32(msg: string): string {
@@ -98,7 +107,7 @@ export function getAllMatchingEvents(receipt: ContractReceipt, eventNames: strin
     throw Error('no events on contract receipt');
   }
   const values = receipt.events.filter(e => eventNames.includes(e.event || '_'));
-  if (values == []) {
+  if (values.length == 0) {
     throw new Error(`Could not find event ${eventNames}`);
   }
 

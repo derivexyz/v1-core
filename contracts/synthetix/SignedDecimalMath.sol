@@ -20,7 +20,7 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-pragma solidity ^0.8.9;
+pragma solidity 0.8.16;
 
 /**
  * @title SignedDecimalMath
@@ -34,11 +34,11 @@ library SignedDecimalMath {
   uint8 public constant highPrecisionDecimals = 27;
 
   /* The number representing 1.0. */
-  int public constant UNIT = int(10**uint(decimals));
+  int public constant UNIT = int(10 ** uint(decimals));
 
   /* The number representing 1.0 for higher fidelity numbers. */
-  int public constant PRECISE_UNIT = int(10**uint(highPrecisionDecimals));
-  int private constant UNIT_TO_HIGH_PRECISION_CONVERSION_FACTOR = int(10**uint(highPrecisionDecimals - decimals));
+  int public constant PRECISE_UNIT = int(10 ** uint(highPrecisionDecimals));
+  int private constant UNIT_TO_HIGH_PRECISION_CONVERSION_FACTOR = int(10 ** uint(highPrecisionDecimals - decimals));
 
   /**
    * @return Provides an interface to UNIT.
@@ -96,11 +96,7 @@ library SignedDecimalMath {
    * Rounding is useful when you need to retain fidelity for small decimal numbers
    * (eg. small fractions or percentages).
    */
-  function _multiplyDecimalRound(
-    int x,
-    int y,
-    int precisionUnit
-  ) private pure returns (int) {
+  function _multiplyDecimalRound(int x, int y, int precisionUnit) private pure returns (int) {
     /* Divide by UNIT to remove the extra factor introduced by the product. */
     int quotientTimesTen = (x * y) / (precisionUnit / 10);
     return _roundDividingByTen(quotientTimesTen);
@@ -160,11 +156,7 @@ library SignedDecimalMath {
    * is evaluated, so the product of x and the specified precision unit must
    * be less than 2**256. The result is rounded to the nearest increment.
    */
-  function _divideDecimalRound(
-    int x,
-    int y,
-    int precisionUnit
-  ) private pure returns (int) {
+  function _divideDecimalRound(int x, int y, int precisionUnit) private pure returns (int) {
     int resultTimesTen = (x * (precisionUnit * 10)) / y;
     return _roundDividingByTen(resultTimesTen);
   }

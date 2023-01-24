@@ -3,7 +3,7 @@ export const lyraContractPaths = [
   '@lyrafinance/protocol/contracts/libraries/BlackScholes.sol',
   '@lyrafinance/protocol/contracts/libraries/FixedPointMathLib.sol',
   '@lyrafinance/protocol/contracts/libraries/GWAV.sol',
-  '@lyrafinance/protocol/contracts/libraries/SimpleInitializeable.sol',
+  '@lyrafinance/protocol/contracts/libraries/SimpleInitializable.sol',
   '@lyrafinance/protocol/contracts/libraries/PoolHedger.sol',
 
   // core

@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+//SPDX-License-Identifier: ISC
+pragma solidity 0.8.16;
 
+// Libraries
 import "../synthetix/SignedDecimalMath.sol";
 import "../synthetix/DecimalMath.sol";
 import "./FixedPointMathLib.sol";
@@ -45,11 +46,7 @@ library GWAV {
    * @param newVal First observed value for blockTimestamp
    * @param blockTimestamp Timestamp of first Observation
    */
-  function _initialize(
-    Params storage self,
-    uint newVal,
-    uint blockTimestamp
-  ) internal {
+  function _initialize(Params storage self, uint newVal, uint blockTimestamp) internal {
     // if Observation older than blockTimestamp is used for GWAV,
     // _getFirstBefore() will scale the first Observation "q" accordingly
     _initializeWithManualQ(self, FixedPointMathLib.ln((int(newVal))) * int(blockTimestamp), newVal, blockTimestamp);
@@ -62,11 +59,7 @@ library GWAV {
    * @param nextVal Value at given blockTimestamp
    * @param blockTimestamp Current blockTimestamp
    */
-  function _write(
-    Params storage self,
-    uint nextVal,
-    uint blockTimestamp
-  ) internal {
+  function _write(Params storage self, uint nextVal, uint blockTimestamp) internal {
     Observation memory last = self.observations[self.index];
 
     // Ensure entries are sequential
@@ -106,17 +99,12 @@ library GWAV {
    * @param secondsAgoA Seconds from blockTimestamp to Observation A
    * @param secondsAgoB Seconds from blockTimestamp to Observation B
    */
-  function getGWAVForPeriod(
-    Params storage self,
-    uint secondsAgoA,
-    uint secondsAgoB
-  ) public view returns (uint) {
-    (int q0, uint t0) = queryFirstBeforeAndScale(self, block.timestamp, secondsAgoA);
-    (int q1, uint t1) = queryFirstBeforeAndScale(self, block.timestamp, secondsAgoB);
+  function getGWAVForPeriod(Params storage self, uint secondsAgoA, uint secondsAgoB) public view returns (uint) {
+    (uint v0, int q0, uint t0) = queryFirstBeforeAndScale(self, block.timestamp, secondsAgoA);
+    (, int q1, uint t1) = queryFirstBeforeAndScale(self, block.timestamp, secondsAgoB);
 
-    if (t0 == t1) {
-      return uint(FixedPointMathLib.exp(q1 / int(t1)));
-    }
+    // if the record found for each timestamp is the same, return the recorded value.
+    if (t0 == t1) return v0;
 
     return uint(FixedPointMathLib.exp((q1 - q0) / int(t1 - t0)));
   }
@@ -168,13 +156,17 @@ library GWAV {
     Params storage self,
     uint currentBlockTimestamp,
     uint secondsAgo
-  ) internal view returns (int qCumulative, uint timestamp) {
+  ) internal view returns (uint v, int qCumulative, uint timestamp) {
     uint target = currentBlockTimestamp - secondsAgo;
     Observation memory beforeOrAt = _queryFirstBefore(self, target);
 
     int timestampDelta = int(target - beforeOrAt.blockTimestamp);
 
-    return (beforeOrAt.q + (FixedPointMathLib.ln(int(beforeOrAt.nextVal)) * timestampDelta), target);
+    return (
+      beforeOrAt.nextVal,
+      beforeOrAt.q + (FixedPointMathLib.ln(int(beforeOrAt.nextVal)) * timestampDelta),
+      target
+    );
   }
 
   /**
@@ -215,7 +207,7 @@ library GWAV {
   function _binarySearch(Params storage self, uint target) internal view returns (uint) {
     uint oldest = 0; // oldest observation
     uint newest = self.index; // newest observation
-    uint i;
+    uint i = 0;
     while (true) {
       i = (oldest + newest) / 2;
       uint beforeOrAtTimestamp = self.observations[i].blockTimestamp;
@@ -246,23 +238,14 @@ library GWAV {
    * @param nextVal First observed value for blockTimestamp
    * @param blockTimestamp Timestamp of Observation
    */
-  function _initializeWithManualQ(
-    Params storage self,
-    int qVal,
-    uint nextVal,
-    uint blockTimestamp
-  ) internal {
+  function _initializeWithManualQ(Params storage self, int qVal, uint nextVal, uint blockTimestamp) internal {
     self.observations.push(Observation({q: qVal, nextVal: nextVal, blockTimestamp: blockTimestamp}));
   }
 
   /**
    * @dev Creates an Observation given a GWAV accumulator, latest value, and a blockTimestamp
    */
-  function _transform(
-    int newQ,
-    uint nextVal,
-    uint blockTimestamp
-  ) private pure returns (Observation memory) {
+  function _transform(int newQ, uint nextVal, uint blockTimestamp) private pure returns (Observation memory) {
     return Observation({q: newQ, nextVal: nextVal, blockTimestamp: blockTimestamp});
   }
 

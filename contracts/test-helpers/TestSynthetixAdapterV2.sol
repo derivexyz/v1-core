@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "../synthetix/DecimalMath.sol";
@@ -22,7 +22,7 @@ import "../interfaces/IDelegateApprovals.sol";
  * @dev Copy of SynthetixAdapter but returns 10x the spot price in getExchangeParams.
  * Used for testing upgradeability.
  */
-contract TestSynthetixAdapterV2 is OwnedUpgradeable {
+contract TestSynthetixAdapterV2 is BaseExchangeAdapter {
   using DecimalMath for uint;
 
   /**
@@ -36,10 +36,6 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     uint quoteBaseFeeRate;
     uint baseQuoteFeeRate;
   }
-
-  /// @dev Pause the whole system. Note; this will not pause settling previously expired options.
-  mapping(address => bool) public isMarketPaused;
-  bool public isGlobalPaused;
 
   IAddressResolver public addressResolver;
 
@@ -59,10 +55,7 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
   mapping(address => bytes32) public baseKey;
   mapping(address => address) public rewardAddress;
   mapping(address => bytes32) public trackingCode;
-
-  function initialize() external initializer {
-    __Ownable_init();
-  }
+  mapping(address => int256) public override rateAndCarry;
 
   /////////////
   // Setters //
@@ -97,21 +90,6 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     baseKey[_contractAddress] = _baseKey;
     rewardAddress[_contractAddress] = _rewardAddress;
     trackingCode[_contractAddress] = _trackingCode;
-  }
-
-  /**
-   * @dev Pauses the contract.
-   *
-   * @param _isPaused Whether getting synthetixAdapter will revert or not.
-   */
-  function setMarketPaused(address _contractAddress, bool _isPaused) external onlyOwner {
-    isMarketPaused[_contractAddress] = _isPaused;
-    emit MarketPaused(_contractAddress, _isPaused);
-  }
-
-  function setGlobalPaused(bool _isPaused) external onlyOwner {
-    isGlobalPaused = _isPaused;
-    emit GlobalPaused(_isPaused);
   }
 
   //////////////////////
@@ -160,12 +138,9 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
    *
    * @param _contractAddress The address of the OptionMarket.
    */
-  function getExchangeParams(address _contractAddress)
-    public
-    view
-    notPaused(_contractAddress)
-    returns (ExchangeParams memory exchangeParams)
-  {
+  function getExchangeParams(
+    address _contractAddress
+  ) public view notPaused(_contractAddress) returns (ExchangeParams memory exchangeParams) {
     exchangeParams = ExchangeParams({
       spotPrice: 0,
       quoteKey: quoteKey[_contractAddress],
@@ -208,7 +183,7 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     return _exchangeQuoteForBase(msg.sender, optionMarket, quoteToSpend);
   }
 
-  function exchangeFromExactQuote(address optionMarket, uint amountQuote) public returns (uint received) {
+  function exchangeFromExactQuote(address optionMarket, uint amountQuote) public override returns (uint received) {
     return _exchangeQuoteForBase(msg.sender, optionMarket, amountQuote);
   }
 
@@ -234,7 +209,7 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     emit QuoteSwappedForBase(optionMarket, sender, amountQuote, received);
   }
 
-  function exchangeFromExactBase(address optionMarket, uint amountBase) external returns (uint received) {
+  function exchangeFromExactBase(address optionMarket, uint amountBase) external override returns (uint received) {
     if (amountBase == 0) {
       return 0;
     }
@@ -253,36 +228,24 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
     emit BaseSwappedForQuote(optionMarket, msg.sender, amountBase, received);
   }
 
-  function estimateExchangeForExactBase(ExchangeParams memory exchangeParams, uint amountBase)
-    public
-    pure
-    returns (uint quoteNeeded)
-  {
+  function estimateExchangeForExactBase(
+    ExchangeParams memory exchangeParams,
+    uint amountBase
+  ) public pure returns (uint quoteNeeded) {
     return
       amountBase.divideDecimalRound(DecimalMath.UNIT - exchangeParams.quoteBaseFeeRate).multiplyDecimalRound(
         exchangeParams.spotPrice
       );
   }
 
-  function estimateExchangeForExactQuote(ExchangeParams memory exchangeParams, uint amountQuote)
-    public
-    pure
-    returns (uint baseNeeded)
-  {
+  function estimateExchangeForExactQuote(
+    ExchangeParams memory exchangeParams,
+    uint amountQuote
+  ) public pure returns (uint baseNeeded) {
     return
       amountQuote.divideDecimalRound(DecimalMath.UNIT - exchangeParams.baseQuoteFeeRate).divideDecimalRound(
         exchangeParams.spotPrice
       );
-  }
-
-  ///////////////
-  // Modifiers //
-  ///////////////
-
-  modifier notPaused(address _contractAddress) {
-    require(!isGlobalPaused, "AllMarketsPaused");
-    require(!isMarketPaused[_contractAddress], "MarketPaused");
-    _;
   }
 
   ////////////
@@ -322,16 +285,4 @@ contract TestSynthetixAdapterV2 is OwnedUpgradeable {
    * @dev Emitted when base key is set.
    */
   event BaseKeySet(address indexed contractAddress, bytes32 baseKey);
-  event BaseSwappedForQuote(
-    address indexed marketAddress,
-    address indexed exchanger,
-    uint baseSwapped,
-    uint quoteReceived
-  );
-  event QuoteSwappedForBase(
-    address indexed marketAddress,
-    address indexed exchanger,
-    uint quoteSwapped,
-    uint baseReceived
-  );
 }

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.9;
+//SPDX-License-Identifier: ISC
+pragma solidity 0.8.16;
 
 import "../synthetix/SignedDecimalMath.sol";
 import "../synthetix/DecimalMath.sol";
@@ -56,7 +56,7 @@ library OldBlackScholesMath {
     require(x <= MAX_EXP, "cannot handle exponents greater than 100");
 
     uint k = floor(x.divideDecimalRound(LN_2)) / UNIT;
-    uint p = 2**k;
+    uint p = 2 ** k;
     uint r = x - (k * LN_2);
 
     uint _t = UNIT;

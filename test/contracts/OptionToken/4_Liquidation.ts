@@ -1,6 +1,6 @@
 // integration tests
 import { BigNumber, BigNumberish, ContractReceipt } from 'ethers';
-import { getEventArgs, MAX_UINT, OptionType, PositionState, toBN, UNIT } from '../../../scripts/util/web3utils';
+import { getEventArgs, MAX_UINT, OptionType, PositionState, toBN, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { TradeEvent } from '../../../typechain-types/OptionMarket';
 import { LiquidationFeesStruct } from '../../../typechain-types/OptionToken';
 import { assertCloseToPercentage } from '../../utils/assert';
@@ -10,7 +10,6 @@ import {
   DEFAULT_SHORT_CALL_QUOTE,
   DEFAULT_SHORT_PUT_QUOTE,
   getBalances,
-  getSpotPrice,
   openDefaultShortCallBase,
   openDefaultShortCallQuote,
   openDefaultShortPutQuote,
@@ -62,6 +61,7 @@ describe('Liquidation', () => {
       iterations: 1,
       minTotalCost: 0,
       maxTotalCost: MAX_UINT,
+      referrer: ZERO_ADDRESS,
     });
     const newTraderBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
     // adding 5% buffer for premium - collat
@@ -93,6 +93,7 @@ describe('Liquidation', () => {
         iterations: 1,
         minTotalCost: 0,
         maxTotalCost: MAX_UINT,
+        referrer: ZERO_ADDRESS,
       }),
     ).to.revertedWith('ERC20: transfer amount exceeds balance');
   });
@@ -340,8 +341,6 @@ async function expectRoutedFunds(
   event: any,
   isQuote: boolean,
 ) {
-  const spotPrice = await getSpotPrice();
-
   if (isQuote) {
     expect(oldBalances.sender.quote.add(event.liquidation.returnCollateral)).to.eq(newBalances.sender.quote);
     expect(oldBalances.recipient.quote.add(event.liquidation.liquidatorFee)).to.eq(newBalances.recipient.quote);
@@ -354,16 +353,12 @@ async function expectRoutedFunds(
     expect(oldBalances.sender.base.add(event.liquidation.returnCollateral)).to.eq(newBalances.sender.base);
     expect(oldBalances.recipient.base.add(event.liquidation.liquidatorFee)).to.eq(newBalances.recipient.base);
 
-    const premiumAndFee = event.liquidation.lpPremiums.add(event.liquidation.lpFee).mul(spotPrice).div(UNIT);
-    const smFee = event.liquidation.smFee.mul(spotPrice).div(UNIT);
-
-    // should fail because of exchange fees
-    expect(oldBalances.lp.quote.add(premiumAndFee)).to.not.eq(newBalances.lp.quote);
-    expect(oldBalances.om.quote.add(smFee)).to.not.eq(newBalances.om.quote);
+    const premiumAndFee = event.liquidation.lpPremiums.add(event.liquidation.lpFee);
+    const smFee = event.liquidation.smFee;
 
     // account for exchange fees
-    assertCloseToPercentage(oldBalances.lp.quote.add(premiumAndFee), newBalances.lp.quote, toBN('0.01'));
+    assertCloseToPercentage(oldBalances.lp.base.add(premiumAndFee), newBalances.lp.base, toBN('0.01'));
 
-    assertCloseToPercentage(oldBalances.om.quote.add(smFee), newBalances.om.quote, toBN('0.01'));
+    assertCloseToPercentage(oldBalances.om.base.add(smFee), newBalances.om.base, toBN('0.01'));
   }
 }

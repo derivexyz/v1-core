@@ -1,6 +1,6 @@
 import { BigNumber, Contract, ContractFactory, Signer } from 'ethers';
 import { ethers, tracer, upgrades } from 'hardhat';
-import { toBN, toBytes32, YEAR_SEC } from '../../scripts/util/web3utils';
+import { DEFAULT_DECIMALS, toBN, toBytes32, YEAR_SEC } from '../../scripts/util/web3utils';
 import {
   BasicFeeCounter,
   BasicLiquidityCounter,
@@ -25,7 +25,7 @@ import {
   TestCollateralShort,
   TestCurve,
   TestDelegateApprovals,
-  TestERC20Fail,
+  TestERC20SetDecimalsFail,
   TestExchanger,
   TestExchangeRates,
   TestSynthetixReturnZero,
@@ -42,7 +42,7 @@ import {
 import { PartialCollateralParametersStruct } from '../../typechain-types/OptionToken';
 import { PoolHedgerParametersStruct } from '../../typechain-types/PoolHedger';
 import * as defaultParams from './defaultParams';
-import { DEFAULT_SECURITY_MODULE } from './defaultParams';
+import { DEFAULT_RATE_AND_CARRY, DEFAULT_SECURITY_MODULE } from './defaultParams';
 // import _ from 'lodash';
 import { mergeDeep } from './package/merge';
 import { exportGlobalDeployment, exportMarketDeployment, getLocalRealSynthetixContract } from './package/parseFiles';
@@ -94,6 +94,10 @@ export type MarketTestSystemContracts = {
 };
 
 export type DeployOverrides = {
+  // asset decimals
+  quoteDecimals?: number;
+  baseDecimals?: number;
+
   // market parameters
   optionMarketParams?: OptionMarketParametersStruct;
   liquidityPoolParams?: LiquidityPoolParametersStruct;
@@ -289,7 +293,7 @@ export async function deployGlobalTestContracts(
   //////////////////////
 
   if (overrides.mockSNX || overrides.mockSNX == undefined) {
-    testSystem.snx = await deployMockGlobalSNX(deployer);
+    testSystem.snx = await deployMockGlobalSNX(deployer, overrides);
   } else {
     await compileAndDeployRealSynthetix(overrides.compileSNX || overrides.compileSNX == undefined);
 
@@ -425,9 +429,12 @@ export async function deployMarketTestContracts(
 
   if (overrides.mockSNX || overrides.mockSNX == undefined) {
     const baseName = 'Synthetic ' + market.slice(1);
-    marketSystem.snx.baseAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
+
+    marketSystem.snx.baseAsset = (await (
+      (await ethers.getContractFactory('TestERC20SetDecimalsFail')) as ContractFactory
+    )
       .connect(deployer)
-      .deploy(baseName, market)) as TestERC20Fail;
+      .deploy(baseName, market, overrides?.baseDecimals ? overrides.baseDecimals : 18)) as TestERC20SetDecimalsFail;
   } else {
     marketSystem.snx.baseAsset = await getLocalRealSynthetixContract(deployer, 'local', `Proxy${market}`);
   }
@@ -504,7 +511,6 @@ export async function initGlobalTestSystem(
   //////////////////////////////
   // Lyra Adapters & Wrappers //
   //////////////////////////////
-
   await testSystem.synthetixAdapter.connect(deployer).setAddressResolver(testSystem.snx.addressResolver.address);
   await testSystem.synthetixAdapter.connect(deployer).updateSynthetixAddresses();
 
@@ -512,18 +518,16 @@ export async function initGlobalTestSystem(
     .connect(deployer)
     .init(overrides.synthetixAdapter || testSystem.synthetixAdapter.address);
 
-  await testSystem.optionMarketWrapper
-    .connect(deployer)
-    .updateContractParams(
-      overrides.baseToken || testSystem.testCurve.address,
-      overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
-      testSystem.basicFeeCounter.address,
-      toBN('0.1'),
-    );
+  await testSystem.optionMarketWrapper.connect(deployer).updateContractParams(
+    testSystem.snx.quoteAsset.address, // irrelevant for snx (should be WETH for wrapping)
+    overrides.testCurve || testSystem.testCurve.address,
+    testSystem.basicFeeCounter.address,
+    toBN('0.1'),
+  );
 
   await testSystem.lyraRegistry.updateGlobalAddresses(
     [
-      toBytes32('SYNTHETIX_ADAPTER'),
+      toBytes32('EXCHANGE_ADAPTER'),
       toBytes32('MARKET_VIEWER'),
       toBytes32('MARKET_WRAPPER'),
       toBytes32('GWAV'),
@@ -671,6 +675,11 @@ export async function initMarketTestSystem(
       toBytes32(''),
     );
 
+  await existingTestSystem.synthetixAdapter.setRiskFreeRate(
+    marketTestSystem.optionMarket.address,
+    DEFAULT_RATE_AND_CARRY,
+  );
+
   await marketTestSystem.GWAVOracle.connect(deployer).init(
     overrides.optionMarket || marketTestSystem.optionMarket.address,
     overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
@@ -734,6 +743,8 @@ export async function initMarketTestSystem(
     .connect(deployer)
     .setLiquidityPoolParameters(overrides.liquidityPoolParams || defaultParams.DEFAULT_LIQUIDITY_POOL_PARAMS);
 
+  await marketTestSystem.liquidityPool.connect(deployer).setCircuitBreakerParameters(defaultParams.DEFAULT_CB_PARAMS);
+
   await marketTestSystem.poolHedger
     .connect(deployer)
     .setPoolHedgerParams(overrides.poolHedgerParams || defaultParams.DEFAULT_POOL_HEDGER_PARAMS);
@@ -796,7 +807,7 @@ export async function initMarketTestSystem(
   }
 }
 
-export async function deployMockGlobalSNX(deployer: Signer) {
+export async function deployMockGlobalSNX(deployer: Signer, overrides?: DeployOverrides) {
   const isMockSNX: boolean = true;
 
   const exchanger = (await ((await ethers.getContractFactory('TestExchanger')) as ContractFactory)
@@ -807,9 +818,13 @@ export async function deployMockGlobalSNX(deployer: Signer) {
     .connect(deployer)
     .deploy()) as TestExchangeRates;
 
-  const quoteAsset = (await ((await ethers.getContractFactory('TestERC20Fail')) as ContractFactory)
+  const quoteAsset = (await ((await ethers.getContractFactory('TestERC20SetDecimalsFail')) as ContractFactory)
     .connect(deployer)
-    .deploy('Synthetic USD', 'sUSD')) as TestERC20Fail;
+    .deploy(
+      'Synthetic USD',
+      'sUSD',
+      overrides?.quoteDecimals ? overrides.quoteDecimals : 18,
+    )) as TestERC20SetDecimalsFail;
 
   const synthetix = (await ((await ethers.getContractFactory('TestSynthetixReturnZero')) as ContractFactory)
     .connect(deployer)

@@ -1,18 +1,22 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
-import "../OptionMarket.sol";
+// Libraries
 import "../libraries/BlackScholes.sol";
 import "../synthetix/DecimalMath.sol";
+
+// Inherited
+import "../synthetix/Owned.sol";
+
+// Interfaces
+import "../OptionMarket.sol";
 import "../OptionToken.sol";
 import "../LiquidityPool.sol";
 import "../OptionGreekCache.sol";
 import "../OptionMarketPricer.sol";
-import "../SynthetixAdapter.sol";
-import "../synthetix/Owned.sol";
-import "./Wrapper/OptionMarketWrapper.sol";
 import "./OptionMarketViewer.sol";
 import "./GWAVOracle.sol";
+import "./Wrapper/OptionMarketWrapper.sol";
 
 /**
  * @title OptionMarketViewer

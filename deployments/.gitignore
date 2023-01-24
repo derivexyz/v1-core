@@ -1,3 +1,4 @@
 */.env.private
 local*/lyra.*
-local*/synthetix.*
+local*/external.*
+

@@ -1,4 +1,4 @@
-import { currentTime, DAY_SEC, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { currentTime, DAY_SEC, toBN, toBN18, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { seedFixture } from '../../utils/fixture';
 import { hre } from '../../utils/testSetup';
 
@@ -8,8 +8,8 @@ describe('OptionGreekCache - SyncBoards', () => {
     await hre.f.c.optionMarket.createOptionBoard(
       (await currentTime()) + DAY_SEC,
       toBN('1'),
-      new Array(1).fill('1000').map(toBN),
-      new Array(1).fill('1').map(toBN),
+      new Array(1).fill('1000').map(toBN18),
+      new Array(1).fill('1').map(toBN18),
       false,
     );
   });
@@ -19,8 +19,8 @@ describe('OptionGreekCache - SyncBoards', () => {
     const tx = await hre.f.c.optionMarket.createOptionBoard(
       (await currentTime()) + WEEK_SEC,
       toBN('1'),
-      new Array(25).fill('1000').map(toBN),
-      new Array(25).fill('1').map(toBN),
+      new Array(25).fill('1000').map(toBN18),
+      new Array(25).fill('1').map(toBN18),
       false,
     );
     console.log((await tx.wait()).gasUsed.toString());
@@ -31,8 +31,8 @@ describe('OptionGreekCache - SyncBoards', () => {
   //   await hre.f.c.optionMarket.createOptionBoard(
   //     (await currentTime()) + WEEK_SEC,
   //     toBN("1"),
-  //     new Array(30).fill('1000').map(toBN),
-  //     new Array(30).fill('1').map(toBN),
+  //     new Array(30).fill('1000').map(toBN18),
+  //     new Array(30).fill('1').map(toBN18),
   //     false,
   //   );
   // });

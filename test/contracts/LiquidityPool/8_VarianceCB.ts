@@ -4,7 +4,11 @@ import { BigNumber } from 'ethers';
 import { currentTime, DAY_SEC, HOUR_SEC, MONTH_SEC, OptionType, toBN, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { assertCloseTo } from '../../utils/assert';
 import { closePosition, openPosition } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS, DEFAULT_TRADE_LIMIT_PARAMS } from '../../utils/defaultParams';
+import {
+  DEFAULT_CB_PARAMS,
+  DEFAULT_LIQUIDITY_POOL_PARAMS,
+  DEFAULT_TRADE_LIMIT_PARAMS,
+} from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { createDefaultBoardWithOverrides } from '../../utils/seedTestSystem';
@@ -20,8 +24,8 @@ describe('Variance Circuit Breaker', async () => {
   beforeEach(async () => {
     await seedFixture();
     // tighten variance params
-    await hre.f.c.liquidityPool.setLiquidityPoolParameters({
-      ...DEFAULT_LIQUIDITY_POOL_PARAMS,
+    await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+      ...DEFAULT_CB_PARAMS,
       ivVarianceCBThreshold: manualIvVarianceCBThreshold,
       skewVarianceCBThreshold: manualSkewVarianceCBThreshold,
       ivVarianceCBTimeout: manualIvVarianceCBTimeout,
@@ -171,7 +175,7 @@ export async function exceedIvAndSkewVariance() {
   return getGlobalIvAndSkewVariance();
 }
 
-export const liquidityCBThreshold = DEFAULT_LIQUIDITY_POOL_PARAMS.liquidityCBThreshold;
+export const liquidityCBThreshold = DEFAULT_CB_PARAMS.liquidityCBThreshold;
 
 export function max(x: BigNumber, y: BigNumber) {
   if (x.gt(y)) {
@@ -203,7 +207,7 @@ export async function revertProcessDepositAndWithdraw(
   const quoteBal = await hre.f.c.snx.quoteAsset.balanceOf((balanceAccount || hre.f.signers[0]).address);
   const lpBal = await hre.f.c.liquidityToken.balanceOf((balanceAccount || hre.f.signers[0]).address);
 
-  await hre.f.c.liquidityPool.connect(callerAccount || hre.f.signers[0]).processDepositQueue(2);
+  // console.log((await x.wait()).events)
   await hre.f.c.liquidityPool.connect(callerAccount || hre.f.signers[0]).processWithdrawalQueue(2);
 
   expect(quoteBal).to.eq(await hre.f.c.snx.quoteAsset.balanceOf((balanceAccount || hre.f.signers[0]).address));

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: ISC
-pragma solidity ^0.8.9;
+pragma solidity 0.8.16;
 
 import "openzeppelin-contracts-4.4.1/token/ERC20/IERC20.sol";
 

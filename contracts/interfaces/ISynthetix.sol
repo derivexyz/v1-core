@@ -1,5 +1,5 @@
-//SPDX-License-Identifier: ISC
-pragma solidity ^0.8.9;
+//SPDX-License-Identifier: MIT
+pragma solidity 0.8.16;
 
 interface ISynthetix {
   function exchange(

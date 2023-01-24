@@ -3,18 +3,19 @@ import chalk from 'chalk';
 import { BigNumberish, Contract, ContractFactory, ContractTransaction, PopulatedTransaction, Signer } from 'ethers';
 import { ethers, upgrades } from 'hardhat';
 import { TradeInputParametersStruct } from '../../typechain-types/OptionMarket';
-import { DeploymentParams } from './index';
-import { addLyraContract, addMockedSnxContract, loadLyraContractData, loadSynthetixContractData } from './parseFiles';
+import { DeploymentParams, DeploymentType } from './index';
+import {
+  addLyraContract,
+  addMockedExternalContract,
+  loadExternalContractData,
+  loadLyraContractData,
+} from './parseFiles';
 import { etherscanVerification } from './verification';
-import { fromBN, getEventArgs, MAX_UINT128, OptionType } from './web3utils';
+import {fromBN, getEventArgs, MAX_UINT128, OptionType, ZERO_ADDRESS} from './web3utils';
 
 const contracts: any = {};
 
-export async function getLyraContract(
-  deploymentParams: DeploymentParams,
-  contractName: string,
-  market?: string,
-): Promise<Contract> {
+export function getLyraContract(deploymentParams: DeploymentParams, contractName: string, market?: string): Contract {
   if (!!market && !!contracts.markets && !!contracts.markets[market] && !!contracts.markets[market][contractName]) {
     return contracts.markets[market][contractName];
   }
@@ -40,15 +41,17 @@ export async function getLyraContract(
   return contract;
 }
 
-export async function getSynthetixContract(
-  deploymentParams: DeploymentParams,
-  contractName: string,
-): Promise<Contract> {
+export function getExternalContract(deploymentParams: DeploymentParams, contractName: string): Contract {
   if (contracts[contractName]) {
     return contracts[contractName];
   }
 
-  const data = loadSynthetixContractData(deploymentParams, contractName);
+  const useReal =
+    deploymentParams.deploymentType == DeploymentType.MockSnxRealPricing &&
+    ['Exchanger', 'ExchangeRates'].includes(contractName);
+  console.log({ useReal, contractName });
+
+  const data = loadExternalContractData(deploymentParams, contractName, useReal ? false : undefined);
 
   const contract = new Contract(data.target.address, data.source.abi, deploymentParams.deployer);
   contracts[contractName] = contract;
@@ -80,26 +83,28 @@ export async function deployLyraContractWithLibraries(
 
 export async function deployProxyWithLibraries(
   deploymentParams: DeploymentParams,
+  source: string,
   contractName: string,
   market?: string,
   libs?: any,
   ...args: any
 ): Promise<Contract> {
-  const contract = await deployProxyContract(contractName, deploymentParams.deployer, libs, ...args);
+  const contract = await deployProxyContract(source, deploymentParams.deployer, libs, ...args);
   // TODO:
   //  addLyraContract(deploymentParams, contractName + 'Proxy', contract, market);
-  addLyraContract(deploymentParams, contractName, contract, market);
+  addLyraContract(deploymentParams, source, contract, market, undefined, undefined, contractName);
   return contract;
 }
 
-export async function deployMockSynthetixContract(
+export async function deployMockExternalContract(
   deploymentParams: DeploymentParams,
   name: string,
   contractName: string,
   ...args: any
 ): Promise<Contract> {
   const contract = await deployContract(contractName, deploymentParams.deployer, undefined, ...args);
-  addMockedSnxContract(deploymentParams, name, contractName, contract);
+  console.log(name, contractName);
+  addMockedExternalContract(deploymentParams, name, contractName, contract);
   return contract;
 }
 
@@ -117,6 +122,7 @@ export async function deployProxyContract(
   let implementationAddress: string;
   let count = 2;
 
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       implementation = (await ethers.getContractFactory(contractName, { libraries: libs })).connect(deployer);
@@ -175,8 +181,9 @@ export async function deployContract(
   console.log(`= Deploying ${contractName}`);
   console.log(`= With args: ${args}`);
   let contract: Contract;
-  let count = 3;
+  let count = 0;
 
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       contract = await (
@@ -200,6 +207,7 @@ export async function deployContract(
       contract.deployTransaction.blockNumber = contract.deployTransaction.blockNumber || receipt.blockNumber;
       break;
     } catch (e) {
+      console.log(e);
       if (e instanceof Error) {
         console.log(e.message.slice(0, 27));
         if (e.message.slice(0, 27) == 'nonce has already been used') {
@@ -220,7 +228,7 @@ export async function deployContract(
   if (!(global as any).pending) {
     (global as any).pending = [];
   }
-  // (global as any).pending.push(etherscanVerification(contract.address, [...args]));
+  (global as any).pending.push(etherscanVerification(contract.address, [...args]));
   return contract;
 }
 
@@ -232,7 +240,7 @@ export async function populateLyraFunction(
   market?: string,
   signer?: Signer,
 ): Promise<PopulatedTransaction> {
-  let contract = await getLyraContract(deploymentParams, contractName, market);
+  let contract = getLyraContract(deploymentParams, contractName, market);
   if (signer) {
     contract = contract.connect(signer);
   }
@@ -246,19 +254,20 @@ export async function executeLyraFunction(
   args: any[],
   market?: string,
   signer?: Signer,
+  overrides?: any,
 ): Promise<ContractTransaction> {
-  const contract = await getLyraContract(deploymentParams, contractName, market);
-  return await execute(signer ? contract.connect(signer) : contract, fn, args);
+  const contract = getLyraContract(deploymentParams, contractName, market);
+  return await execute(signer ? contract.connect(signer) : contract, fn, args, overrides);
 }
 
-export async function executeSynthetixFunction(
+export async function executeExternalFunction(
   deploymentParams: DeploymentParams,
   contractName: string,
   fn: string,
   args: any[],
   signer?: Signer,
 ): Promise<ContractTransaction> {
-  const contract = await getSynthetixContract(deploymentParams, contractName);
+  const contract = getExternalContract(deploymentParams, contractName);
   return await execute(signer ? contract.connect(signer) : contract, fn, args);
 }
 
@@ -269,28 +278,28 @@ export async function callLyraFunction(
   args: any[],
   market?: string,
 ): Promise<any> {
-  const contract = await getLyraContract(deploymentParams, contractName, market);
+  const contract = getLyraContract(deploymentParams, contractName, market);
   console.log(chalk.grey(`Calling ${fn} on ${contract.address} with args ${args}`));
   return await contract[fn](...args);
 }
 
-export async function callSynthetixFunction(
+export async function callExternalFunction(
   deploymentParams: DeploymentParams,
   contractName: string,
   fn: string,
   args: any[],
 ): Promise<any> {
-  const contract = await getSynthetixContract(deploymentParams, contractName);
+  const contract = getExternalContract(deploymentParams, contractName);
   console.log(chalk.grey(`Calling ${fn} on ${contract.address} with args ${args}`));
   return await contract[fn](...args);
 }
 
-export async function execute(c: Contract, fn: string, args: any[]): Promise<ContractTransaction> {
+export async function execute(c: Contract, fn: string, args: any[], overrides: any = {}): Promise<ContractTransaction> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       console.log(chalk.grey(`Executing ${fn} on ${c.address} with args ${JSON.stringify(args)}`));
-      const overrides: any = { gasLimit: 15000000 }; // TODO: ok to leave like this?
+      overrides = { gasLimit: 15000000, ...overrides }; // TODO: ok to leave like this?
       const tx = await c[fn](...args, overrides);
       while ((await ethers.provider.getTransactionReceipt(tx.hash)) == null) {
         await sleep(100);
@@ -393,5 +402,6 @@ export function getMarketTradeArgs(parameters: {
     minTotalCost: parameters.minTotalCost || 0,
     maxTotalCost: parameters.maxTotalCost || MAX_UINT128,
     optionType: parameters.optionType,
+    referrer: ZERO_ADDRESS
   };
 }

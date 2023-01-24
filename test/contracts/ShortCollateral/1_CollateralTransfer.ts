@@ -120,7 +120,7 @@ describe('Collateral transfer', async () => {
     });
 
     it('reverts for various reasons', async () => {
-      await c.snx.quoteAsset.setForceFail(true);
+      await c.snx.baseAsset.setForceFail(true);
       await expect(
         c.shortCollateral.routeLiquidationFunds(alice.address, deployer.address, OptionType.SHORT_CALL_BASE, {
           insolventAmount: 0,
@@ -130,26 +130,15 @@ describe('Collateral transfer', async () => {
           returnCollateral: toBN('0.3'),
           smFee: toBN('0'),
         }),
-      ).revertedWith('QuoteTransferFailed');
-      await c.snx.quoteAsset.setForceFail(false);
-      await expect(
-        c.shortCollateral.routeLiquidationFunds(alice.address, deployer.address, OptionType.SHORT_CALL_BASE, {
-          insolventAmount: 0,
-          liquidatorFee: toBN('0.1'),
-          lpFee: toBN('0.1'),
-          lpPremiums: toBN('1'),
-          returnCollateral: toBN('0.3'),
-          smFee: toBN('0'),
-        }),
-      ).revertedWith('OutOfBaseCollateralForExchangeAndTransfer');
+      ).revertedWith('BaseTransferFailed');
     });
   });
 
   describe('boardSettlement', async () => {
     it('sends balance even if amount > balance', async () => {
       const tx = await c.shortCollateral.boardSettlement(toBN('1.1'), toBN('110'));
-      expect(getEventArgs(await tx.wait(), 'BaseSent').amount).eq(toBN('1'));
-      expect(getEventArgs(await tx.wait(), 'QuoteSent').amount).eq(toBN('100'));
+      expect(getEventArgs(await tx.wait(), 'BaseSent').nativeAmount).eq(toBN('1'));
+      expect(getEventArgs(await tx.wait(), 'QuoteSent').nativeAmount).eq(toBN('100'));
       expect(await c.shortCollateral.LPBaseExcess()).eq(toBN('0.1'));
       expect(await c.shortCollateral.LPQuoteExcess()).eq(toBN('10'));
     });

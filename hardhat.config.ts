@@ -10,41 +10,59 @@ import 'hardhat-tracer';
 import { extendEnvironment, HardhatUserConfig, task } from 'hardhat/config';
 import { resolve } from 'path';
 import 'solidity-coverage';
+import { loadEnv } from './scripts/util/parseFiles';
+import 'hardhat-interface-generator';
 
 dotenvConfig({ path: resolve(__dirname, './deployments/.env.private') });
 const etherscanApiKey = process.env.ETHERSCAN_KEY || '';
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: '0.8.9',
-    settings: {
-      outputSelection: {
-        '*': {
-          '*': ['storageLayout'],
+    compilers: [
+      {
+        version: '0.8.16',
+        settings: {
+          outputSelection: {
+            '*': {
+              '*': ['storageLayout'],
+            },
+          },
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          },
         },
       },
-      optimizer: {
-        enabled: true,
-        runs: 10000,
+      {
+        version: '0.6.12',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1,
+          },
+        },
       },
-    },
+    ],
   },
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
     local: {
       url: 'http://127.0.0.1:8545',
       accounts: {
-        mnemonic:
-          'test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers junk',
+        mnemonic: 'test test test test test test test test test test test junk',
+        // mnemonic:
+        //   'test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers junk',
       },
     },
-    kovan: {
-      url: 'https://kovan.infura.io/v3/',
+    'goerli-arbi': {
+      url: loadEnv('goerli-arbi').RPC_URL,
+      accounts: [loadEnv('goerli-arbi').PRIVATE_KEY],
     },
-    'kovan-ovm': {
-      url: 'https://kovan.optimism.io',
-    },
-    'mainnet-ovm': {
-      url: 'https://mainnet.optimism.io',
+    'mainnet-arbi': {
+      url: loadEnv('mainnet-arbi').RPC_URL,
+      accounts: [loadEnv('mainnet-arbi').PRIVATE_KEY],
     },
   },
   mocha: {
@@ -61,6 +79,16 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: etherscanApiKey,
+    customChains: [
+      {
+        network: 'goerli-ovm',
+        chainId: 420,
+        urls: {
+          apiURL: 'https://api-goerli-optimism.etherscan.io/api',
+          browserURL: 'https://goerli-optimism.etherscan.io',
+        },
+      },
+    ] as any,
   },
 };
 

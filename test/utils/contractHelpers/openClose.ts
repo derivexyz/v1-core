@@ -1,15 +1,16 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber, BigNumberish, ContractTransaction } from 'ethers';
-import { getEventArgs, MAX_UINT128, OptionType, toBN, toBytes32, UNIT } from '../../../scripts/util/web3utils';
+import { getEventArgs, MAX_UINT128, OptionType, toBN, UNIT, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
 import { TradeEvent, TradeInputParametersStruct } from '../../../typechain-types/OptionMarket';
 import { PositionWithOwnerStructOutput, TradeParametersStruct } from '../../../typechain-types/OptionToken';
 import { assertCloseToPercentage } from '../assert';
 import { TestSystemContractsType } from '../deployTestSystem';
 import { expect, hre } from '../testSetup';
 import { getSpotPrice } from './synthetix';
+import { TestSystemContractsTypeGMX } from '../deployTestSystemGMX';
 
 function getMarketTradeArgs(
-  c: TestSystemContractsType,
+  c: TestSystemContractsType | TestSystemContractsTypeGMX,
   parameters: {
     strikeId: BigNumberish;
     positionId?: BigNumberish;
@@ -30,11 +31,12 @@ function getMarketTradeArgs(
     minTotalCost: parameters.minTotalCost === undefined ? 0 : parameters.minTotalCost,
     maxTotalCost: parameters.maxTotalCost === undefined ? MAX_UINT128 : parameters.maxTotalCost,
     optionType: parameters.optionType,
+    referrer: ZERO_ADDRESS,
   };
 }
 
 export async function openPositionWithOverrides(
-  c: TestSystemContractsType,
+  c: TestSystemContractsType | TestSystemContractsTypeGMX,
   parameters: {
     strikeId: BigNumberish;
     positionId?: BigNumberish;
@@ -47,15 +49,17 @@ export async function openPositionWithOverrides(
   },
   sender?: SignerWithAddress,
 ): Promise<[ContractTransaction, BigNumber]> {
+  // console.log(`Position opening amount ${parameters.amount}`)
   const tx = await (sender ? c.optionMarket.connect(sender) : c.optionMarket).openPosition(
     getMarketTradeArgs(c, parameters),
   );
+  // console.log(`Position opened`)
   const event = getEventArgs(await tx.wait(), 'Trade');
   return [tx, event.positionId];
 }
 
 export async function closePositionWithOverrides(
-  c: TestSystemContractsType,
+  c: TestSystemContractsType | TestSystemContractsTypeGMX,
   parameters: {
     strikeId: BigNumberish;
     positionId?: BigNumberish;
@@ -77,10 +81,11 @@ export async function closePositionWithOverrides(
 export async function fullyClosePosition(
   positionId: BigNumberish,
   sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
 ): Promise<ContractTransaction> {
   const position: PositionWithOwnerStructOutput = await hre.f.c.optionToken.getPositionWithOwner(positionId);
   return closePositionWithOverrides(
-    hre.f.c,
+    testSystemOverride || hre.f.c,
     {
       strikeId: position.strikeId,
       positionId: position.positionId,
@@ -95,10 +100,11 @@ export async function partiallyClosePosition(
   positionId: BigNumberish,
   amount: BigNumberish,
   sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
 ): Promise<ContractTransaction> {
   const position: PositionWithOwnerStructOutput = await hre.f.c.optionToken.getPositionWithOwner(positionId);
   return closePositionWithOverrides(
-    hre.f.c,
+    testSystemOverride || hre.f.c,
     {
       strikeId: position.strikeId,
       positionId: position.positionId,
@@ -111,7 +117,7 @@ export async function partiallyClosePosition(
 }
 
 export async function forceClosePositionWithOverrides(
-  c: TestSystemContractsType,
+  c: TestSystemContractsType | TestSystemContractsTypeGMX,
   parameters: {
     strikeId: BigNumberish;
     positionId?: BigNumberish;
@@ -205,9 +211,10 @@ export async function openPosition(
     maxTotalCost?: BigNumberish;
   },
   sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
 ) {
   return await openPositionWithOverrides(
-    hre.f.c,
+    testSystemOverride || hre.f.c,
     {
       strikeId: parameters.strikeId || hre.f.strike.strikeId,
       ...parameters,
@@ -228,9 +235,10 @@ export async function closePosition(
     maxTotalCost?: BigNumberish;
   },
   sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
 ) {
   return await closePositionWithOverrides(
-    hre.f.c,
+    testSystemOverride || hre.f.c,
     {
       strikeId: hre.f.strike.strikeId,
       ...parameters,
@@ -251,9 +259,10 @@ export async function forceClosePosition(
     maxTotalCost?: BigNumberish;
   },
   sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
 ) {
   return await forceClosePositionWithOverrides(
-    hre.f.c,
+    testSystemOverride || hre.f.c,
     {
       strikeId: hre.f.strike.strikeId,
       ...parameters,
@@ -268,62 +277,86 @@ export async function getTotalCost(tx: ContractTransaction): Promise<[BigNumber,
   return [tradeEvent.trade.totalCost, tradeEvent.trade.reservedFee];
 }
 
-export async function openDefaultLongCall(sender?: SignerWithAddress) {
+export async function openDefaultLongCall(
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   const [, positionId] = await openPosition(
     {
       ...DEFAULT_LONG_CALL,
       strikeId: hre.f.strike.strikeId,
     },
     sender,
+    testSystemOverride,
   );
   return positionId;
 }
 
-export async function openDefaultLongPut(sender?: SignerWithAddress) {
+export async function openDefaultLongPut(
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   const [, positionId] = await openPosition(
     {
       ...DEFAULT_LONG_PUT,
       strikeId: hre.f.strike.strikeId,
     },
     sender,
+    testSystemOverride,
   );
   return positionId;
 }
 
-export async function openDefaultShortCallBase(sender?: SignerWithAddress) {
+export async function openDefaultShortCallBase(
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   const [, positionId] = await openPosition(
     {
       ...DEFAULT_SHORT_CALL_BASE,
       strikeId: hre.f.strike.strikeId,
     },
     sender,
+    testSystemOverride,
   );
   return positionId;
 }
 
-export async function openDefaultShortCallQuote(sender?: SignerWithAddress) {
+export async function openDefaultShortCallQuote(
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   const [, positionId] = await openPosition(
     {
       ...DEFAULT_SHORT_CALL_QUOTE,
       strikeId: hre.f.strike.strikeId,
     },
     sender,
+    testSystemOverride,
   );
   return positionId;
 }
 
-export async function openDefaultShortPutQuote(sender?: SignerWithAddress) {
+export async function openDefaultShortPutQuote(
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   const [, positionId] = await openPosition(
     {
       ...DEFAULT_SHORT_PUT_QUOTE,
       strikeId: hre.f.strike.strikeId,
     },
     sender,
+    testSystemOverride,
   );
   return positionId;
 }
 
-export async function closeLongCall(positionId: BigNumberish, sender?: SignerWithAddress) {
+export async function closeLongCall(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   await closePosition(
     {
       ...DEFAULT_LONG_CALL,
@@ -331,10 +364,15 @@ export async function closeLongCall(positionId: BigNumberish, sender?: SignerWit
       positionId,
     },
     sender,
+    testSystemOverride,
   );
 }
 
-export async function closeLongPut(positionId: BigNumberish, sender?: SignerWithAddress) {
+export async function closeLongPut(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   await closePosition(
     {
       ...DEFAULT_LONG_PUT,
@@ -342,69 +380,16 @@ export async function closeLongPut(positionId: BigNumberish, sender?: SignerWith
       positionId,
     },
     sender,
+    testSystemOverride,
   );
 }
 
-export async function closeShortCallBase(positionId: BigNumberish, sender?: SignerWithAddress) {
+export async function closeShortCallBase(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   await closePosition(
-    {
-      ...DEFAULT_SHORT_CALL_BASE,
-      strikeId: hre.f.strike.strikeId,
-      setCollateralTo: 0,
-      positionId,
-    },
-    sender,
-  );
-}
-
-export async function closeShortCallQuote(positionId: BigNumberish, sender?: SignerWithAddress) {
-  await closePosition(
-    {
-      ...DEFAULT_SHORT_CALL_QUOTE,
-      strikeId: hre.f.strike.strikeId,
-      setCollateralTo: 0,
-      positionId,
-    },
-    sender,
-  );
-}
-
-export async function closeShortPutQuote(positionId: BigNumberish, sender?: SignerWithAddress) {
-  await closePosition(
-    {
-      ...DEFAULT_SHORT_PUT_QUOTE,
-      strikeId: hre.f.strike.strikeId,
-      setCollateralTo: 0,
-      positionId,
-    },
-    sender,
-  );
-}
-
-export async function forceCloseLongCall(positionId: BigNumberish, sender?: SignerWithAddress) {
-  await forceClosePosition(
-    {
-      ...DEFAULT_LONG_CALL,
-      strikeId: hre.f.strike.strikeId,
-      positionId,
-    },
-    sender,
-  );
-}
-
-export async function forceCloseLongPut(positionId: BigNumberish, sender?: SignerWithAddress) {
-  await forceClosePosition(
-    {
-      ...DEFAULT_LONG_PUT,
-      strikeId: hre.f.strike.strikeId,
-      positionId,
-    },
-    sender,
-  );
-}
-
-export async function forceCloseShortCallBase(positionId: BigNumberish, sender?: SignerWithAddress) {
-  await forceClosePosition(
     {
       ...DEFAULT_SHORT_CALL_BASE,
       strikeId: hre.f.strike.strikeId,
@@ -412,10 +397,98 @@ export async function forceCloseShortCallBase(positionId: BigNumberish, sender?:
       positionId,
     },
     sender,
+    testSystemOverride,
   );
 }
 
-export async function forceCloseShortCallQuote(positionId: BigNumberish, sender?: SignerWithAddress) {
+export async function closeShortCallQuote(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
+  await closePosition(
+    {
+      ...DEFAULT_SHORT_CALL_QUOTE,
+      strikeId: hre.f.strike.strikeId,
+      setCollateralTo: 0,
+      positionId,
+    },
+    sender,
+    testSystemOverride,
+  );
+}
+
+export async function closeShortPutQuote(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
+  await closePosition(
+    {
+      ...DEFAULT_SHORT_PUT_QUOTE,
+      strikeId: hre.f.strike.strikeId,
+      setCollateralTo: 0,
+      positionId,
+    },
+    sender,
+    testSystemOverride,
+  );
+}
+
+export async function forceCloseLongCall(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
+  await forceClosePosition(
+    {
+      ...DEFAULT_LONG_CALL,
+      strikeId: hre.f.strike.strikeId,
+      positionId,
+    },
+    sender,
+    testSystemOverride,
+  );
+}
+
+export async function forceCloseLongPut(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
+  await forceClosePosition(
+    {
+      ...DEFAULT_LONG_PUT,
+      strikeId: hre.f.strike.strikeId,
+      positionId,
+    },
+    sender,
+    testSystemOverride,
+  );
+}
+
+export async function forceCloseShortCallBase(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
+  await forceClosePosition(
+    {
+      ...DEFAULT_SHORT_CALL_BASE,
+      strikeId: hre.f.strike.strikeId,
+      setCollateralTo: 0,
+      positionId,
+    },
+    sender,
+    testSystemOverride,
+  );
+}
+
+export async function forceCloseShortCallQuote(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   await forceClosePosition(
     {
       ...DEFAULT_SHORT_CALL_QUOTE,
@@ -424,10 +497,15 @@ export async function forceCloseShortCallQuote(positionId: BigNumberish, sender?
       positionId,
     },
     sender,
+    testSystemOverride,
   );
 }
 
-export async function forceCloseShortPutQuote(positionId: BigNumberish, sender?: SignerWithAddress) {
+export async function forceCloseShortPutQuote(
+  positionId: BigNumberish,
+  sender?: SignerWithAddress,
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+) {
   await forceClosePosition(
     {
       ...DEFAULT_SHORT_PUT_QUOTE,
@@ -436,16 +514,19 @@ export async function forceCloseShortPutQuote(positionId: BigNumberish, sender?:
       positionId,
     },
     sender,
+    testSystemOverride,
   );
 }
 
-export async function openAllTrades(): Promise<[BigNumber, BigNumber, BigNumber, BigNumber, BigNumber]> {
+export async function openAllTrades(
+  testSystemOverride?: TestSystemContractsType | TestSystemContractsTypeGMX,
+): Promise<[BigNumber, BigNumber, BigNumber, BigNumber, BigNumber]> {
   return [
-    await openDefaultLongCall(),
-    await openDefaultLongPut(),
-    await openDefaultShortCallBase(),
-    await openDefaultShortCallQuote(),
-    await openDefaultShortPutQuote(),
+    await openDefaultLongCall(hre.f.deployer, testSystemOverride),
+    await openDefaultLongPut(hre.f.deployer, testSystemOverride),
+    await openDefaultShortCallBase(hre.f.deployer, testSystemOverride),
+    await openDefaultShortCallQuote(hre.f.deployer, testSystemOverride),
+    await openDefaultShortPutQuote(hre.f.deployer, testSystemOverride),
   ];
 }
 
@@ -526,6 +607,40 @@ export async function expectCorrectSettlement(positionIds: BigNumber[]) {
   await hre.f.c.shortCollateral.settleOptions([positionIds[4]]);
   change = (await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)).sub(oldBalance);
   assertCloseToPercentage(change, DEFAULT_SHORT_PUT_QUOTE.setCollateralTo, toBN('0.01'));
+}
+
+export async function expectUSDCCorrectSettlement(positionIds: BigNumber[]) {
+  // tuned for openAllTrades()
+
+  // long call
+  let oldBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+  await hre.f.c.shortCollateral.settleOptions([positionIds[0]]);
+  let change = (await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)).sub(oldBalance);
+  assertCloseToPercentage(change, toBN('242.0727', 6), toBN('0.01'));
+
+  // long put
+  oldBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+  await hre.f.c.shortCollateral.settleOptions([positionIds[1]]);
+  change = (await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)).sub(oldBalance);
+  assertCloseToPercentage(change, toBN('0', 6), toBN('0.01'));
+
+  // short call base
+  oldBalance = await hre.f.c.snx.baseAsset.balanceOf(hre.f.deployer.address);
+  await hre.f.c.shortCollateral.settleOptions([positionIds[2]]);
+  change = (await hre.f.c.snx.baseAsset.balanceOf(hre.f.deployer.address)).sub(oldBalance);
+  assertCloseToPercentage(change, toBN('0.3600'), toBN('0.01'));
+
+  // short call quote
+  oldBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+  await hre.f.c.shortCollateral.settleOptions([positionIds[3]]);
+  change = (await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)).sub(oldBalance);
+  assertCloseToPercentage(change, toBN('757.98663', 6), toBN('0.01'));
+
+  // short put quote
+  oldBalance = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address);
+  await hre.f.c.shortCollateral.settleOptions([positionIds[4]]);
+  change = (await hre.f.c.snx.quoteAsset.balanceOf(hre.f.deployer.address)).sub(oldBalance);
+  assertCloseToPercentage(change, toBN('1000', 6), toBN('0.01'));
 }
 
 export async function estimateCallPayout(amount: string, strikeId: BigNumberish, isQuote: boolean) {
@@ -673,23 +788,25 @@ export function compareTradeResults(firstResult: CumulativeResults, secondResult
 
 export const emptyTradeObject: TradeParametersStruct = {
   amount: 0,
-  exchangeParams: {
-    spotPrice: 0,
-    quoteKey: toBytes32(''),
-    baseKey: toBytes32(''),
-    quoteBaseFeeRate: 0,
-    baseQuoteFeeRate: 0,
-  },
+  spotPrice: 0,
+  // exchangeParams: {
+  //   spotPrice: 0,
+  //   quoteKey: toBytes32(''),
+  //   baseKey: toBytes32(''),
+  //   quoteBaseFeeRate: 0,
+  //   baseQuoteFeeRate: 0,
+  // },
   expiry: 0,
   isBuy: false,
   isForceClose: false,
   liquidity: {
     freeLiquidity: 0,
     burnableLiquidity: 0,
-    usedCollatLiquidity: 0,
+    reservedCollatLiquidity: 0,
     pendingDeltaLiquidity: 0,
     usedDeltaLiquidity: 0,
     NAV: 0,
+    longScaleFactor: 0,
   },
   optionType: 0,
   strikePrice: 0,

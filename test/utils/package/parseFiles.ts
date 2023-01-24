@@ -3,15 +3,15 @@ import chalk from 'chalk';
 import { Contract, Signer, Wallet } from 'ethers';
 import fs from 'fs';
 import path, { resolve } from 'path';
-import { AllowedNetworks, DeploymentParams } from '../../../scripts/util';
+import { AllowedNetworks, DeploymentParams, DeploymentType, isMockGmx, isMockSnx } from '../../../scripts/util';
 import {
   addLyraContract,
-  addMockedSnxContract,
+  addMockedExternalContract,
+  loadExternalContractData,
   loadLyraContractData,
-  loadSynthetixContractData,
 } from '../../../scripts/util/parseFiles';
 import { GlobalTestSystemContracts, MarketTestSystemContracts } from '../deployTestSystem';
-import { artifacts } from '../package/index-artifacts';
+import { artifacts } from './index-artifacts';
 
 export type LyraGlobal = {
   TestFaucet: LyraArtifact;
@@ -74,10 +74,14 @@ export type lyraDeployment = {
 
 // loads all of the lyra contracts into a test system dir? ah but not very compatible with ethers vs
 export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
-  const deploymentParams = {
+  const deploymentParams: DeploymentParams = {
     network: network,
-    mockSnx: network != 'mainnet-ovm',
-    realPricing: network == 'goerli-ovm',
+    deploymentType:
+      network == 'mainnet-ovm'
+        ? DeploymentType.SNX
+        : network == 'goerli-ovm'
+        ? DeploymentType.MockSnxRealPricing
+        : DeploymentType.MockSnxMockPricing,
     deployer: {} as Wallet,
   };
 
@@ -98,10 +102,14 @@ export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
 }
 
 export function getMarketDeploys(network: AllowedNetworks, market: string): LyraMarket {
-  const deploymentParams = {
+  const deploymentParams: DeploymentParams = {
     network: network,
-    mockSnx: network != 'mainnet-ovm',
-    realPricing: network != 'goerli-ovm',
+    deploymentType:
+      network == 'mainnet-ovm'
+        ? DeploymentType.SNX
+        : network == 'goerli-ovm'
+        ? DeploymentType.MockSnxRealPricing
+        : DeploymentType.MockSnxMockPricing,
     deployer: {} as Wallet,
   };
 
@@ -153,8 +161,13 @@ export function assignGlobalArtifact(
 ): LyraArtifact {
   try {
     let target;
-    if (lyra === undefined || lyra == false) {
-      target = loadSynthetixContractData(deploymentParams, contractName, getSNXDeploymentDir(network)).target;
+    if (lyra === undefined || !lyra) {
+      target = loadExternalContractData(
+        deploymentParams,
+        contractName,
+        isMockSnx(deploymentParams.deploymentType) || isMockGmx(deploymentParams.deploymentType),
+        getSNXDeploymentDir(deploymentParams),
+      ).target;
     } else {
       target = loadLyraContractData(deploymentParams, contractName, undefined, getLyraDeploymentDir(network)).target;
     }
@@ -184,8 +197,13 @@ export function assignMarketArtifact(
 ): LyraArtifact {
   try {
     let target;
-    if (lyra === undefined || lyra == false) {
-      target = loadSynthetixContractData(deploymentParams, contractName, getSNXDeploymentDir(network)).target;
+    if (lyra === undefined || !lyra) {
+      target = loadExternalContractData(
+        deploymentParams,
+        contractName,
+        isMockSnx(deploymentParams.deploymentType) || isMockGmx(deploymentParams.deploymentType),
+        getSNXDeploymentDir(deploymentParams),
+      ).target;
     } else {
       target = loadLyraContractData(
         deploymentParams,
@@ -226,14 +244,19 @@ export function getLyraDeploymentDir(network: AllowedNetworks) {
   }
 }
 
-export function getSNXDeploymentDir(network: AllowedNetworks) {
-  if (network == 'local') {
-    return resolve(path.join('.lyra', 'local', 'synthetix.mocked.json'));
-  } else if (network == 'goerli-ovm') {
-    return path.join(__dirname, '../../../deployments/', 'goerli-ovm', 'synthetix.mocked.json');
-  } else if (network == 'mainnet-ovm') {
+export function getSNXDeploymentDir(deploymentParams: DeploymentParams) {
+  if (deploymentParams.network == 'local') {
+    return resolve(path.join('.lyra', 'local', `external.mocked.${deploymentParams.deploymentType}.json`));
+  } else if (deploymentParams.network == 'goerli-ovm') {
+    return path.join(
+      __dirname,
+      '../../../deployments/',
+      'goerli-ovm',
+      `external.mocked.${deploymentParams.deploymentType}.json`,
+    );
+  } else if (deploymentParams.network == 'mainnet-ovm') {
     try {
-      return path.join(__dirname, '../../../deployments/', 'mainnet-ovm', 'synthetix.json');
+      return path.join(__dirname, '../../../deployments/', 'mainnet-ovm', 'external.json');
     } catch (e) {
       throw new Error('mainnet contracts not deployed yet...');
     }
@@ -259,10 +282,9 @@ export async function exportGlobalDeployment(globalSystem: GlobalTestSystemContr
     fs.unlinkSync(snxDir);
   }
 
-  const deploymentParams = {
+  const deploymentParams: DeploymentParams = {
     network: 'local' as AllowedNetworks,
-    mockSnx: true,
-    realPricing: false,
+    deploymentType: DeploymentType.MockSnxMockPricing,
     deployer: {} as Wallet,
   };
 
@@ -274,7 +296,7 @@ export async function exportGlobalDeployment(globalSystem: GlobalTestSystemContr
   addLyraContract(deploymentParams, 'BlackScholes', globalSystem.blackScholes, undefined, lyraDir);
   addLyraContract(deploymentParams, 'BasicFeeCounter', globalSystem.basicFeeCounter, undefined, lyraDir);
   addLyraContract(deploymentParams, 'BlackScholes', globalSystem.blackScholes, undefined, lyraDir);
-  addMockedSnxContract(deploymentParams, 'ProxyERC20sUSD', 'TestERC20Fail', globalSystem.snx.quoteAsset, snxDir);
+  addMockedExternalContract(deploymentParams, 'ProxyERC20sUSD', 'TestERC20Fail', globalSystem.snx.quoteAsset, snxDir);
 
   console.log(chalk.greenBright(`\n=== Saved global lyra addresses to ${lyraDir} ===\n`));
   console.log(chalk.greenBright(`=== Saved global snx addresses to ${snxDir} ===\n`));
@@ -292,10 +314,9 @@ export async function exportMarketDeployment(marketSystem: MarketTestSystemContr
     throw new Error('must deploy global contracts first');
   }
 
-  const deploymentParams = {
+  const deploymentParams: DeploymentParams = {
     network: 'local' as AllowedNetworks,
-    mockSnx: true,
-    realPricing: false,
+    deploymentType: DeploymentType.MockSnxMockPricing,
     deployer: {} as Wallet,
   };
 
@@ -310,10 +331,10 @@ export async function exportMarketDeployment(marketSystem: MarketTestSystemContr
   addLyraContract(deploymentParams, 'LiquidityPool', marketSystem.liquidityPool, market, lyraDir);
   addLyraContract(deploymentParams, 'LiquidityToken', marketSystem.liquidityToken, market, lyraDir);
   addLyraContract(deploymentParams, 'ShortCollateral', marketSystem.shortCollateral, market, lyraDir);
-  addLyraContract(deploymentParams, 'ShortPoolHedger', marketSystem.poolHedger, market, lyraDir);
+  addLyraContract(deploymentParams, 'SNXFuturesPoolHedger', marketSystem.poolHedger, market, lyraDir);
   addLyraContract(deploymentParams, 'GWAVOracle', marketSystem.GWAVOracle, market, lyraDir);
   addLyraContract(deploymentParams, 'BasicLiquidityCounter', marketSystem.basicLiquidityCounter, market, lyraDir);
-  addMockedSnxContract(deploymentParams, `Proxy${market}`, 'TestERC20Fail', marketSystem.snx.baseAsset, snxDir);
+  addMockedExternalContract(deploymentParams, `Proxy${market}`, 'TestERC20Fail', marketSystem.snx.baseAsset, snxDir);
 
   console.log(chalk.greenBright(`\n=== Saved ${market} market to ${lyraDir} ===\n`));
   console.log(chalk.greenBright(`=== Saved ${market} snx asset to ${snxDir} ===\n`));

@@ -41,8 +41,8 @@ describe('OptionGreekCache - SyncBoards', () => {
       const boardView = await hre.f.c.optionMarketViewer.getBoard(hre.f.c.optionMarket.address, newBoardId);
       const cacheBoardView = await hre.f.c.optionGreekCache.getBoardGreeksView(newBoardId);
 
-      assertCloseTo(boardView.forceCloseGwavIV, toBN(defaultParams.DEFAULT_BOARD_PARAMS.baseIV), toBN('0.000000001'));
-      assertCloseTo(boardView.forceCloseGwavIV, cacheBoardView.ivGWAV, toBN('0.000000001'));
+      assertCloseTo(boardView.forceCloseGwavIv, toBN(defaultParams.DEFAULT_BOARD_PARAMS.baseIV), toBN('0.000000001'));
+      assertCloseTo(boardView.forceCloseGwavIv, cacheBoardView.ivGWAV, toBN('0.000000001'));
 
       for (let i = 0; i < boardView.strikes.length; i++) {
         const strike = boardView.strikes[i];

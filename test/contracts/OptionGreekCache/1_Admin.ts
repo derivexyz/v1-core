@@ -73,7 +73,6 @@ describe('OptionGreekCache - Admin', async () => {
         optionValueSkewGWAVPeriod: 500 * HOUR_SEC,
         gwavSkewFloor: 1,
         gwavSkewCap: toBN('1'),
-        rateAndCarry: toBN('25'),
       } as GreekCacheParametersStruct;
 
       const oldParams = await hre.f.c.optionGreekCache.getGreekCacheParams();
@@ -104,9 +103,6 @@ describe('OptionGreekCache - Admin', async () => {
 
       expect(oldParams.gwavSkewCap).not.eq(newParams.gwavSkewCap);
       expect(newParams.gwavSkewCap).eq(modParams.gwavSkewCap);
-
-      expect(oldParams.rateAndCarry).not.eq(newParams.rateAndCarry);
-      expect(newParams.rateAndCarry).eq(modParams.rateAndCarry);
     });
 
     it('GreekCacheParameters Reverts', async () => {
@@ -118,8 +114,6 @@ describe('OptionGreekCache - Admin', async () => {
       await expectInvalidGreekParams({ optionValueSkewGWAVPeriod: 0 });
       await expectInvalidGreekParams({ gwavSkewFloor: toBN('1').add(1) });
       await expectInvalidGreekParams({ gwavSkewFloor: 0 });
-      await expectInvalidGreekParams({ rateAndCarry: toBN('50').add(1) });
-      await expectInvalidGreekParams({ rateAndCarry: toBN('-50').sub(1) });
     });
   });
 

@@ -1,5 +1,5 @@
-import { BigNumber, Contract, Signer } from 'ethers';
-import { currentTime, getEventArgs, toBN, toBytes32 } from '../../scripts/util/web3utils';
+import { BigNumber, BigNumberish, Contract, Signer } from 'ethers';
+import { currentTime, getEventArgs, toBN, toBN18, toBytes32 } from '../../scripts/util/web3utils';
 import * as defaultParams from './defaultParams';
 import { MarketTestSystemContracts, TestSystemContractsType } from './deployTestSystem';
 import { getLocalRealSynthetixContract } from './package/parseFiles';
@@ -11,6 +11,9 @@ export type SeedOverrides = {
   initialPoolDeposit?: BigNumber;
   initialQuoteBalace?: BigNumber;
   initialBaseBalance?: BigNumber;
+  noHedger?: boolean;
+  useUSDC?: boolean;
+  useBTC?: boolean;
 };
 
 export async function seedTestSystem(deployer: Signer, testSystem: TestSystemContractsType, overrides?: SeedOverrides) {
@@ -58,16 +61,25 @@ export async function seedTestSystem(deployer: Signer, testSystem: TestSystemCon
     ).addShortableSynths([toBytes32('SynthsETH')], [toBytes32('sETH')]);
     await (await getLocalRealSynthetixContract(deployer, 'local', `Issuer`)).rebuildCache();
   }
+  await seedLiquidityPool(deployer, testSystem, overrides.initialPoolDeposit, overrides.useUSDC);
+  await seedBalanceAndApprovalFor(
+    deployer,
+    testSystem,
+    overrides.initialQuoteBalace,
+    overrides.initialBaseBalance,
+    undefined,
+    overrides.useUSDC,
+    overrides.useBTC,
+  );
 
-  await seedLiquidityPool(deployer, testSystem, overrides.initialPoolDeposit);
-  await seedBalanceAndApprovalFor(deployer, testSystem, overrides.initialQuoteBalace, overrides.initialBaseBalance);
+  if (!overrides.noHedger) {
+    // Open hedger short account
+    testSystem.snx.collateralManager = testSystem.snx.collateralManager || ({} as Contract);
 
-  // Open hedger short account
-  testSystem.snx.collateralManager = testSystem.snx.collateralManager || ({} as Contract);
-
-  await testSystem.poolHedger.openShortAccount();
-  await testSystem.poolHedger.hedgeDelta();
-  await testSystem.poolHedger.hedgeDelta();
+    await testSystem.poolHedger.openShortAccount();
+    await testSystem.poolHedger.hedgeDelta();
+    await testSystem.poolHedger.hedgeDelta();
+  }
 
   return await createDefaultBoardWithOverrides(
     testSystem,
@@ -81,8 +93,16 @@ export async function seedNewMarketSystem(
   overrides?: SeedOverrides,
 ) {
   overrides = overrides || ({} as SeedOverrides);
-  await seedLiquidityPool(deployer, testSystem, overrides.initialPoolDeposit);
-  await seedBalanceAndApprovalFor(deployer, testSystem, overrides.initialQuoteBalace, overrides.initialBaseBalance);
+  await seedLiquidityPool(deployer, testSystem, overrides.initialPoolDeposit, overrides.useUSDC);
+  await seedBalanceAndApprovalFor(
+    deployer,
+    testSystem,
+    overrides.initialQuoteBalace,
+    overrides.initialBaseBalance,
+    undefined,
+    overrides.useUSDC,
+    overrides.useBTC,
+  );
 
   // Open hedger short account
   await testSystem.poolHedger.openShortAccount();
@@ -93,9 +113,14 @@ export async function seedNewMarketSystem(
 export async function seedLiquidityPool(
   deployer: Signer,
   testSystem: TestSystemContractsType,
-  poolDeposit?: BigNumber,
+  poolDeposit?: BigNumberish,
+  useUSDC?: boolean,
 ) {
-  poolDeposit = poolDeposit || defaultParams.DEFAULT_POOL_DEPOSIT;
+  if (useUSDC) {
+    poolDeposit = poolDeposit || defaultParams.DEFAULT_POOL_DEPOSIT_USDC;
+  } else {
+    poolDeposit = poolDeposit || defaultParams.DEFAULT_POOL_DEPOSIT;
+  }
 
   if (testSystem.snx.isMockSNX) {
     // mint
@@ -117,9 +142,20 @@ export async function seedBalanceAndApprovalFor(
   initialQuoteBalance?: BigNumber,
   initialBaseBalance?: BigNumber,
   market?: string,
+  useUSDC?: boolean,
+  useBTC?: boolean,
 ) {
-  initialQuoteBalance = initialQuoteBalance || defaultParams.DEFAULT_QUOTE_BALANCE;
-  initialBaseBalance = initialBaseBalance || defaultParams.DEFAULT_BASE_BALANCE;
+  if (useUSDC) {
+    initialQuoteBalance = initialQuoteBalance || defaultParams.DEFAULT_QUOTE_BALANCE_USDC;
+  } else {
+    initialQuoteBalance = initialQuoteBalance || defaultParams.DEFAULT_QUOTE_BALANCE;
+  }
+
+  if (useBTC) {
+    initialBaseBalance = initialBaseBalance || defaultParams.DEFAULT_BASE_BALANCE_BTC;
+  } else {
+    initialBaseBalance = initialBaseBalance || defaultParams.DEFAULT_BASE_BALANCE;
+  }
 
   if (testSystem.snx.isMockSNX) {
     // Mint tokens
@@ -128,7 +164,7 @@ export async function seedBalanceAndApprovalFor(
   } else {
     market = market || 'sETH';
     await mintQuote(testSystem, account, initialQuoteBalance);
-    await mintBase(testSystem, market, account, initialBaseBalance);
+    await mintBase(testSystem, market, account, initialBaseBalance, useBTC);
   }
 
   // Approve option market
@@ -162,8 +198,8 @@ export async function createDefaultBoardWithOverrides(
   const tx = await testSystem.optionMarket.createOptionBoard(
     (await currentTime()) + expiresIn,
     toBN(baseIV),
-    strikePrices.map(toBN),
-    skews.map(toBN),
+    strikePrices.map(toBN18),
+    skews.map(toBN18),
     false,
   );
 
@@ -172,7 +208,7 @@ export async function createDefaultBoardWithOverrides(
 
 export async function mockPrice(testSystem: TestSystemContractsType, price: BigNumber, market: string) {
   if (testSystem.snx.isMockSNX) {
-    testSystem.snx.exchangeRates.setRateAndInvalid(toBytes32(market), price, false);
+    await testSystem.snx.exchangeRates.setRateAndInvalid(toBytes32(market), price, false);
   } else {
     await changeRate(testSystem, price, 'sETH');
   }

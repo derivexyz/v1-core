@@ -1,22 +1,23 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "./synthetix/DecimalMath.sol";
 import "./synthetix/SignedDecimalMath.sol";
+import "./libraries/BlackScholes.sol";
+import "./libraries/ConvertDecimals.sol";
+import "./libraries/Math.sol";
+import "./libraries/GWAV.sol";
 
 // Inherited
 import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializeable.sol";
+import "./libraries/SimpleInitializable.sol";
 import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 
 // Interfaces
-import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
-import "./libraries/BlackScholes.sol";
-import "./SynthetixAdapter.sol";
+import "./BaseExchangeAdapter.sol";
 import "./OptionMarket.sol";
 import "./OptionMarketPricer.sol";
-import "./libraries/GWAV.sol";
 
 /**
  * @title OptionGreekCache
@@ -28,7 +29,7 @@ import "./libraries/GWAV.sol";
  * to get the LP's perspective
  * Also handles logic for figuring out minimal collateral requirements for shorts.
  */
-contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
+contract OptionGreekCache is Owned, SimpleInitializable, ReentrancyGuard {
   using DecimalMath for uint;
   using SignedDecimalMath for int;
   using GWAV for GWAV.Params;
@@ -58,8 +59,6 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     uint gwavSkewFloor;
     // Maximum skew that will be fed into the GWAV calculation
     uint gwavSkewCap;
-    // Interest/risk free rate
-    int rateAndCarry;
   }
 
   struct ForceCloseParameters {
@@ -186,7 +185,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   ///////////////
   // Variables //
   ///////////////
-  SynthetixAdapter internal synthetixAdapter;
+  BaseExchangeAdapter internal exchangeAdapter;
   OptionMarket internal optionMarket;
   address internal optionMarketPricer;
 
@@ -214,16 +213,16 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   /**
    * @dev Initialize the contract.
    *
-   * @param _synthetixAdapter SynthetixAdapter address
+   * @param _exchangeAdapter BaseExchangeAdapter address
    * @param _optionMarket OptionMarket address
    * @param _optionMarketPricer OptionMarketPricer address
    */
   function init(
-    SynthetixAdapter _synthetixAdapter,
+    BaseExchangeAdapter _exchangeAdapter,
     OptionMarket _optionMarket,
     address _optionMarketPricer
   ) external onlyOwner initializer {
-    synthetixAdapter = _synthetixAdapter;
+    exchangeAdapter = _exchangeAdapter;
     optionMarket = _optionMarket;
     optionMarketPricer = _optionMarketPricer;
   }
@@ -246,9 +245,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
         _greekCacheParams.optionValueSkewGWAVPeriod <= 60 days &&
         _greekCacheParams.gwavSkewFloor <= 1e18 &&
         _greekCacheParams.gwavSkewFloor > 0 &&
-        _greekCacheParams.gwavSkewCap >= 1e18 &&
-        _greekCacheParams.rateAndCarry >= -50e18 &&
-        _greekCacheParams.rateAndCarry <= 50e18)
+        _greekCacheParams.gwavSkewCap >= 1e18)
     ) {
       revert InvalidGreekCacheParameters(address(this), _greekCacheParams);
     }
@@ -310,10 +307,10 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param board The new OptionBoard
    * @param strikes The new Strikes for the given board
    */
-  function addBoard(OptionMarket.OptionBoard memory board, OptionMarket.Strike[] memory strikes)
-    external
-    onlyOptionMarket
-  {
+  function addBoard(
+    OptionMarket.OptionBoard memory board,
+    OptionMarket.Strike[] memory strikes
+  ) external onlyOptionMarket {
     uint strikesLength = strikes.length;
     if (strikesLength > greekCacheParams.maxStrikesPerBoard) {
       revert BoardStrikeLimitExceeded(address(this), board.id, strikesLength, greekCacheParams.maxStrikesPerBoard);
@@ -365,12 +362,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
   }
 
   /// @dev Add a new strike to a given boardCache. Only callable by OptionMarket.
-  function addStrikeToBoard(
-    uint boardId,
-    uint strikeId,
-    uint strikePrice,
-    uint skew
-  ) external onlyOptionMarket {
+  function addStrikeToBoard(uint boardId, uint strikeId, uint strikePrice, uint skew) external onlyOptionMarket {
     OptionBoardCache storage boardCache = boardCaches[boardId];
     if (boardCache.strikes.length == greekCacheParams.maxStrikesPerBoard) {
       revert BoardStrikeLimitExceeded(
@@ -421,7 +413,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     emit StrikeCacheUpdated(strikeCache);
 
     strikeSkewGWAV[strikeId]._initialize(
-      _max(_min(skew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
+      Math.max(Math.min(skew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
       block.timestamp
     );
 
@@ -490,9 +482,9 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       .BlackScholesInputs({
         timeToExpirySec: _timeToMaturitySeconds(boardCache.expiry),
         volatilityDecimal: boardCache.iv.multiplyDecimal(strikeCache.skew),
-        spotDecimal: trade.exchangeParams.spotPrice,
+        spotDecimal: trade.spotPrice,
         strikePriceDecimal: strikeCache.strikePrice,
-        rateDecimal: greekCacheParams.rateAndCarry
+        rateDecimal: exchangeAdapter.rateAndCarry(address(optionMarket))
       })
       .pricesDeltaStdVega();
 
@@ -570,13 +562,13 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       // If the tradeDirection is a close, we know the user force closed.
       if (trade.isBuy) {
         // closing a short - maximise vol
-        forceCloseVol = _max(forceCloseVol, newVol);
+        forceCloseVol = Math.max(forceCloseVol, newVol);
         forceCloseVol = isPostCutoff
           ? forceCloseVol.multiplyDecimal(forceCloseParams.shortPostCutoffVolShock)
           : forceCloseVol.multiplyDecimal(forceCloseParams.shortVolShock);
       } else {
         // closing a long - minimise vol
-        forceCloseVol = _min(forceCloseVol, newVol);
+        forceCloseVol = Math.min(forceCloseVol, newVol);
         forceCloseVol = isPostCutoff
           ? forceCloseVol.multiplyDecimal(forceCloseParams.longPostCutoffVolShock)
           : forceCloseVol.multiplyDecimal(forceCloseParams.longVolShock);
@@ -592,9 +584,9 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       .BlackScholesInputs({
         timeToExpirySec: _timeToMaturitySeconds(expiry),
         volatilityDecimal: forceCloseVol,
-        spotDecimal: trade.exchangeParams.spotPrice,
+        spotDecimal: trade.spotPrice,
         strikePriceDecimal: strike.strikePrice,
-        rateDecimal: greekCacheParams.rateAndCarry
+        rateDecimal: exchangeAdapter.rateAndCarry(address(optionMarket))
       })
       .optionPrices();
 
@@ -605,14 +597,14 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
 
     if (trade.isBuy) {
       // In the case a short is being closed, ensure the AMM doesn't overpay by charging parity + some excess
-      uint parity = _getParity(strike.strikePrice, trade.exchangeParams.spotPrice, trade.optionType);
+      uint parity = _getParity(strike.strikePrice, trade.spotPrice, trade.optionType);
       uint minPrice = parity +
-        trade.exchangeParams.spotPrice.multiplyDecimal(
+        trade.spotPrice.multiplyDecimal(
           trade.tradeDirection == OptionMarket.TradeDirection.CLOSE
             ? forceCloseParams.shortSpotMin
             : forceCloseParams.liquidateSpotMin
         );
-      price = _max(price, minPrice);
+      price = Math.max(price, minPrice);
     }
 
     return (price, forceCloseVol);
@@ -662,7 +654,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
         volatilityDecimal: getShockVol(timeToMaturity),
         spotDecimal: shockPrice,
         strikePriceDecimal: strikePrice,
-        rateDecimal: greekCacheParams.rateAndCarry
+        rateDecimal: exchangeAdapter.rateAndCarry(address(optionMarket))
       })
       .optionPrices();
 
@@ -683,7 +675,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       fullCollat = amount.multiplyDecimal(strikePrice);
     }
 
-    return _min(_max(volCollat, staticCollat), fullCollat);
+    return Math.min(Math.max(volCollat, staticCollat), fullCollat);
   }
 
   /// @notice Gets shock vol (Vol used to compute the minimum collateral requirements for short positions)
@@ -715,7 +707,10 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
    * @param boardId The id of the OptionBoardCache.
    */
   function updateBoardCachedGreeks(uint boardId) public nonReentrant {
-    _updateBoardCachedGreeks(synthetixAdapter.getSpotPriceForMarket(address(optionMarket)), boardId);
+    _updateBoardCachedGreeks(
+      exchangeAdapter.getSpotPriceForMarket(address(optionMarket), BaseExchangeAdapter.PriceType.REFERENCE),
+      boardId
+    );
   }
 
   function _updateBoardCachedGreeks(uint spotPrice, uint boardId) internal {
@@ -787,7 +782,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
         volatilityDecimal: navGWAVvol,
         spotDecimal: spotPrice,
         strikePriceDecimal: strikeCache.strikePrice,
-        rateDecimal: greekCacheParams.rateAndCarry
+        rateDecimal: exchangeAdapter.rateAndCarry(address(optionMarket))
       })
       .pricesDeltaStdVega();
 
@@ -882,7 +877,7 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
     strikeCache.skew = newSkew;
 
     strikeSkewGWAV[strikeCache.id]._write(
-      _max(_min(newSkew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
+      Math.max(Math.min(newSkew, greekCacheParams.gwavSkewCap), greekCacheParams.gwavSkewFloor),
       block.timestamp
     );
     // Update variance
@@ -975,7 +970,10 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
    *         if spot price moves up/down beyond `acceptablePriceMovement`
    */
   function isBoardCacheStale(uint boardId) external view returns (bool) {
-    uint spotPrice = synthetixAdapter.getSpotPriceForMarket(address(optionMarket));
+    uint spotPrice = exchangeAdapter.getSpotPriceForMarket(
+      address(optionMarket),
+      BaseExchangeAdapter.PriceType.REFERENCE
+    );
     OptionBoardCache memory boardCache = boardCaches[boardId];
     if (boardCache.id == 0) {
       revert InvalidBoardId(address(this), boardCache.id);
@@ -1113,14 +1111,6 @@ contract OptionGreekCache is Owned, SimpleInitializeable, ReentrancyGuard {
       return toTime - fromTime;
     }
     return 0;
-  }
-
-  function _min(uint x, uint y) internal pure returns (uint) {
-    return (x < y) ? x : y;
-  }
-
-  function _max(uint x, uint y) internal pure returns (uint) {
-    return (x > y) ? x : y;
   }
 
   ///////////////

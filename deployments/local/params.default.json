@@ -4,23 +4,29 @@
     "OptionMarketParams": {
       "maxBoardExpiry": 15724800,
       "securityModule": "0x0000000000000000000000000000000000000000",
-      "feePortionReserved": "0.1"
+      "feePortionReserved": "0.1",
+      "staticBaseSettlementFee": "0.002"
     },
     "LiquidityPoolParams": {
       "minDepositWithdraw": "1",
       "depositDelay": 604800,
       "withdrawalDelay": 604800,
       "withdrawalFee": "0.01",
+      "guardianMultisig": "0x0000000000000000000000000000000000000000",
+      "guardianDelay": 604800,
+      "adjustmentNetScalingFactor": "0.9",
+      "callCollatScalingFactor": "0.6",
+      "putCollatScalingFactor": "0.8"
+    },
+    "CircuitBreakerParams": {
       "liquidityCBThreshold": "0.01",
       "liquidityCBTimeout": 259200,
       "ivVarianceCBThreshold": "0.1",
       "skewVarianceCBThreshold": "0.35",
       "ivVarianceCBTimeout": 43200,
       "skewVarianceCBTimeout": 43200,
-      "guardianMultisig": "0x0000000000000000000000000000000000000000",
-      "guardianDelay": 7200,
       "boardSettlementCBTimeout": 21600,
-      "maxFeePaid": "0.05"
+      "contractAdjustmentCBTimeout": 86400
     },
     "GreekCacheParams": {
       "maxStrikesPerBoard":  30,
@@ -79,16 +85,16 @@
       "tradingCutoff": 43200,
       "absMaxSkew": "5",
       "absMinSkew": "0.15",
-      "capSkewToAbs": false
+      "capSkewsToAbs": false
     },
     "VarianceFeeParams": {
-      "defaultVarianceFeeCoefficient": "5",
-      "forceCloseVarianceFeeCoefficient": "2",
-      "skewAdjustmentCoefficient": "3",
+      "defaultVarianceFeeCoefficient": "25",
+      "forceCloseVarianceFeeCoefficient": "0.25",
+      "skewAdjustmentCoefficient": "0.3",
       "referenceSkew": "1",
-      "minimumStaticSkewAdjustment": "1",
-      "vegaCoefficient": "0.02",
-      "minimumStaticVega": "2",
+      "minimumStaticSkewAdjustment": "0.1",
+      "vegaCoefficient": "01",
+      "minimumStaticVega": "0.0",
       "ivVarianceCoefficient": "1.5",
       "minimumStaticIvVariance": "1"
     },
@@ -103,6 +109,23 @@
       "shortBuffer": "2",
       "interactionDelay": 86400,
       "hedgeCap": "100"
+    },
+    "FuturesPoolHedgerParams": {
+      "acceptableSpotSlippage": "1.05",
+      "deltaThreshold": "100",
+      "marketDepthBuffer": "1",
+      "vaultLiquidityCheckEnabled": true,
+      "targetLeverage": "1.1",
+      "maxLeverage": "10",
+      "minCollateralUpdate": "0.1",
+      "minCancelDelay": 1200
+    },
+    "MarketPricingParams": {
+      "minReturnPercent": "1.0",
+      "staticSwapFeeEstimate": "1.02",
+      "gmxUsageThreshold": "0.004",
+      "priceVarianceCBPercent": "0.015",
+      "chainlinkStalenessCheck": 31536000
     }
   },
   "SwapRouter": "0x0000000000000000000000000000000000000000",
@@ -177,17 +200,18 @@
         "sETH": true
     }
     },
-    "changeOwner": {
-      "run": false,
-      "markets": {
-        "sETH": "0x000"
-      }
-    },
     "seedLiquidations" : {
       "markets": {
         "sETH": {
           "callLiquidation": true
         }
+      }
+    },
+    "changeOwner": {
+      "run": true,
+      "globalOwner": "0x36210adFb0C7b06149baF3DD0662Ac83A4289002",
+      "markets": {
+        "sETH": "0x36210adFb0C7b06149baF3DD0662Ac83A4289002"
       }
     }
   }

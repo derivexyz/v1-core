@@ -1,9 +1,10 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "../synthetix/SignedDecimalMath.sol";
 import "../synthetix/DecimalMath.sol";
+import "../libraries/Math.sol";
 import "../libraries/BlackScholes.sol";
 import "../libraries/FixedPointMathLib.sol";
 
@@ -25,7 +26,7 @@ contract TestBlackScholes {
   }
 
   function abs_pub(int x) external pure returns (uint) {
-    return x._abs();
+    return Math.abs(x);
   }
 
   function stdNormal_pub(int x) external pure returns (uint) {
@@ -51,19 +52,15 @@ contract TestBlackScholes {
     return (d1.preciseDecimalToDecimal(), d2.preciseDecimalToDecimal());
   }
 
-  function optionPrices_pub(BlackScholes.BlackScholesInputs memory bsInput)
-    external
-    pure
-    returns (uint call, uint put)
-  {
+  function optionPrices_pub(
+    BlackScholes.BlackScholesInputs memory bsInput
+  ) external pure returns (uint call, uint put) {
     return bsInput.optionPrices();
   }
 
-  function pricesDeltaStdVega_pub(BlackScholes.BlackScholesInputs memory bsInput)
-    external
-    pure
-    returns (BlackScholes.PricesDeltaStdVega memory)
-  {
+  function pricesDeltaStdVega_pub(
+    BlackScholes.BlackScholesInputs memory bsInput
+  ) external pure returns (BlackScholes.PricesDeltaStdVega memory) {
     return bsInput.pricesDeltaStdVega();
   }
 

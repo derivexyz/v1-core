@@ -24,6 +24,9 @@ describe('Market & Global Pause', async () => {
     await expect(pauseMarket(false, hre.f.alice)).to.revertedWith('OnlyOwner');
     await expect(pauseGlobal(false, hre.f.alice)).to.revertedWith('OnlyOwner');
   });
+  it('reverts on invalid market pause', async () => {
+    await expect(hre.f.c.synthetixAdapter.setMarketPaused(ZERO_ADDRESS, true)).revertedWith('InvalidAddress');
+  });
   it('reverts getExchangeParams when set to paused', async () => {
     await expect(hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address)).to.revertedWith(
       'MarketIsPaused',
@@ -80,9 +83,17 @@ describe('Market & Global Pause', async () => {
     await expect(hre.f.c.shortCollateral.settleOptions([positionId])).to.revertedWith('AllMarketsPaused');
   });
   it('reverts deposit/withdraw action when paused', async () => {
+    await expect(hre.f.c.liquidityPool.initiateDeposit(hre.f.signers[0].address, toBN('10000'))).revertedWith(
+      'MarketIsPaused',
+    );
+    await expect(hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[0].address, toBN('5000'))).revertedWith(
+      'MarketIsPaused',
+    );
+    await pauseMarket(false);
     await hre.f.c.liquidityPool.initiateDeposit(hre.f.signers[0].address, toBN('10000'));
     await hre.f.c.liquidityPool.initiateWithdraw(hre.f.signers[0].address, toBN('5000'));
     await fastForward(WEEK_SEC + 1);
+    await pauseMarket(true);
 
     await expect(hre.f.c.liquidityPool.processDepositQueue(1)).to.revertedWith('MarketIsPaused');
     await expect(hre.f.c.liquidityPool.processWithdrawalQueue(1)).to.revertedWith('MarketIsPaused');

@@ -1,33 +1,46 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { DAY_SEC, HOUR_SEC, MONTH_SEC, toBN, WEEK_SEC, YEAR_SEC } from '../../../scripts/util/web3utils';
-import { LiquidityPoolParametersStruct } from '../../../typechain-types/LiquidityPool';
-import { changeDelegateApprovalAddress, openDefaultLongCall } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
+import { CircuitBreakerParametersStruct, LiquidityPoolParametersStruct } from '../../../typechain-types/LiquidityPool';
+import { DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { seedFixture } from '../../utils/fixture';
 import { hre } from '../../utils/testSetup';
+import { TestERC20SetDecimals } from '../../../typechain-types';
 
-const modParams = {
+const modLPParams = {
   depositDelay: MONTH_SEC,
   withdrawalDelay: WEEK_SEC / 2,
   withdrawalFee: toBN('0.1'),
+  guardianDelay: DAY_SEC,
+} as LiquidityPoolParametersStruct;
+
+const modCBParams = {
   liquidityCBThreshold: toBN('0.1'),
   liquidityCBTimeout: 300 * HOUR_SEC,
   ivVarianceCBThreshold: toBN('0.01'),
   skewVarianceCBTimeout: WEEK_SEC,
-  guardianDelay: DAY_SEC,
   boardSettlementCBTimeout: HOUR_SEC * 5,
-} as LiquidityPoolParametersStruct;
+} as CircuitBreakerParametersStruct;
 
-const setParams = async (overrides?: any) => {
+const setLPParams = async (overrides?: any) => {
   return await hre.f.c.liquidityPool.setLiquidityPoolParameters({
     ...DEFAULT_LIQUIDITY_POOL_PARAMS,
     ...(overrides || {}),
   });
 };
+const setCBParams = async (overrides?: any) => {
+  return await hre.f.c.liquidityPool.setCircuitBreakerParameters({
+    ...DEFAULT_CB_PARAMS,
+    ...(overrides || {}),
+  });
+};
 
-const expectInvalidParams = async (overrides?: any) => {
-  await expect(setParams(overrides)).revertedWith('InvalidLiquidityPoolParameters');
+const expectInvalidLPParams = async (overrides?: any) => {
+  await expect(setLPParams(overrides)).revertedWith('InvalidLiquidityPoolParameters');
+};
+
+const expectInvalidCBParams = async (overrides?: any) => {
+  await expect(setCBParams(overrides)).revertedWith('InvalidCircuitBreakerParameters');
 };
 
 describe('LiquidityPool - Admin', async () => {
@@ -65,7 +78,7 @@ describe('LiquidityPool - Admin', async () => {
           ),
       ).to.be.revertedWith('OnlyOwner');
     });
-    it('delegates snx approval when initialized', async () => {
+    it.skip('delegates snx approval when initialized', async () => {
       expect(
         await hre.f.c.snx.delegateApprovals.canExchangeOnBehalf(
           hre.f.c.synthetixAdapter.address,
@@ -77,57 +90,75 @@ describe('LiquidityPool - Admin', async () => {
 
   describe('LP params', async () => {
     it('sets liquidity pool params and updates', async () => {
-      const oldParams = await hre.f.c.liquidityPool.lpParams();
+      const oldLPParams = await hre.f.c.liquidityPool.lpParams();
+      const oldCBParams = await hre.f.c.liquidityPool.cbParams();
 
-      await setParams(modParams);
+      await setLPParams(modLPParams);
+      await setCBParams(modCBParams);
 
-      const newParams = await hre.f.c.liquidityPool.lpParams();
+      const newLPParams = await hre.f.c.liquidityPool.lpParams();
+      const newCBParams = await hre.f.c.liquidityPool.cbParams();
       // Verify all parameters updated as expected
-      expect(oldParams.depositDelay).not.eq(newParams.depositDelay);
-      expect(newParams.depositDelay).eq(modParams.depositDelay);
+      expect(oldLPParams.depositDelay).not.eq(newLPParams.depositDelay);
+      expect(newLPParams.depositDelay).eq(modLPParams.depositDelay);
 
-      expect(oldParams.withdrawalDelay).not.eq(newParams.withdrawalDelay);
-      expect(newParams.withdrawalDelay).eq(modParams.withdrawalDelay);
+      expect(oldLPParams.withdrawalDelay).not.eq(newLPParams.withdrawalDelay);
+      expect(newLPParams.withdrawalDelay).eq(modLPParams.withdrawalDelay);
 
-      expect(oldParams.withdrawalFee).not.eq(newParams.withdrawalFee);
-      expect(newParams.withdrawalFee).eq(modParams.withdrawalFee);
+      expect(oldLPParams.withdrawalFee).not.eq(newLPParams.withdrawalFee);
+      expect(newLPParams.withdrawalFee).eq(modLPParams.withdrawalFee);
 
-      expect(oldParams.liquidityCBThreshold).not.eq(newParams.liquidityCBThreshold);
-      expect(newParams.liquidityCBThreshold).eq(modParams.liquidityCBThreshold);
+      expect(oldCBParams.liquidityCBThreshold).not.eq(newCBParams.liquidityCBThreshold);
+      expect(newCBParams.liquidityCBThreshold).eq(modCBParams.liquidityCBThreshold);
 
-      expect(oldParams.liquidityCBTimeout).not.eq(newParams.liquidityCBTimeout);
-      expect(newParams.liquidityCBTimeout).eq(modParams.liquidityCBTimeout);
+      expect(oldCBParams.liquidityCBTimeout).not.eq(newCBParams.liquidityCBTimeout);
+      expect(newCBParams.liquidityCBTimeout).eq(modCBParams.liquidityCBTimeout);
 
-      expect(oldParams.ivVarianceCBThreshold).not.eq(newParams.ivVarianceCBThreshold);
-      expect(newParams.ivVarianceCBThreshold).eq(modParams.ivVarianceCBThreshold);
+      expect(oldCBParams.ivVarianceCBThreshold).not.eq(newCBParams.ivVarianceCBThreshold);
+      expect(newCBParams.ivVarianceCBThreshold).eq(modCBParams.ivVarianceCBThreshold);
 
-      expect(oldParams.skewVarianceCBTimeout).not.eq(newParams.skewVarianceCBTimeout);
-      expect(newParams.skewVarianceCBTimeout).eq(modParams.skewVarianceCBTimeout);
+      expect(oldCBParams.skewVarianceCBTimeout).not.eq(newCBParams.skewVarianceCBTimeout);
+      expect(newCBParams.skewVarianceCBTimeout).eq(modCBParams.skewVarianceCBTimeout);
 
-      expect(oldParams.guardianDelay).not.eq(newParams.guardianDelay);
-      expect(newParams.guardianDelay).eq(modParams.guardianDelay);
+      expect(oldLPParams.guardianDelay).not.eq(newLPParams.guardianDelay);
+      expect(newLPParams.guardianDelay).eq(modLPParams.guardianDelay);
 
-      expect(oldParams.boardSettlementCBTimeout).not.eq(newParams.boardSettlementCBTimeout);
-      expect(newParams.boardSettlementCBTimeout).eq(modParams.boardSettlementCBTimeout);
+      expect(oldCBParams.boardSettlementCBTimeout).not.eq(newCBParams.boardSettlementCBTimeout);
+      expect(newCBParams.boardSettlementCBTimeout).eq(modCBParams.boardSettlementCBTimeout);
     });
   });
 
   it('Lp Params revert testing', async () => {
-    await expectInvalidParams({ depositDelay: YEAR_SEC * 2 });
-    await expectInvalidParams({ withdrawalDelay: YEAR_SEC * 2 });
-    await expectInvalidParams({ withdrawalFee: toBN('3') });
-    await expectInvalidParams({ liquidityCBThreshold: toBN('20') });
-    await expectInvalidParams({ ivVarianceCBTimeout: 61 * DAY_SEC });
-    await expectInvalidParams({ skewVarianceCBTimeout: YEAR_SEC * 2 });
-    await expectInvalidParams({ guardianDelay: YEAR_SEC * 2 });
-    await expectInvalidParams({ boardSettlementCBTimeout: YEAR_SEC * 2 });
+    await expectInvalidLPParams({ depositDelay: YEAR_SEC * 2 });
+    await expectInvalidLPParams({ withdrawalDelay: YEAR_SEC * 2 });
+    await expectInvalidLPParams({ withdrawalFee: toBN('3') });
+    await expectInvalidLPParams({ guardianDelay: YEAR_SEC * 2 });
+  });
+  it('Lp Params revert testing', async () => {
+    await expectInvalidCBParams({ liquidityCBThreshold: toBN('20') });
+    await expectInvalidCBParams({ ivVarianceCBTimeout: 61 * DAY_SEC });
+    await expectInvalidCBParams({ skewVarianceCBTimeout: YEAR_SEC * 2 });
+    await expectInvalidCBParams({ boardSettlementCBTimeout: YEAR_SEC * 2 });
   });
 
-  it('updateDelegateApproval for SNX', async () => {
-    await changeDelegateApprovalAddress();
+  it('recovers funds', async () => {
+    const newAsset: TestERC20SetDecimals = await (
+      await ethers.getContractFactory('TestERC20SetDecimals')
+    ).deploy('test', 'test', 18);
+    await newAsset.mint(hre.f.c.liquidityPool.address, toBN('1000'));
+    await hre.f.c.liquidityPool.recoverFunds(newAsset.address, hre.f.alice.address);
+    expect(await newAsset.balanceOf(hre.f.alice.address)).eq(toBN('1000'));
+    expect(await newAsset.balanceOf(hre.f.c.liquidityPool.address)).eq(0);
+  });
 
-    await expect(openDefaultLongCall()).to.revertedWith('Not approved to act on behalf');
-    await hre.f.c.liquidityPool.updateDelegateApproval();
-    await openDefaultLongCall();
+  it('cannot recover quote or base', async () => {
+    await hre.f.c.snx.quoteAsset.mint(hre.f.c.liquidityPool.address, toBN('1000'));
+    await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('2000'));
+    await expect(
+      hre.f.c.liquidityPool.recoverFunds(hre.f.c.snx.quoteAsset.address, hre.f.deployer.address),
+    ).revertedWith('CannotRecoverQuoteBase');
+    await expect(
+      hre.f.c.liquidityPool.recoverFunds(hre.f.c.snx.baseAsset.address, hre.f.deployer.address),
+    ).revertedWith('CannotRecoverQuoteBase');
   });
 });

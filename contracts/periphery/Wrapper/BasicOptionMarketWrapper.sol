@@ -1,8 +1,11 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
-import "../../OptionMarket.sol";
+// Inherited
 import "../../synthetix/Owned.sol";
+
+// Interfaces
+import "../../OptionMarket.sol";
 
 /**
  * @title BasicOptionMarketWrapper

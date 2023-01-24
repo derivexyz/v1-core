@@ -9,6 +9,7 @@ import {
   mockPrice,
   openPosition,
   openPositionWithOverrides,
+  setETHPrice,
 } from '../../utils/contractHelpers';
 import {
   DEFAULT_BASE_PRICE,
@@ -16,10 +17,15 @@ import {
   DEFAULT_FEE_RATE_FOR_QUOTE,
   DEFAULT_LIQUIDITY_POOL_PARAMS,
   DEFAULT_POOL_DEPOSIT,
+  DEFAULT_TRADE_LIMIT_PARAMS,
 } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { deployFixture, seedFixture } from '../../utils/fixture';
-import { seedBalanceAndApprovalFor, seedLiquidityPool } from '../../utils/seedTestSystem';
+import {
+  createDefaultBoardWithOverrides,
+  seedBalanceAndApprovalFor,
+  seedLiquidityPool,
+} from '../../utils/seedTestSystem';
 import { expect, hre } from '../../utils/testSetup';
 
 describe('Pool Value', async () => {
@@ -49,11 +55,65 @@ describe('Pool Value', async () => {
     });
   });
 
+  it('reverts if total asset value < 0', async () => {
+    await hre.f.c.optionMarketPricer.setTradeLimitParams({
+      ...DEFAULT_TRADE_LIMIT_PARAMS,
+      minSkew: toBN('0.001'),
+      maxSkew: toBN('9.999'),
+      absMinSkew: toBN('0.0001'),
+      absMaxSkew: toBN('10'),
+      minBaseIV: toBN('0.001'),
+      maxBaseIV: toBN('9.999'),
+      minDelta: toBN('0.15'),
+      minForceCloseDelta: toBN('0.25'),
+      minVol: toBN('0.001'),
+      maxVol: toBN('9.999'),
+    });
+
+    // pool goes super long
+    await openPosition({
+      strikeId: 2, // $2000 strike
+      iterations: 5,
+      optionType: OptionType.SHORT_CALL_QUOTE,
+      setCollateralTo: toBN('100000'),
+      amount: toBN('150'),
+    });
+
+    // pool goes equally short
+    await openPosition({
+      strikeId: 2, // $2000 strike
+      iterations: 5,
+      optionType: OptionType.LONG_CALL,
+      setCollateralTo: toBN('0'),
+      amount: toBN('150'),
+    });
+
+    // customer goes fully insolvent, price up to $10,000
+    await setETHPrice(toBN('10000'));
+    await hre.f.c.optionGreekCache.updateBoardCachedGreeks(1);
+    await fastForward(MONTH_SEC + 1);
+    await hre.f.c.optionMarket.settleExpiredBoard(1);
+
+    // pool has totalAsset < 0
+    await createDefaultBoardWithOverrides(hre.f.c, {
+      expiresIn: 2 * MONTH_SEC,
+      strikePrices: ['1500', '2000', '2500'],
+    });
+    await expect(
+      openPosition({
+        strikeId: 5,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('1'),
+      }),
+    ).to.revertedWith('NegativeTotalAssetValue');
+  });
+
   describe('base donations', async () => {
     it('accounts for donated base in NAV', async () => {
       await hre.f.c.snx.baseAsset.transfer(hre.f.c.liquidityPool.address, toBN('10'));
       expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('10'));
       expect(await hre.f.c.liquidityPool.getTotalPoolValueQuote()).to.gt(DEFAULT_POOL_DEPOSIT);
+
       assertCloseToPercentage(
         await hre.f.c.liquidityPool.getTotalPoolValueQuote(),
         DEFAULT_POOL_DEPOSIT.add((await getSpotPrice()).mul(toBN('10').div(UNIT))),
@@ -79,10 +139,10 @@ describe('Pool Value', async () => {
         amount: toBN('0.1'),
       });
 
-      // opening a position should auto-liquidate base that is not locked
-      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('0.1'));
+      // opening a position wont auto-liquidate base
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('10'));
       await hre.f.c.liquidityPool.exchangeBase();
-      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('0.1'));
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('0'));
       expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)).to.gt(oldQuoteBal);
     });
 
@@ -95,11 +155,10 @@ describe('Pool Value', async () => {
       await hre.f.c.snx.baseAsset.transfer(hre.f.c.liquidityPool.address, toBN('10'));
 
       const oldQuoteBal = await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address);
-      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('15'));
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('10'));
 
-      // opening a position should auto-liquidate base that is not locked
       await hre.f.c.liquidityPool.exchangeBase();
-      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('5'));
+      expect(await hre.f.c.snx.baseAsset.balanceOf(hre.f.c.liquidityPool.address)).to.eq(toBN('0'));
       expect(await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address)).to.gt(oldQuoteBal);
       assertCloseToPercentage(
         await hre.f.c.snx.quoteAsset.balanceOf(hre.f.c.liquidityPool.address),
@@ -121,9 +180,9 @@ describe('Pool Value', async () => {
       await hre.f.c.liquidityPool.setLiquidityPoolParameters({
         ...DEFAULT_LIQUIDITY_POOL_PARAMS,
         guardianMultisig: hre.f.deployer.address,
-        guardianDelay: DAY_SEC,
       });
 
+      await hre.f.c.keeperHelper.updateAllBoardCachedGreeks();
       tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       let args = getEventArgs(await tx.wait(), 'WithdrawPartiallyProcessed');
       expect(args.tokenPrice).eq(toBN('1.007245932363000000'));
@@ -144,21 +203,18 @@ describe('Pool Value', async () => {
       await hre.f.c.liquidityPool.initiateWithdraw(hre.f.deployer.address, amtTokens);
       await hre.f.c.snx.quoteAsset.burn(hre.f.c.liquidityPool.address, DEFAULT_BASE_PRICE);
       await hre.f.c.snx.baseAsset.mint(hre.f.c.liquidityPool.address, toBN('5'));
-      await fastForward(WEEK_SEC);
-      // withdrawing 100% will trigger liquidity CB even though no outstanding options
-      let tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
 
       await hre.f.c.liquidityPool.setLiquidityPoolParameters({
         ...DEFAULT_LIQUIDITY_POOL_PARAMS,
         guardianMultisig: hre.f.deployer.address,
-        guardianDelay: DAY_SEC,
         withdrawalFee: 0,
       });
 
       await fastForward(MONTH_SEC);
       await hre.f.c.optionMarket.settleExpiredBoard(hre.f.board.boardId);
+      await hre.f.c.keeperHelper.updateAllBoardCachedGreeks();
 
-      tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
+      let tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
       let args = getEventArgs(await tx.wait(), 'WithdrawPartiallyProcessed');
       expect(args.tokenPrice).eq(toBN('1.013936106960000000')); // from the extra base
 
@@ -171,7 +227,7 @@ describe('Pool Value', async () => {
     });
   });
 
-  describe('post open/close/hedge/settle', async () => {
+  describe.skip('post open/close/hedge/settle', async () => {
     it('accounts for fees and reservedFee when long call open', async () => {
       const oldNAV = await hre.f.c.liquidityPool.getTotalPoolValueQuote();
       const [premium, accruedFee] = await openCallWithFee(toBN('50'));

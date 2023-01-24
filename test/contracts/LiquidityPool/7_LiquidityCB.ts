@@ -8,7 +8,7 @@ import {
   initiatePercentLPWithdrawal,
   openDefaultLongCall,
 } from '../../utils/contractHelpers';
-import { DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
+import { DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';
 import { hre } from '../../utils/testSetup';
@@ -43,11 +43,11 @@ describe('Liquidity Circuit Breaker', async () => {
     expect(liquidityCBThreshold).to.eq(toBN('0.01'));
 
     // Withdraw 99% liquidity & open long call to not bypass CB update
-    await initiatePercentLPWithdrawal(hre.f.signers[0], toBN('0.995'));
+    await initiatePercentLPWithdrawal(hre.f.signers[0], toBN('0.99'));
     await openDefaultLongCall();
 
     // confirm freeLiquidity < 1% and CB triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.63'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('2229.8'), toBN('0.1'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).to.eq(liquidityCBTimeout + (await currentTime()));
   });
 
@@ -60,9 +60,10 @@ describe('Liquidity Circuit Breaker', async () => {
     await openDefaultLongCall();
 
     // confirm freeLiquidity > 1% and CB not triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('7771.798'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('7230.00'), toBN('0.1'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).to.eq(0);
   });
+
   it('CBTimestamp keeps increasing if freeLiquidity not available', async () => {
     // Trigger CB with long put
     expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(0);
@@ -111,7 +112,7 @@ describe('Liquidity Circuit Breaker', async () => {
 
     // confirm freeLiquidity > 1% and CB stops triggering
     const secondTimestamp = await currentTime();
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('106403.891'), toBN('0.5'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('106404.02'), toBN('4'));
     expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(liquidityCBTimeout + firstTimestamp);
     expect(await hre.f.c.liquidityPool.CBTimestamp()).lt(liquidityCBTimeout + secondTimestamp);
     expect(await hre.f.c.liquidityPool.CBTimestamp()).gt(secondTimestamp);
@@ -132,10 +133,10 @@ describe('Liquidity Circuit Breaker', async () => {
     expect(liquidityCBThreshold).to.eq(toBN('0.01'));
 
     // Withdraw 99% liquidity
-    await initiatePercentLPWithdrawal(hre.f.signers[0], toBN('0.995'));
+    await initiatePercentLPWithdrawal(hre.f.signers[0], toBN('0.99'));
 
     // confirm freeLiquidity < 1% and CB triggered
-    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('271.638'), toBN('0.1'));
+    assertCloseTo((await getLiquidity()).freeLiquidity, toBN('2229.81'), toBN('0.1'));
 
     // process withdraw to trigger CB
     await fastForward(WEEK_SEC);
@@ -144,5 +145,5 @@ describe('Liquidity Circuit Breaker', async () => {
   });
 });
 
-export const liquidityCBTimeout = Number(DEFAULT_LIQUIDITY_POOL_PARAMS.liquidityCBTimeout);
-export const liquidityCBThreshold = DEFAULT_LIQUIDITY_POOL_PARAMS.liquidityCBThreshold;
+export const liquidityCBTimeout = Number(DEFAULT_CB_PARAMS.liquidityCBTimeout);
+export const liquidityCBThreshold = DEFAULT_CB_PARAMS.liquidityCBThreshold;

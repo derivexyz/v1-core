@@ -18,8 +18,13 @@ async function main() {
 
   for (const network of allNetworks) {
     console.log(chalk.grey(`Processing ${network}`));
-    const deployDir = path.join(baseDir, 'publish/deployed', network, 'deployment.json');
-    copySynthetixDeploy(deployDir, network);
+    if (network === 'local') {
+      const deployDir = path.join(__dirname, '..', '.snx', 'deployment.json');
+      copySynthetixDeploy(deployDir, network);
+    } else {
+      const deployDir = path.join(baseDir, 'publish/deployed', network, 'deployment.json');
+      copySynthetixDeploy(deployDir, network);
+    }
   }
 }
 

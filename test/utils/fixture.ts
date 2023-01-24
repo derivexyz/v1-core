@@ -2,11 +2,11 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import { HardhatRuntimeEnvironment } from 'hardhat/src/types/runtime';
-import { MAX_UINT, OptionType, toBN, TradeDirection } from '../../scripts/util/web3utils';
+import { DEFAULT_DECIMALS, MAX_UINT, OptionType, toBN, TradeDirection } from '../../scripts/util/web3utils';
 import { TestERC20Fail, TestERC20SetDecimals } from '../../typechain-types';
 import {
   BoardViewStruct,
-  MarketViewWithBoardsStruct,
+  MarketViewStruct,
   StrikeViewStruct,
 } from '../../typechain-types/OptionMarketViewer';
 import { TradeParametersStruct } from '../../typechain-types/OptionToken';
@@ -14,18 +14,26 @@ import { openAllTrades } from './contractHelpers';
 import { STABLE_IDS } from './contractHelpers/wrapper';
 import { deployTestSystem, TestSystemContractsType } from './deployTestSystem';
 import { mineBlock, restoreSnapshot, takeSnapshot } from './evm';
-import { seedTestSystem } from './seedTestSystem';
+import { SeedOverrides, seedTestSystem } from './seedTestSystem';
 import { hre } from './testSetup';
+import { DEFAULT_BASE_PRICE } from './defaultParams';
+import { deployGMXTestSystem, TestSystemContractsTypeGMX } from './deployTestSystemGMX';
+import { seedTestSystemGMX } from './seedTestSystemGMX';
 
 export type Fixture = {
   c: TestSystemContractsType;
+  gc: TestSystemContractsTypeGMX;
   deploySnap: number;
+  deploySnapUSDC: number;
   deployer: SignerWithAddress;
   alice: SignerWithAddress;
   signers: SignerWithAddress[];
   // Seed fixture
   seedSnap: number;
-  market: MarketViewWithBoardsStruct;
+  gmxCurrenciesSnap: number;
+  USDCSeedSnap: number;
+  USDCwBTCSeedSnap: number;
+  market: MarketViewStruct;
   board: BoardViewStruct;
   strike: StrikeViewStruct;
   defaultTradeParametersStruct: TradeParametersStruct;
@@ -41,7 +49,7 @@ export type Fixture = {
 export type HardhatRuntimeEnvironmentWithFixture = HardhatRuntimeEnvironment & { f: Fixture; tracer: any };
 
 // Meant to be used in the main "before" block
-// to reduce uncessary deploys/seeds across test scripts.
+// to reduce unnecessary deploys/seeds across test scripts.
 // NOTE: does not work for jumps to future snapshots
 // For overrides can use standard deployTest/seedTest scripts.
 
@@ -57,23 +65,59 @@ export async function deployFixture() {
     hre.f.signers = await ethers.getSigners();
     hre.f.deployer = hre.f.signers[0];
     hre.f.alice = hre.f.signers[1];
-    hre.f.c = await deployTestSystem(hre.f.deployer, true);
-    hre.f.deploySnap = await takeSnapshot();
+    hre.f.c = await deployTestSystem(hre.f.deployer, true, undefined);
   } else {
     await restoreSnapshot(hre.f.deploySnap);
-    hre.f.deploySnap = await takeSnapshot();
   }
+  await resetAllSnaps();
 
-  // Seed
+  hre.f.deploySnap = await takeSnapshot();
+
   hre.f.board = undefined as any;
   hre.f.strike = undefined as any;
   hre.f.market = undefined as any;
   hre.f.defaultTradeParametersStruct = undefined as any;
-  hre.f.seedSnap = undefined as any;
-  // All trades
   hre.f.positionIds = undefined as any;
-  hre.f.allTradesSnap = undefined as any;
-  // All currencies
+}
+
+export async function deployFixtureUSDC() {
+  if (!hre.f.deploySnapUSDC) {
+    hre.f.signers = await ethers.getSigners();
+    hre.f.deployer = hre.f.signers[0];
+    hre.f.alice = hre.f.signers[1];
+    hre.f.c = await deployTestSystem(hre.f.deployer, true, undefined, { quoteDecimals: 6 });
+  } else {
+    await restoreSnapshot(hre.f.deploySnapUSDC);
+  }
+  await resetAllSnaps();
+
+  hre.f.deploySnapUSDC = await takeSnapshot();
+
+  hre.f.board = undefined as any;
+  hre.f.strike = undefined as any;
+  hre.f.market = undefined as any;
+  hre.f.defaultTradeParametersStruct = undefined as any;
+  hre.f.positionIds = undefined as any;
+}
+
+export async function deployFixtureUSDCwBTC() {
+  if (!hre.f.USDCwBTCSeedSnap) {
+    hre.f.signers = await ethers.getSigners();
+    hre.f.deployer = hre.f.signers[0];
+    hre.f.alice = hre.f.signers[1];
+    hre.f.c = await deployTestSystem(hre.f.deployer, true, undefined, { quoteDecimals: 6, baseDecimals: 8 });
+  } else {
+    await restoreSnapshot(hre.f.USDCwBTCSeedSnap);
+  }
+  await resetAllSnaps();
+
+  hre.f.USDCwBTCSeedSnap = await takeSnapshot();
+
+  hre.f.board = undefined as any;
+  hre.f.strike = undefined as any;
+  hre.f.market = undefined as any;
+  hre.f.defaultTradeParametersStruct = undefined as any;
+  hre.f.positionIds = undefined as any;
 }
 
 export async function seedFixture() {
@@ -84,12 +128,12 @@ export async function seedFixture() {
     hre.f.board = hre.f.market.liveBoards[0];
     hre.f.strike = hre.f.board.strikes[0];
 
-    const exchangeParams = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
-    const liquidity = await hre.f.c.liquidityPool.getLiquidity(exchangeParams.spotPrice);
+    const spotPrice = await hre.f.c.synthetixAdapter.getSpotPriceForMarket(hre.f.c.optionMarket.address, 2);
+    const liquidity = await hre.f.c.liquidityPool.getLiquidity();
 
     hre.f.defaultTradeParametersStruct = {
       amount: toBN('1'),
-      exchangeParams,
+      spotPrice,
       expiry: hre.f.board.expiry,
       isBuy: true,
       isForceClose: false,
@@ -103,10 +147,78 @@ export async function seedFixture() {
   } else {
     await restoreSnapshot(hre.f.seedSnap);
   }
+  await resetAllSnaps();
+
   hre.f.seedSnap = await takeSnapshot();
+
   hre.f.positionIds = undefined as any;
-  hre.f.allTradesSnap = undefined as any;
-  hre.f.allCurrenciesSnap = undefined as any;
+}
+
+export async function seedFixtureUSDC(overrides?: SeedOverrides) {
+  if (!hre.f.USDCSeedSnap) {
+    await deployFixtureUSDC();
+    // await seedTestSystem(hre.f.deployer, hre.f.c, { noHedger: false, useUSDC: true }); // no hedger setup to test contract adjustments
+    await seedTestSystem(hre.f.deployer, hre.f.c, overrides); // no hedger setup to test contract adjustments
+    hre.f.market = await hre.f.c.optionMarketViewer.getMarket(hre.f.c.optionMarket.address);
+    hre.f.board = hre.f.market.liveBoards[0];
+    hre.f.strike = hre.f.board.strikes[0];
+
+    const exchangeParams = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
+    const liquidity = await hre.f.c.liquidityPool.getLiquidity();
+
+    hre.f.defaultTradeParametersStruct = {
+      amount: toBN('1'),
+      spotPrice: exchangeParams.spotPrice,
+      expiry: hre.f.board.expiry,
+      isBuy: true,
+      isForceClose: false,
+      liquidity,
+      optionType: OptionType.LONG_CALL,
+      strikePrice: hre.f.strike.strikePrice,
+      tradeDirection: TradeDirection.OPEN,
+    };
+    // account for mineBlock() delay after takeSnapshot() in "else"
+    await mineBlock();
+  } else {
+    await restoreSnapshot(hre.f.USDCSeedSnap);
+  }
+  await resetAllSnaps();
+  hre.f.USDCSeedSnap = await takeSnapshot();
+
+  hre.f.positionIds = undefined as any;
+}
+
+export async function seedFixtureUSDCwBTC() {
+  if (!hre.f.USDCwBTCSeedSnap) {
+    await deployFixtureUSDCwBTC();
+    await seedTestSystem(hre.f.deployer, hre.f.c, { /*noHedger: true,*/ useUSDC: true, useBTC: true });
+    hre.f.market = await hre.f.c.optionMarketViewer.getMarket(hre.f.c.optionMarket.address);
+    hre.f.board = hre.f.market.liveBoards[0];
+    hre.f.strike = hre.f.board.strikes[0];
+
+    const exchangeParams = await hre.f.c.synthetixAdapter.getExchangeParams(hre.f.c.optionMarket.address);
+    const liquidity = await hre.f.c.liquidityPool.getLiquidity();
+
+    hre.f.defaultTradeParametersStruct = {
+      amount: toBN('1'),
+      spotPrice: exchangeParams.spotPrice,
+      expiry: hre.f.board.expiry,
+      isBuy: true,
+      isForceClose: false,
+      liquidity,
+      optionType: OptionType.LONG_CALL,
+      strikePrice: hre.f.strike.strikePrice,
+      tradeDirection: TradeDirection.OPEN,
+    };
+    // account for mineBlock() delay after takeSnapshot() in "else"
+    await mineBlock();
+  } else {
+    await restoreSnapshot(hre.f.USDCwBTCSeedSnap);
+  }
+  await resetAllSnaps();
+
+  hre.f.USDCwBTCSeedSnap = await takeSnapshot();
+  hre.f.positionIds = undefined as any;
 }
 
 export async function allTradesFixture() {
@@ -116,8 +228,8 @@ export async function allTradesFixture() {
   } else {
     await restoreSnapshot(hre.f.allTradesSnap);
   }
+  await resetAllSnaps();
   hre.f.allTradesSnap = await takeSnapshot();
-  hre.f.allCurrenciesSnap = undefined as any;
 }
 
 export async function allCurrenciesFixture() {
@@ -157,6 +269,74 @@ export async function allCurrenciesFixture() {
   } else {
     await restoreSnapshot(hre.f.allCurrenciesSnap);
   }
+  await resetAllSnaps();
+
   hre.f.allCurrenciesSnap = await takeSnapshot();
+}
+
+export async function allCurrenciesFixtureGMX() {
+  if (!hre.f.gmxCurrenciesSnap) {
+    hre.f.signers = await ethers.getSigners();
+    hre.f.deployer = hre.f.signers[0];
+    hre.f.alice = hre.f.signers[1];
+    hre.f.gc = await deployGMXTestSystem(hre.f.deployer, true, undefined, {
+      mockGMX: true,
+      ethDecimals: DEFAULT_DECIMALS.ETH,
+      btcDecimals: DEFAULT_DECIMALS.wBTC,
+      usdcDecimals: DEFAULT_DECIMALS.USDC,
+    });
+    await seedTestSystemGMX(hre.f.deployer, hre.f.gc);
+    hre.f.market = await hre.f.gc.optionMarketViewer.getMarket(hre.f.gc.optionMarket.address);
+    hre.f.board = hre.f.market.liveBoards[0];
+    hre.f.strike = hre.f.board.strikes[0];
+
+    const spotPrice = await hre.f.gc.GMXAdapter.getSpotPriceForMarket(hre.f.gc.optionMarket.address, 2);
+    const liquidity = await hre.f.gc.liquidityPool.getLiquidity();
+
+    hre.f.defaultTradeParametersStruct = {
+      amount: toBN('1'),
+      spotPrice,
+      expiry: hre.f.board.expiry,
+      isBuy: true,
+      isForceClose: false,
+      liquidity,
+      optionType: OptionType.LONG_CALL,
+      strikePrice: hre.f.strike.strikePrice,
+      tradeDirection: TradeDirection.OPEN,
+    };
+
+    await hre.f.gc.gmx.USDC.connect(hre.f.deployer).approve(hre.f.gc.optionMarketWrapper.address, MAX_UINT);
+    await hre.f.gc.gmx.eth.connect(hre.f.deployer).approve(hre.f.gc.optionMarketWrapper.address, MAX_UINT);
+
+    await hre.f.gc.gmx.eth.permitMint(hre.f.gc.optionMarketWrapper.address, true);
+    await hre.f.gc.gmx.eth.permitMint(hre.f.deployer.address, true);
+
+    await hre.f.gc.testCurve.setRate(hre.f.gc.gmx.USDC.address, toBN('0.999'));
+
+    await hre.f.gc.optionMarketWrapper.addCurveStable(hre.f.gc.gmx.USDC.address, 0);
+
+    await hre.f.gc.optionToken.setApprovalForAll(hre.f.gc.optionMarketWrapper.address, true);
+    await hre.f.gc.basicFeeCounter.setTrustedCounter(hre.f.gc.optionMarketWrapper.address, true);
+
+    hre.f.positionIds = await openAllTrades(hre.f.gc);
+  } else {
+    await restoreSnapshot(hre.f.gmxCurrenciesSnap);
+  }
+  await resetAllSnaps();
+  hre.f.gmxCurrenciesSnap = await takeSnapshot();
+
+  hre.f.DAI = undefined as any;
+  hre.f.USDC = undefined as any;
+  hre.f.defaultTradeParametersStruct = undefined as any;
+}
+
+async function resetAllSnaps() {
+  hre.f.deploySnap = undefined as any;
+  hre.f.deploySnapUSDC = undefined as any;
+  hre.f.seedSnap = undefined as any;
+  hre.f.gmxCurrenciesSnap = undefined as any;
+  hre.f.USDCSeedSnap = undefined as any;
+  hre.f.USDCwBTCSeedSnap = undefined as any;
   hre.f.allTradesSnap = undefined as any;
+  hre.f.allCurrenciesSnap = undefined as any;
 }

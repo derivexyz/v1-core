@@ -20,7 +20,7 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-pragma solidity ^0.8.9;
+pragma solidity 0.8.16;
 
 /**
  * @title Owned
@@ -31,6 +31,7 @@ pragma solidity ^0.8.9;
 abstract contract AbstractOwned {
   address public owner;
   address public nominatedOwner;
+  uint[48] private __gap;
 
   function nominateNewOwner(address _owner) external onlyOwner {
     nominatedOwner = _owner;

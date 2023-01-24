@@ -1,6 +1,7 @@
 //SPDX-License-Identifier:ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
+// Inherited
 import "../synthetix/Owned.sol";
 import "../interfaces/IFeeCounter.sol";
 
@@ -17,13 +18,7 @@ contract BasicFeeCounter is IFeeCounter, Owned {
     trustedCounter[counter] = isTrusted;
   }
 
-  function trackFee(
-    address market,
-    address trader,
-    uint,
-    uint,
-    uint totalFee
-  ) external onlyTrustedCounter {
+  function trackFee(address market, address trader, uint, uint, uint totalFee) external onlyTrustedCounter {
     totalFeesPerMarket[market][trader] += totalFee;
   }
 

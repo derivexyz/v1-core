@@ -1,20 +1,21 @@
 //SPDX-License-Identifier: ISC
-pragma solidity 0.8.9;
+pragma solidity 0.8.16;
 
 // Libraries
 import "../../synthetix/DecimalMath.sol";
 
+// Inherited
+import "../../synthetix/Owned.sol";
+
 // Interfaces
-import "openzeppelin-contracts-4.4.1/token/ERC20/ERC20.sol";
 import "../../OptionMarket.sol";
 import "../../OptionToken.sol";
 import "../../LiquidityPool.sol";
 import "../../LiquidityToken.sol";
 import "../../interfaces/ICurve.sol";
 import "../../interfaces/IFeeCounter.sol";
-
-// Inherited
-import "../../synthetix/Owned.sol";
+import "../../interfaces/IERC20Decimals.sol";
+import "../../interfaces/IWETH.sol";
 
 /**
  * @title OptionMarketWrapper
@@ -29,8 +30,8 @@ contract OptionMarketWrapperWithSwaps is Owned {
   ///////////////////
 
   struct OptionMarketContracts {
-    ERC20 quoteAsset;
-    ERC20 baseAsset;
+    IERC20Decimals quoteAsset;
+    IERC20Decimals baseAsset;
     OptionToken optionToken;
     LiquidityPool liquidityPool;
     LiquidityToken liquidityToken;
@@ -48,7 +49,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
     uint minCost; // Min amount for the cost of the trade
     uint maxCost; // Max amount for the cost of the trade
     uint inputAmount; // Amount of stable coins the user can use
-    ERC20 inputAsset; // Address of coin user wants to open with
+    IERC20Decimals inputAsset; // Address of coin user wants to open with
   }
 
   struct ReturnDetails {
@@ -91,20 +92,19 @@ contract OptionMarketWrapperWithSwaps is Owned {
   ///////////////
   // Variables //
   ///////////////
-
+  IWETH public weth;
   ICurve public curveSwap;
-  SynthetixAdapter public synthetixAdapter;
   IFeeCounter public tradingRewards;
   uint public minReturnPercent = 9.8e17;
   uint8[] public ercIds;
-  mapping(uint8 => ERC20) public idToERC;
+  mapping(uint8 => IERC20Decimals) public idToERC;
   uint8[] public marketIds;
   mapping(uint8 => OptionMarket) public idToMarket;
   mapping(OptionMarket => OptionMarketContracts) public marketContracts;
 
   // Assume these can't change, so if cached, assume value is correct
-  mapping(ERC20 => uint8) internal cachedDecimals;
-  mapping(ERC20 => string) internal cachedSymbol;
+  mapping(IERC20Decimals => uint8) internal cachedDecimals;
+  mapping(IERC20Decimals => string) internal cachedSymbol;
 
   constructor() Owned() {}
 
@@ -114,16 +114,16 @@ contract OptionMarketWrapperWithSwaps is Owned {
    * @param _curveSwap The Curve contract address
    */
   function updateContractParams(
+    IWETH _weth,
     ICurve _curveSwap,
-    SynthetixAdapter _synthetixAdapter,
     IFeeCounter _tradingRewards,
     uint _minReturnPercent
   ) external onlyOwner {
+    weth = _weth;
     curveSwap = _curveSwap;
-    synthetixAdapter = _synthetixAdapter;
     tradingRewards = _tradingRewards;
     minReturnPercent = _minReturnPercent;
-    emit WrapperParamsUpdated(_curveSwap, _synthetixAdapter, _tradingRewards, _minReturnPercent);
+    emit WrapperParamsUpdated(_curveSwap, _tradingRewards, _minReturnPercent);
   }
 
   /////////////////////
@@ -136,7 +136,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
    * @param token Address of the stablecoin
    * @param id Desired id to set the stablecoin
    */
-  function addCurveStable(ERC20 token, uint8 id) external onlyOwner {
+  function addCurveStable(IERC20Decimals token, uint8 id) external onlyOwner {
     _approveAsset(token, address(curveSwap));
     for (uint i = 0; i < ercIds.length; ++i) {
       if (idToERC[ercIds[i]] == token || ercIds[i] == id) {
@@ -210,22 +210,31 @@ contract OptionMarketWrapperWithSwaps is Owned {
     delete idToMarket[id];
   }
 
+  function returnEth(address _to) external onlyOwner {
+    uint balance = address(this).balance;
+    if (balance == 0) revert InsufficientEth(address(this), 0, 0);
+    payable(_to).transfer(balance);
+  }
+
   ////////////////////
   // User functions //
   ////////////////////
 
-  function openPosition(OptionPositionParams memory params) external returns (ReturnDetails memory returnDetails) {
+  function openPosition(
+    OptionPositionParams memory params
+  ) external payable returns (ReturnDetails memory returnDetails) {
     return _openPosition(params);
   }
 
-  function closePosition(OptionPositionParams memory params) external returns (ReturnDetails memory returnDetails) {
+  function closePosition(
+    OptionPositionParams memory params
+  ) external payable returns (ReturnDetails memory returnDetails) {
     return _closePosition(params, false);
   }
 
-  function forceClosePosition(OptionPositionParams memory params)
-    external
-    returns (ReturnDetails memory returnDetails)
-  {
+  function forceClosePosition(
+    OptionPositionParams memory params
+  ) external payable returns (ReturnDetails memory returnDetails) {
     return _closePosition(params, true);
   }
 
@@ -298,10 +307,10 @@ contract OptionMarketWrapperWithSwaps is Owned {
    *
    * @param params The params required to open a position
    */
-  function _closePosition(OptionPositionParams memory params, bool forceClose)
-    internal
-    returns (ReturnDetails memory returnDetails)
-  {
+  function _closePosition(
+    OptionPositionParams memory params,
+    bool forceClose
+  ) internal returns (ReturnDetails memory returnDetails) {
     OptionMarketContracts memory c = marketContracts[params.optionMarket];
     bool useOtherStable = address(params.inputAsset) != address(c.quoteAsset);
     int swapFee = 0;
@@ -312,7 +321,6 @@ contract OptionMarketWrapperWithSwaps is Owned {
 
     if (!_isLong(params.optionType)) {
       _transferAsset(params.inputAsset, msg.sender, address(this), params.inputAmount);
-
       if (useOtherStable) {
         uint expected = params.maxCost;
         if (params.optionType != OptionMarket.OptionType.SHORT_CALL_BASE) {
@@ -389,19 +397,13 @@ contract OptionMarketWrapperWithSwaps is Owned {
    *
    * @param owner Owner of tokens
    */
-  function getBalancesAndAllowances(address owner)
-    external
-    view
-    returns (
-      StableAssetView[] memory,
-      MarketAssetView[] memory,
-      LiquidityBalanceAndAllowance[] memory
-    )
-  {
+  function getBalancesAndAllowances(
+    address owner
+  ) external view returns (StableAssetView[] memory, MarketAssetView[] memory, LiquidityBalanceAndAllowance[] memory) {
     uint ercIdsLength = ercIds.length;
     StableAssetView[] memory stableBalances = new StableAssetView[](ercIdsLength);
     for (uint i = 0; i < ercIdsLength; ++i) {
-      ERC20 token = idToERC[ercIds[i]];
+      IERC20Decimals token = idToERC[ercIds[i]];
       stableBalances[i] = StableAssetView({
         id: ercIds[i],
         decimals: cachedDecimals[token],
@@ -439,12 +441,15 @@ contract OptionMarketWrapperWithSwaps is Owned {
    *
    * @param inputAsset Stablecoin to be returned
    */
-  function _returnQuote(ERC20 quoteAsset, ERC20 inputAsset) internal returns (uint quoteBalance, int swapFee) {
+  function _returnQuote(
+    IERC20Decimals quoteAsset,
+    IERC20Decimals inputAsset
+  ) internal returns (uint quoteBalance, int swapFee) {
     quoteBalance = quoteAsset.balanceOf(address(this));
 
     if (quoteBalance > 0) {
       if (inputAsset != quoteAsset) {
-        uint min = (minReturnPercent * 10**cachedDecimals[inputAsset]) / 10**cachedDecimals[quoteAsset];
+        uint min = (minReturnPercent * 10 ** cachedDecimals[inputAsset]) / 10 ** cachedDecimals[quoteAsset];
         (, swapFee) = _swapWithCurve(
           quoteAsset,
           inputAsset,
@@ -465,11 +470,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
    * @param token OptionToken to check if active
    * @param positionId Is the positionId
    */
-  function _returnBase(
-    ERC20 baseAsset,
-    OptionToken token,
-    uint positionId
-  ) internal {
+  function _returnBase(IERC20Decimals baseAsset, OptionToken token, uint positionId) internal {
     uint baseBalance = baseAsset.balanceOf(address(this));
     if (baseBalance > 0) {
       _transferAsset(baseAsset, address(this), msg.sender, baseBalance);
@@ -494,8 +495,8 @@ contract OptionMarketWrapperWithSwaps is Owned {
    * @param receiver The receiving address of the tokens
    */
   function _swapWithCurve(
-    ERC20 from,
-    ERC20 to,
+    IERC20Decimals from,
+    IERC20Decimals to,
     uint amount,
     uint expected,
     address receiver
@@ -507,13 +508,14 @@ contract OptionMarketWrapperWithSwaps is Owned {
     uint8 fromDec = cachedDecimals[from];
     uint balStart = from.balanceOf(address(this));
 
+    expected = ConvertDecimals.convertFrom18(expected, IERC20Decimals(to).decimals());
     amountOut = curveSwap.exchange_with_best_rate(address(from), address(to), amount, expected, receiver);
 
     uint convertedAmtOut = amountOut;
     if (fromDec < toDec) {
-      balStart = balStart * 10**(toDec - fromDec);
+      balStart = balStart * 10 ** (toDec - fromDec);
     } else if (fromDec > toDec) {
-      convertedAmtOut = amountOut * 10**(fromDec - toDec);
+      convertedAmtOut = amountOut * 10 ** (fromDec - toDec);
     }
 
     swapFee = SafeCast.toInt256(balStart) - SafeCast.toInt256(convertedAmtOut);
@@ -548,19 +550,31 @@ contract OptionMarketWrapperWithSwaps is Owned {
     OptionMarket.OptionType optionType,
     uint currentCollateral,
     uint setCollateralTo,
-    ERC20 baseAsset
+    IERC20Decimals baseAsset
   ) internal {
     if (optionType == OptionMarket.OptionType.SHORT_CALL_BASE && setCollateralTo > currentCollateral) {
-      _transferAsset(baseAsset, msg.sender, address(this), setCollateralTo - currentCollateral);
+      uint amount = setCollateralTo - currentCollateral;
+
+      // If user wants to use ETH, wrap it first
+      if (address(weth) == address(baseAsset) && msg.value > 0) {
+        if (msg.value <= amount) {
+          _wrapETH(msg.value);
+          if (msg.value < amount) {
+            _transferAsset(baseAsset, msg.sender, address(this), amount - msg.value);
+          }
+        } else if (msg.value > amount) {
+          _wrapETH(amount);
+          payable(msg.sender).transfer(msg.value - amount);
+        } else {
+          revert InsufficientEth(address(this), msg.value, amount);
+        }
+      } else {
+        _transferAsset(baseAsset, msg.sender, address(this), amount);
+      }
     }
   }
 
-  function _transferAsset(
-    ERC20 asset,
-    address from,
-    address to,
-    uint amount
-  ) internal {
+  function _transferAsset(IERC20Decimals asset, address from, address to, uint amount) internal {
     bool success = false;
 
     if (from == address(this)) {
@@ -574,7 +588,7 @@ contract OptionMarketWrapperWithSwaps is Owned {
     }
   }
 
-  function _approveAsset(ERC20 asset, address approving) internal {
+  function _approveAsset(IERC20Decimals asset, address approving) internal {
     // Some contracts require resetting approval to 0 first
     if (!asset.approve(approving, 0)) {
       revert ApprovalFailure(address(this), asset, approving, 0);
@@ -584,11 +598,9 @@ contract OptionMarketWrapperWithSwaps is Owned {
     }
   }
 
-  function _composeTradeParams(OptionPositionParams memory params)
-    internal
-    pure
-    returns (OptionMarket.TradeInputParameters memory tradeParameters)
-  {
+  function _composeTradeParams(
+    OptionPositionParams memory params
+  ) internal pure returns (OptionMarket.TradeInputParameters memory tradeParameters) {
     return
       OptionMarket.TradeInputParameters({
         strikeId: params.strikeId,
@@ -598,15 +610,12 @@ contract OptionMarketWrapperWithSwaps is Owned {
         amount: params.amount,
         setCollateralTo: params.setCollateralTo,
         minTotalCost: params.minCost,
-        maxTotalCost: params.maxCost
+        maxTotalCost: params.maxCost,
+        referrer: address(0)
       });
   }
 
-  function _emitEvent(
-    ReturnDetails memory returnDetails,
-    bool isOpen,
-    bool isLong
-  ) internal {
+  function _emitEvent(ReturnDetails memory returnDetails, bool isOpen, bool isLong) internal {
     emit PositionTraded(
       isOpen,
       isLong,
@@ -635,6 +644,11 @@ contract OptionMarketWrapperWithSwaps is Owned {
     }
   }
 
+  function _wrapETH(uint amount) internal {
+    weth.deposit{value: amount}();
+    emit WETHDeposit(msg.sender, amount);
+  }
+
   ////////////
   // Events //
   ////////////
@@ -658,25 +672,26 @@ contract OptionMarketWrapperWithSwaps is Owned {
   /**
    * @dev Emitted when the contract parameters are updated
    */
-  event WrapperParamsUpdated(
-    ICurve curveSwap,
-    SynthetixAdapter synthetixAdapter,
-    IFeeCounter tradingRewards,
-    uint minReturnPercent
-  );
+  event WrapperParamsUpdated(ICurve curveSwap, IFeeCounter tradingRewards, uint minReturnPercent);
 
   /**
    * @dev Emitted collateral is changed for a position
    */
   event SetCollateralTo(uint newCollateral);
 
+  /**
+   * @dev Emitted when ETH is wrapped
+   */
+  event WETHDeposit(address sender, uint amount);
+
   ////////////
   // Errors //
   ////////////
 
-  error AssetTransferFailed(address thrower, ERC20 asset, address sender, address receiver, uint amount);
-  error ApprovalFailure(address thrower, ERC20 asset, address approving, uint approvalAmount);
+  error AssetTransferFailed(address thrower, IERC20Decimals asset, address sender, address receiver, uint amount);
+  error ApprovalFailure(address thrower, IERC20Decimals asset, address approving, uint approvalAmount);
   error DuplicateEntry(address thrower, uint8 id, address addr);
   error RemovingInvalidId(address thrower, uint8 id);
   error UnsupportedToken(address asset);
+  error InsufficientEth(address thrower, uint sentAmount, uint requiredAmount);
 }

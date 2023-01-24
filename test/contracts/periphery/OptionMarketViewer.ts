@@ -124,7 +124,7 @@ describe('optionMarketViewer tests', async () => {
 
       expect(markets[0].marketAddresses.optionMarket).to.eq(eth.optionMarket.address);
       expect(markets[0].isPaused).to.eq(false);
-      expect(markets[0].exchangeParams.spotPrice).to.eq(toBN('1742.01337'));
+      expect(markets[0].spotPrice).to.eq(toBN('1742.01337'));
       expect(markets[0].liveBoards[0].market).to.eq(eth.optionMarket.address);
       expect(markets[0].liveBoards[0].expiry).to.within(expiryTime - 10, expiryTime + 10);
       expect(markets[0].liveBoards[0].priceAtExpiry).to.eq(0);
@@ -182,12 +182,12 @@ describe('optionMarketViewer tests', async () => {
       expect(markets.markets[1].marketAddresses.shortCollateral).to.eq(btc.shortCollateral.address);
     });
 
-    it('get market with baseKey', async () => {
-      const ethbasekey = await eth.synthetixAdapter.baseKey(eth.optionMarket.address);
-      const market = await eth.optionMarketViewer.getMarketForBaseKey(ethbasekey);
+    it('get market with baseSymbol', async () => {
+      const baseSymbol = await eth.snx.baseAsset.symbol();
+      const market = await eth.optionMarketViewer.getMarketForBase(baseSymbol);
       expect(market.marketAddresses.optionMarket).to.eq(eth.optionMarket.address);
       expect(market.isPaused).to.eq(false);
-      expect(market.exchangeParams.spotPrice).to.eq(toBN('1742.01337'));
+      expect(market.spotPrice).to.eq(toBN('1742.01337'));
       expect(market.liveBoards[0].market).to.eq(eth.optionMarket.address);
       expect(market.liveBoards[0].expiry).to.within(expiryTime - 10, expiryTime + 10);
       expect(market.liveBoards[0].priceAtExpiry).to.eq(0);
@@ -201,9 +201,9 @@ describe('optionMarketViewer tests', async () => {
       expect(market.liveBoards[0].strikes[0].shortPutOpenInterest).to.eq(0);
     });
 
-    it('revert if no market with baseKey', async () => {
-      const badBasekey = await eth.synthetixAdapter.baseKey(eth.liquidityPool.address);
-      await expect(eth.optionMarketViewer.getMarketForBaseKey(badBasekey)).to.be.revertedWith('No market for base key');
+    it('revert if no market with baseSymbol', async () => {
+      const baseSymbol = 'ShouldFail';
+      await expect(eth.optionMarketViewer.getMarketForBase(baseSymbol)).to.be.revertedWith('No market for base key');
     });
   });
 
@@ -235,37 +235,6 @@ describe('optionMarketViewer tests', async () => {
       const allPositions = await eth.optionMarketViewer.getOwnerPositions(aliceAddr);
       expect(allPositions[0].market).to.eq(eth.optionMarket.address);
       expect(allPositions[0].positions.length).to.eq(3);
-    });
-
-    it('positions in range', async () => {
-      boardId = (await eth.optionMarket.getLiveBoards())[0];
-      listings = await eth.optionMarket.getBoardStrikes(boardId);
-      await openPositionWithOverrides(eth, {
-        strikeId: listings[1],
-        optionType: OptionType.LONG_CALL,
-        amount: toBN('0.01'),
-      });
-      await openPositionWithOverrides(eth, {
-        strikeId: listings[1],
-        optionType: OptionType.LONG_PUT,
-        amount: toBN('0.02'),
-      });
-      await openPositionWithOverrides(eth, {
-        strikeId: listings[1],
-        optionType: OptionType.SHORT_CALL_BASE,
-        setCollateralTo: toBN('0.01'),
-        amount: toBN('0.01'),
-      });
-      const positions = await eth.optionMarketViewer.getOwnerPositionsInRange(
-        eth.optionMarket.address,
-        aliceAddr,
-        0,
-        2,
-      );
-      expect(positions[0].optionType).to.eq(OptionType.LONG_CALL);
-      expect(positions[0].amount).to.eq(toBN('0.01'));
-      expect(positions[1].optionType).to.eq(OptionType.LONG_PUT);
-      expect(positions[1].amount).to.eq(toBN('0.02'));
     });
   });
 
@@ -363,32 +332,31 @@ describe('optionMarketViewer tests', async () => {
       expect(btcBoard.market).to.eq(btc.optionMarket.address);
 
       await expect(eth.optionMarketViewer.getBoard(eth.optionMarket.address, 2)).to.be.revertedWith(
-        'reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)',
-      );
-      await expect(eth.optionMarketViewer.getBoard(eth.liquidityPool.address, 2)).to.be.revertedWith(
-        'Transaction reverted: function call to a non-contract account',
+        'reverted with panic code 50',
       );
 
-      expect(ethBoard.forceCloseGwavIV).not.eq(0);
+      expect(ethBoard.forceCloseGwavIv).not.eq(0);
+      expect(ethBoard.varianceGwavIv).not.eq(0);
       await fastForward(MONTH_SEC);
       await eth.optionMarket.settleExpiredBoard(1);
       ethBoard = await eth.optionMarketViewer.getBoard(eth.optionMarket.address, 1);
-      expect(ethBoard.forceCloseGwavIV).eq(0);
+      expect(ethBoard.forceCloseGwavIv).eq(0);
+      expect(ethBoard.varianceGwavIv).eq(0);
     });
 
     it('get board with baseKey', async () => {
-      const ethbasekey = await eth.synthetixAdapter.baseKey(eth.optionMarket.address);
-      const btcbasekey = await eth.synthetixAdapter.baseKey(btc.optionMarket.address);
+      const ethSymbol = await eth.snx.baseAsset.symbol();
+      const btcSymbol = await btc.snx.baseAsset.symbol();
 
-      const ethBoard = await eth.optionMarketViewer.getBoardForBaseKey(ethbasekey, 1);
-      const btcBoard = await eth.optionMarketViewer.getBoardForBaseKey(btcbasekey, 1);
+      const ethBoard = await eth.optionMarketViewer.getBoardForBase(ethSymbol, 1);
+      const btcBoard = await eth.optionMarketViewer.getBoardForBase(btcSymbol, 1);
       expect(ethBoard.boardId).to.eq(1);
       expect(ethBoard.market).to.eq(eth.optionMarket.address);
       expect(btcBoard.boardId).to.eq(1);
       expect(btcBoard.market).to.eq(btc.optionMarket.address);
 
-      await expect(eth.optionMarketViewer.getBoardForBaseKey(ethbasekey, 2)).to.be.revertedWith(
-        'reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)',
+      await expect(eth.optionMarketViewer.getBoardForBase(btcSymbol, 2)).to.be.revertedWith(
+        'reverted with panic code 50',
       );
     });
 
@@ -401,26 +369,24 @@ describe('optionMarketViewer tests', async () => {
       expect(btcBoard.market).to.eq(btc.optionMarket.address);
 
       await expect(eth.optionMarketViewer.getBoardForStrikeId(eth.optionMarket.address, 0)).to.be.revertedWith(
-        'reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)',
-      );
-      await expect(eth.optionMarketViewer.getBoardForStrikeId(eth.liquidityPool.address, 0)).to.be.revertedWith(
-        'Transaction reverted: function call to a non-contract account',
+        'reverted with panic code 50',
       );
     });
   });
 
   describe('balance and allowance', async () => {
     it('liquidity pool', async () => {
-      const res = await eth.optionMarketViewer.getLiquidityBalancesAndAllowances(
-        [eth.optionMarket.address, btc.optionMarket.address],
-        aliceAddr,
+      const res = await eth.optionMarketViewer.getLiquidityBalances(aliceAddr);
+      expect(res[0].liquidityToken).to.eq(eth.liquidityToken.address);
+      expect(res[0].liquidityBalance).to.eq(toBN('500000'));
+      expect(res[0].quoteDepositAllowance).to.eq(
+        await eth.snx.quoteAsset.allowance(aliceAddr, eth.liquidityPool.address),
       );
-      expect(res[0].token).to.eq(eth.liquidityPool.address);
-      expect(res[0].balance).to.eq(toBN('500000'));
-      expect(res[0].allowance).to.eq(await eth.snx.quoteAsset.allowance(aliceAddr, eth.liquidityPool.address));
-      expect(res[1].token).to.eq(btc.liquidityPool.address);
-      expect(res[1].balance).to.eq(toBN('500000'));
-      expect(res[1].allowance).to.eq(await btc.snx.quoteAsset.allowance(aliceAddr, btc.liquidityPool.address));
+      expect(res[1].liquidityToken).to.eq(btc.liquidityToken.address);
+      expect(res[1].liquidityBalance).to.eq(toBN('500000'));
+      expect(res[1].quoteDepositAllowance).to.eq(
+        await btc.snx.quoteAsset.allowance(aliceAddr, btc.liquidityPool.address),
+      );
     });
   });
 

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.9;
+//SPDX-License-Identifier: ISC
+pragma solidity 0.8.16;
 
 import "../libraries/FixedPointMathLib.sol";
 import "./OldBlackScholesMath.sol";
