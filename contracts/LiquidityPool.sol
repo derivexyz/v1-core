@@ -610,7 +610,12 @@ contract LiquidityPool is Owned, SimpleInitializable, ReentrancyGuard {
    *
    * @param amount The amount of quote to lock.
    */
-  function lockCallCollateral(uint amount, uint spotPrice, uint freeLiquidity, uint strikeId) external onlyOptionMarket {
+  function lockCallCollateral(
+    uint amount,
+    uint spotPrice,
+    uint freeLiquidity,
+    uint strikeId
+  ) external onlyOptionMarket {
     _checkCanHedge(amount, false, strikeId);
 
     if (amount.multiplyDecimal(spotPrice).multiplyDecimal(lpParams.callCollatScalingFactor) > freeLiquidity) {

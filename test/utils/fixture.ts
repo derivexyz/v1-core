@@ -6,7 +6,7 @@ import { DEFAULT_DECIMALS, MAX_UINT, OptionType, toBN, TradeDirection } from '..
 import { TestERC20Fail, TestERC20SetDecimals } from '../../typechain-types';
 import {
   BoardViewStruct,
-  MarketViewWithBoardsStruct,
+  MarketViewStruct,
   StrikeViewStruct,
 } from '../../typechain-types/OptionMarketViewer';
 import { TradeParametersStruct } from '../../typechain-types/OptionToken';
@@ -33,7 +33,7 @@ export type Fixture = {
   gmxCurrenciesSnap: number;
   USDCSeedSnap: number;
   USDCwBTCSeedSnap: number;
-  market: MarketViewWithBoardsStruct;
+  market: MarketViewStruct;
   board: BoardViewStruct;
   strike: StrikeViewStruct;
   defaultTradeParametersStruct: TradeParametersStruct;

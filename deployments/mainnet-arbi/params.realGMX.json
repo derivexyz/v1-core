@@ -7,18 +7,13 @@
       "Ticker": "DAI",
       "Decimals": 18,
       "MockRate": "0.99"
-    },
-    {
-      "Ticker": "USDT",
-      "Decimals": 6,
-      "MockRate": "1.01"
     }
   ],
   "Markets": {
-    "wBTC": {
-      "BaseTicker": "wBTC",
-      "BaseDecimals": 8,
-      "MockPrice": "17000",
+    "wETH": {
+      "BaseTicker": "wETH",
+      "BaseDecimals": 18,
+      "MockPrice": "1500",
       "ParameterOverrides": {
         "OptionMarketParams": {
           "maxBoardExpiry": 15724800,
@@ -48,15 +43,15 @@
           "contractAdjustmentCBTimeout": 86400
         },
         "GreekCacheParams": {
-          "maxStrikesPerBoard":  30,
-          "acceptableSpotPricePercentMove":  "0.05",
-          "staleUpdateDuration":  10800,
-          "varianceIvGWAVPeriod":  86400,
-          "varianceSkewGWAVPeriod":  259200,
-          "optionValueIvGWAVPeriod":  86400,
+          "maxStrikesPerBoard": 30,
+          "acceptableSpotPricePercentMove": "0.05",
+          "staleUpdateDuration": 10800,
+          "varianceIvGWAVPeriod": 86400,
+          "varianceSkewGWAVPeriod": 259200,
+          "optionValueIvGWAVPeriod": 86400,
           "optionValueSkewGWAVPeriod": 259200,
-          "gwavSkewFloor":"0.5",
-          "gwavSkewCap":  "2",
+          "gwavSkewFloor": "0.5",
+          "gwavSkewCap": "2",
           "rateAndCarry": "0.05"
         },
         "MinCollateralParams": {
@@ -88,8 +83,8 @@
           "spotPriceFeeCoefficient": "0.01",
           "spotPriceFee1xPoint": 3628800,
           "spotPriceFee2xPoint": 7257600,
-          "vegaFeeCoefficient": "6000",
-          "standardSize": "5",
+          "vegaFeeCoefficient": "300",
+          "standardSize": "50",
           "skewAdjustmentFactor": "0.75"
         },
         "TradeLimitParams": {
@@ -107,15 +102,15 @@
           "capSkewsToAbs": false
         },
         "VarianceFeeParams": {
-          "defaultVarianceFeeCoefficient": "5",
-          "forceCloseVarianceFeeCoefficient": "2",
-          "skewAdjustmentCoefficient": "3",
-          "referenceSkew": "1",
-          "minimumStaticSkewAdjustment": "1",
-          "vegaCoefficient": "100",
-          "minimumStaticVega": "2",
-          "ivVarianceCoefficient": "1.5",
-          "minimumStaticIvVariance": "1"
+          "defaultVarianceFeeCoefficient": "0.65",
+          "forceCloseVarianceFeeCoefficient": "0.3",
+          "skewAdjustmentCoefficient": "1",
+          "referenceSkew": "0",
+          "minimumStaticSkewAdjustment": "0",
+          "vegaCoefficient": "1",
+          "minimumStaticVega": "0",
+          "ivVarianceCoefficient": "1",
+          "minimumStaticIvVariance": "0"
         },
         "PartialCollatParams": {
           "penaltyRatio": "0.2",
@@ -131,21 +126,28 @@
         },
         "FuturesPoolHedgerParams": {
           "acceptableSpotSlippage": "1.05",
-          "maximumFundingRatePerDelta": "1",
-          "deltaThreshold":  "10",
-          "marketDepthBuffer": "100",
+          "deltaThreshold": "100",
+          "marketDepthBuffer": "1",
+          "vaultLiquidityCheckEnabled": true,
           "targetLeverage": "1.1",
-          "leverageBuffer": "0.1",
-          "minCancelDelay":  120
+          "maxLeverage": "10",
+          "minCollateralUpdate": "2",
+          "minCancelDelay": 1200
+        },
+        "MarketPricingParams": {
+          "staticSwapFeeEstimate": "1.02",
+          "gmxUsageThreshold": "0.004",
+          "priceVarianceCBPercent": "0.015",
+          "chainlinkStalenessCheck": 31536000
         }
       }
     }
   },
   "Seed": {
     "mintFunds": {
-      "run": true,
+      "run": false,
       "markets": {
-        "wBTC": {
+        "wETH": {
           "quoteAmount": "100000000",
           "baseAmount": "10000"
         }
@@ -154,51 +156,51 @@
     "deposit": {
       "run": true,
       "markets": {
-        "wBTC": {
+        "wETH": {
           "quoteAmount": "1000"
         }
       }
     },
     "addExercisableOptions": {
       "markets" : {
-        "wBTC": {
-          "run": true
+        "wETH": {
+          "run": false
         }
       }
     },
     "seedLiquidations": {
       "markets" : {
-        "wBTC": true
+        "wETH": false
       }
     },
     "addBoards": {
       "run": true,
       "markets": {
-        "wBTC": {
+        "wETH": {
           "generated": true
         }
       }
     },
     "updateCaches": {
       "markets": {
-        "wBTC": true
+        "wETH": true
       }
     },
     "hedgeDelta": {
       "markets": {
-        "wBTC": true
+        "wETH": true
       }
     },
     "seedTrades": {
       "markets": {
-        "wBTC": true
+        "wETH": true
       }
     },
     "changeOwner": {
       "run": false,
       "globalOwner": "0xd1E1B0cbeA0CFF6d8287d87C7bBA62067a81911C",
       "markets": {
-        "wBTC": "0xd1E1B0cbeA0CFF6d8287d87C7bBA62067a81911C"
+        "wETH": "0xd1E1B0cbeA0CFF6d8287d87C7bBA62067a81911C"
       }
     }
   }

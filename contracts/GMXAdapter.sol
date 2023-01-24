@@ -195,8 +195,8 @@ contract GMXAdapter is BaseExchangeAdapter {
    * @return price in 18 decimals
    */
   function _getMaxPrice(address asset) internal view returns (uint) {
-    uint minPrice = vault.getMaxPrice(asset);
-    return ConvertDecimals.normaliseTo18(minPrice, GMX_PRICE_PRECISION);
+    uint maxPrice = vault.getMaxPrice(asset);
+    return ConvertDecimals.normaliseTo18(maxPrice, GMX_PRICE_PRECISION);
   }
 
   /**

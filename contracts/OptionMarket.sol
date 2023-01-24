@@ -899,7 +899,11 @@ contract OptionMarket is Owned, SimpleInitializable, ReentrancyGuard {
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.LONG_PUT) {
-      liquidityPool.lockPutCollateral(trade.amount.multiplyDecimal(trade.strikePrice), trade.liquidity.freeLiquidity, strikeId);
+      liquidityPool.lockPutCollateral(
+        trade.amount.multiplyDecimal(trade.strikePrice),
+        trade.liquidity.freeLiquidity,
+        strikeId
+      );
       _transferFromQuote(msg.sender, address(liquidityPool), totalCost - feePortion);
       _transferFromQuote(msg.sender, address(this), feePortion);
     } else if (trade.optionType == OptionType.SHORT_CALL_BASE) {

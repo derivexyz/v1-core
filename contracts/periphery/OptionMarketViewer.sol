@@ -25,28 +25,10 @@ contract OptionMarketViewer is Owned {
   struct MarketView {
     bool isPaused;
     uint spotPrice;
-    uint minSpotPrice;
-    uint maxSpotPrice;
     string quoteSymbol;
     uint quoteDecimals;
     string baseSymbol;
     uint baseDecimals;
-    LiquidityPool.Liquidity liquidity;
-    OptionMarketAddresses marketAddresses;
-    MarketParameters marketParameters;
-    OptionGreekCache.NetGreeks globalNetGreeks;
-  }
-
-  struct MarketViewWithBoards {
-    bool isPaused;
-    uint spotPrice;
-    uint minSpotPrice;
-    uint maxSpotPrice;
-    string quoteSymbol;
-    uint quoteDecimals;
-    string baseSymbol;
-    uint baseDecimals;
-    int rateAndCarry;
     LiquidityPool.Liquidity liquidity;
     OptionMarketAddresses marketAddresses;
     MarketParameters marketParameters;
@@ -188,44 +170,24 @@ contract OptionMarketViewer is Owned {
     return MarketsView({isPaused: isGlobalPaused, markets: marketViews});
   }
 
-  function getMarketForBase(string memory baseSymbol) public view returns (MarketViewWithBoards memory market) {
+  function getMarketForBase(string memory baseSymbol) public view returns (MarketView memory marketView) {
     for (uint i = 0; i < optionMarkets.length; ++i) {
       OptionMarketAddresses memory marketC = marketAddresses[optionMarkets[i]];
       string memory marketBaseSymbol = marketC.baseAsset.symbol();
       if (keccak256(bytes(baseSymbol)) == keccak256(bytes(marketBaseSymbol))) {
-        market = getMarket(marketC.optionMarket);
+        marketView = getMarket(marketC.optionMarket);
         break;
       }
     }
-    require(address(market.marketAddresses.optionMarket) != address(0), "No market for base key");
-    return market;
+    require(address(marketView.marketAddresses.optionMarket) != address(0), "No market for base key");
+    return marketView;
   }
 
-  function getMarket(OptionMarket market) public view returns (MarketViewWithBoards memory) {
+  function getMarket(OptionMarket market) public view returns (MarketView memory marketView) {
     OptionMarketAddresses memory marketC = marketAddresses[market];
     bool isGlobalPaused = exchangeAdapter.isGlobalPaused();
-    MarketView memory marketView = _getMarketView(marketC, isGlobalPaused);
-    string memory quoteSymbol = marketC.quoteAsset.symbol();
-    uint quoteDecimals = marketC.quoteAsset.decimals();
-    string memory baseSymbol = marketC.baseAsset.symbol();
-    uint baseDecimals = marketC.baseAsset.decimals();
-    return
-      MarketViewWithBoards({
-        isPaused: marketView.isPaused,
-        spotPrice: marketView.spotPrice,
-        minSpotPrice: marketView.minSpotPrice,
-        maxSpotPrice: marketView.maxSpotPrice,
-        quoteSymbol: quoteSymbol,
-        quoteDecimals: quoteDecimals,
-        baseSymbol: baseSymbol,
-        baseDecimals: baseDecimals,
-        rateAndCarry: exchangeAdapter.rateAndCarry(address(market)),
-        liquidity: marketView.liquidity,
-        marketAddresses: marketView.marketAddresses,
-        marketParameters: marketView.marketParameters,
-        globalNetGreeks: marketView.globalNetGreeks,
-        liveBoards: getLiveBoards(marketC.optionMarket)
-      });
+    marketView = _getMarketView(marketC, isGlobalPaused);
+    return marketView;
   }
 
   function _getMarketView(
@@ -236,8 +198,6 @@ contract OptionMarketViewer is Owned {
     MarketParameters memory marketParameters = _getMarketParams(marketC);
     bool isMarketPaused = exchangeAdapter.isMarketPaused(address(marketC.optionMarket));
     uint spotPrice = 0;
-    uint minSpotPrice = 0;
-    uint maxSpotPrice = 0;
     LiquidityPool.Liquidity memory liquidity = LiquidityPool.Liquidity({
       freeLiquidity: 0,
       burnableLiquidity: 0,
@@ -248,14 +208,6 @@ contract OptionMarketViewer is Owned {
       longScaleFactor: 0
     });
     if (!isGlobalPaused && !isMarketPaused) {
-      minSpotPrice = exchangeAdapter.getSpotPriceForMarket(
-        address(marketC.optionMarket),
-        BaseExchangeAdapter.PriceType.FORCE_MIN
-      );
-      maxSpotPrice = exchangeAdapter.getSpotPriceForMarket(
-        address(marketC.optionMarket),
-        BaseExchangeAdapter.PriceType.FORCE_MAX
-      );
       spotPrice = exchangeAdapter.getSpotPriceForMarket(
         address(marketC.optionMarket),
         BaseExchangeAdapter.PriceType.REFERENCE
@@ -270,8 +222,6 @@ contract OptionMarketViewer is Owned {
       MarketView({
         isPaused: isMarketPaused || isGlobalPaused,
         spotPrice: spotPrice,
-        minSpotPrice: minSpotPrice,
-        maxSpotPrice: maxSpotPrice,
         quoteSymbol: quoteSymbol,
         quoteDecimals: quoteDecimals,
         baseSymbol: baseSymbol,
@@ -279,7 +229,8 @@ contract OptionMarketViewer is Owned {
         liquidity: liquidity,
         marketAddresses: marketC,
         marketParameters: marketParameters,
-        globalNetGreeks: globalCache.netGreeks
+        globalNetGreeks: globalCache.netGreeks,
+        liveBoards: getLiveBoards(marketC.optionMarket)
       });
   }
 
@@ -330,7 +281,7 @@ contract OptionMarketViewer is Owned {
   }
 
   function getBoardForBase(string memory baseSymbol, uint boardId) external view returns (BoardView memory) {
-    MarketViewWithBoards memory marketView = getMarketForBase(baseSymbol);
+    MarketView memory marketView = getMarketForBase(baseSymbol);
     return _getBoard(marketView.marketAddresses, boardId);
   }
 

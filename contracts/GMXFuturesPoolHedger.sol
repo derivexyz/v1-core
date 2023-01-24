@@ -192,7 +192,11 @@ contract GMXFuturesPoolHedger is
    * @param _futuresPoolHedgerParams targetLeverage needs to be higher than 1 to avoid dust error
    */
   function setFuturesPoolHedgerParams(FuturesPoolHedgerParameters memory _futuresPoolHedgerParams) external onlyOwner {
-    if (_futuresPoolHedgerParams.targetLeverage <= 1e18 || _futuresPoolHedgerParams.maxLeverage <= 1e18 || _futuresPoolHedgerParams.minCollateralUpdate > 1000e18) {
+    if (
+      _futuresPoolHedgerParams.targetLeverage <= 1e18 ||
+      _futuresPoolHedgerParams.maxLeverage <= 1e18 ||
+      _futuresPoolHedgerParams.minCollateralUpdate > 1000e18
+    ) {
       revert InvalidFuturesPoolHedgerParams(address(this), futuresPoolHedgerParams);
     }
     futuresPoolHedgerParams = _futuresPoolHedgerParams;
@@ -422,7 +426,11 @@ contract GMXFuturesPoolHedger is
   /**
    * @dev Return whether the hedger can hedge the additional delta risk introduced by the option being traded.
    */
-  function canHedge(uint /* amountOptions */, bool increasesPoolDelta, uint /* strikeId */) external view override returns (bool) {
+  function canHedge(
+    uint /* amountOptions */,
+    bool increasesPoolDelta,
+    uint /* strikeId */
+  ) external view override returns (bool) {
     if (!futuresPoolHedgerParams.vaultLiquidityCheckEnabled) {
       return true;
     }
@@ -782,7 +790,12 @@ contract GMXFuturesPoolHedger is
         revert MaxLeverageThresholdCrossed(address(this), finalSize, finalCollat, currentPos);
       }
       if (finalCollat < futuresPoolHedgerParams.minCollateralUpdate) {
-        revert FinalCollateralTooLow(address(this), finalCollat, currentPos, futuresPoolHedgerParams.minCollateralUpdate);
+        revert FinalCollateralTooLow(
+          address(this),
+          finalCollat,
+          currentPos,
+          futuresPoolHedgerParams.minCollateralUpdate
+        );
       }
     }
 

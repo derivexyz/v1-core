@@ -89,7 +89,9 @@ describe('Misc', async () => {
 
   it('reverts in a number of scenarios', async () => {
     await expect(lp.lockPutCollateral(1, 0, 0)).revertedWith('LockingMoreQuoteThanIsFree');
-    await expect(lp.sendShortPremium(ZERO_ADDRESS, 1, 1, 0, 0, false, 0)).revertedWith('SendPremiumNotEnoughCollateral');
+    await expect(lp.sendShortPremium(ZERO_ADDRESS, 1, 1, 0, 0, false, 0)).revertedWith(
+      'SendPremiumNotEnoughCollateral',
+    );
     await lp.boardSettlement(0, 0, 0, 0);
     const time = BigNumber.from(await currentTime());
     expect(await lp.CBTimestamp()).eq(time.add(DEFAULT_CB_PARAMS.boardSettlementCBTimeout));

@@ -1,5 +1,5 @@
 import { BigNumber } from 'ethers';
-import { MarketViewWithBoardsStruct } from '../../typechain-types/OptionMarketViewer';
+import { MarketViewStruct } from '../../typechain-types/OptionMarketViewer';
 import { ExchangeParamsStruct } from '../../typechain-types/SynthetixAdapter';
 import { DeploymentParams } from '../util';
 import { callLyraFunction, executeExternalFunction, getLyraContract, openPosition } from '../util/transactions';
@@ -26,7 +26,7 @@ export async function seedTrades(deploymentParams: DeploymentParams, params: Par
     PricingType.REFERENCE,
   ])) as ExchangeParamsStruct;
 
-  const marketView: MarketViewWithBoardsStruct = await callLyraFunction(
+  const marketView: MarketViewStruct = await callLyraFunction(
     deploymentParams,
     'OptionMarketViewer',
     'getMarket',

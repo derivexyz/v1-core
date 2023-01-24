@@ -1297,8 +1297,8 @@ describe('Integration Tests - GMX', () => {
           'CannotRecoverRestrictedToken',
         );
       });
-      it("can get the full state", async () => {
-        expect((await c.futuresPoolHedger.getHedgerState()).referralCode).eq(toBytes32("LYRA"));
+      it('can get the full state', async () => {
+        expect((await c.futuresPoolHedger.getHedgerState()).referralCode).eq(toBytes32('LYRA'));
         expect((await c.GMXAdapter.getAdapterState(c.optionMarket.address)).clPrice).gt(0);
       });
     });

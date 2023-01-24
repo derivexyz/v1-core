@@ -1,10 +1,10 @@
-import {deployFixture} from '../../utils/fixture';
-import {expect, hre} from "../../utils/testSetup";
-import {HOUR_SEC, MAX_UINT, MONTH_SEC, OptionType, toBN} from "../../../scripts/util/web3utils";
-import {createDefaultBoardWithOverrides, mockPrice} from "../../utils/seedTestSystem";
-import {openPosition} from "../../utils/contractHelpers";
-import {DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS} from "../../utils/defaultParams";
-import {fastForward, restoreSnapshot, takeSnapshot} from "../../utils/evm";
+import { deployFixture } from '../../utils/fixture';
+import { expect, hre } from '../../utils/testSetup';
+import { HOUR_SEC, MAX_UINT, MONTH_SEC, OptionType, toBN } from '../../../scripts/util/web3utils';
+import { createDefaultBoardWithOverrides, mockPrice } from '../../utils/seedTestSystem';
+import { openPosition } from '../../utils/contractHelpers';
+import { DEFAULT_CB_PARAMS, DEFAULT_LIQUIDITY_POOL_PARAMS } from '../../utils/defaultParams';
+import { fastForward, restoreSnapshot, takeSnapshot } from '../../utils/evm';
 
 // Do full integration tests here (e.g. open trades/make deposits/hedge delta)
 describe('Liquidity Accounting', async () => {
@@ -18,8 +18,8 @@ describe('Liquidity Accounting', async () => {
       adjustmentNetScalingFactor: toBN('0.1'),
       callCollatScalingFactor: toBN('0.7'),
       // NOTE: also withdrawal fee set to 0 for this example, which also mitigates the edge case being tested
-      withdrawalFee: 0
-    })
+      withdrawalFee: 0,
+    });
     const bob = hre.f.signers[2];
     await hre.f.c.snx.quoteAsset.mint(hre.f.deployer.address, toBN('1000000'));
     await hre.f.c.snx.quoteAsset.mint(hre.f.alice.address, toBN('1000'));
@@ -34,15 +34,23 @@ describe('Liquidity Accounting', async () => {
 
     expect((await hre.f.c.liquidityPool.getLiquidity()).freeLiquidity).eq(toBN('1001000'));
 
-    const board1 = await createDefaultBoardWithOverrides(hre.f.c, {expiresIn: MONTH_SEC, strikePrices: ['1000'], skews: ['1']});
-    await createDefaultBoardWithOverrides(hre.f.c, {expiresIn: MONTH_SEC * 2, strikePrices: ['1000'], skews: ['1']});
+    const board1 = await createDefaultBoardWithOverrides(hre.f.c, {
+      expiresIn: MONTH_SEC,
+      strikePrices: ['1000'],
+      skews: ['1'],
+    });
+    await createDefaultBoardWithOverrides(hre.f.c, { expiresIn: MONTH_SEC * 2, strikePrices: ['1000'], skews: ['1'] });
     const boardStrikes = await hre.f.c.optionMarketViewer.getBoard(hre.f.c.optionMarket.address, board1);
 
-    await openPosition({
-      amount: toBN('0.85'),
-      optionType: OptionType.LONG_CALL,
-      strikeId: boardStrikes.strikes[0].strikeId
-    }, bob, hre.f.c);
+    await openPosition(
+      {
+        amount: toBN('0.85'),
+        optionType: OptionType.LONG_CALL,
+        strikeId: boardStrikes.strikes[0].strikeId,
+      },
+      bob,
+      hre.f.c,
+    );
 
     await hre.f.c.liquidityPool.connect(hre.f.deployer).initiateWithdraw(hre.f.deployer.address, toBN('1000000'));
 
@@ -61,7 +69,7 @@ describe('Liquidity Accounting', async () => {
     await hre.f.c.liquidityPool.setCircuitBreakerParameters({
       ...DEFAULT_CB_PARAMS,
       liquidityCBThreshold: 0,
-    })
+    });
     await hre.f.c.liquidityPool.updateCBs();
     expect(await hre.f.c.liquidityPool.CBTimestamp()).eq(0);
 
@@ -76,7 +84,7 @@ describe('Liquidity Accounting', async () => {
       // CASE 1, cache is updated with price
       await hre.f.c.keeperHelper.updateAllBoardCachedGreeks();
       const tx = await hre.f.c.liquidityPool.processWithdrawalQueue(1);
-      console.log((await tx.wait()).events)
+      console.log((await tx.wait()).events);
 
       await fastForward(HOUR_SEC);
       await hre.f.c.optionMarket.settleExpiredBoard(board1);

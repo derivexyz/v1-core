@@ -118,11 +118,13 @@ describe('GMXAdapter', async () => {
   it('exchanges from base', async () => {
     const preBaseBal = await hre.f.gc.gmx.eth.balanceOf(hre.f.deployer.address);
     const preQuoteBal = await hre.f.gc.gmx.USDC.balanceOf(hre.f.deployer.address);
-    await expect(hre.f.gc.GMXAdapter.exchangeFromExactBase(hre.f.gc.optionMarket.address, toBN('1'))).revertedWith("InsufficientSwap");
+    await expect(hre.f.gc.GMXAdapter.exchangeFromExactBase(hre.f.gc.optionMarket.address, toBN('1'))).revertedWith(
+      'InsufficientSwap',
+    );
     await hre.f.gc.GMXAdapter.setMarketPricingParams(hre.f.gc.optionMarket.address, {
       ...DEFAULT_GMX_ADAPTER_PARAMS,
       staticSwapFeeEstimate: toBN('1.05'),
-    })
+    });
     await hre.f.gc.GMXAdapter.exchangeFromExactBase(hre.f.gc.optionMarket.address, toBN('1'));
     expect(preBaseBal.sub(await hre.f.gc.gmx.eth.balanceOf(hre.f.deployer.address))).eq(
       toBN('1', DEFAULT_DECIMALS.ETH),
