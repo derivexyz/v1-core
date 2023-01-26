@@ -73,7 +73,13 @@ contract GMXFuturesPoolHedger is
     uint baseReservedAmount;
     uint quotePoolAmount;
     uint quoteReservedAmount;
+    uint maxGlobalLongSize;
+    uint guaranteedUSD;
+    uint maxGlobalShortSize;
+    uint shortSize;
     uint minExecutionFee;
+    uint remainingLongDollars;
+    uint remainingShortDollars;
   }
 
   ////
@@ -90,7 +96,7 @@ contract GMXFuturesPoolHedger is
   }
 
   // Note: whenever these values are used, they have already been normalised to 1e18
-  // exception: entryFundingRate
+  // exception: entryFundingRate  
   struct PositionDetails {
     uint256 size;
     uint256 collateral;
@@ -455,21 +461,13 @@ contract GMXFuturesPoolHedger is
       return true;
     }
 
-    uint remainingDeltas;
+    uint remainingDollars;
     if (expectedHedge > 0) {
-      // remaining is the amount of baseAsset that can be hedged
-      remainingDeltas = ConvertDecimals.convertTo18(
-        (vault.poolAmounts(address(baseAsset)) - vault.reservedAmounts(address(baseAsset))),
-        baseAsset.decimals()
-      );
+      remainingDollars = getRemainingLongLiquidityDollars(spotPrice);
     } else {
-      remainingDeltas = ConvertDecimals
-        .convertTo18(
-          (vault.poolAmounts(address(quoteAsset)) - vault.reservedAmounts(address(quoteAsset))),
-          quoteAsset.decimals()
-        )
-        .divideDecimal(spotPrice);
+      remainingDollars = getRemainingShortLiquidityDollars();
     }
+    uint remainingDeltas = remainingDollars.divideDecimal(spotPrice);
 
     uint absHedgeDiff = (Math.abs(expectedHedge) - Math.abs(currentHedge));
     if (remainingDeltas < absHedgeDiff.multiplyDecimal(futuresPoolHedgerParams.marketDepthBuffer)) {
@@ -684,6 +682,25 @@ contract GMXFuturesPoolHedger is
 
     if (Math.abs(expectedHedge) > Math.abs(currHedgedNetDelta)) {
       uint collatDelta = expectedCollateral > collatAmount ? expectedCollateral - collatAmount : 0;
+
+      uint remainingDollars;
+      if (isLong) {
+        remainingDollars = getRemainingLongLiquidityDollars(spot);
+      } else {
+        remainingDollars = getRemainingShortLiquidityDollars();
+      }
+
+      if (remainingDollars < sizeDelta) {
+        uint diff = sizeDelta - remainingDollars;
+        if (diff > collatDelta)  {
+          collatDelta = 0;
+        } else {
+          // This will still allow the trade to go though with lower leverage than target
+          collatDelta -= diff;
+        }
+        sizeDelta = remainingDollars;
+      }
+
       _increasePosition(currentPos, isLong, sizeDelta, collatDelta, spot);
     } else {
       uint collatDelta = collatAmount > expectedCollateral ? collatAmount - expectedCollateral : 0;
@@ -1067,6 +1084,50 @@ contract GMXFuturesPoolHedger is
       });
   }
 
+  function getRemainingLongLiquidityDollars(uint spotPrice) public view returns (uint remainingDollars) {
+    // vault amounts are in baseAsset; so multiply by spot to get approximate (as we use reference spot) dollars
+    remainingDollars = ConvertDecimals.convertTo18(
+      (vault.poolAmounts(address(baseAsset)) - vault.reservedAmounts(address(baseAsset))),
+      baseAsset.decimals()
+    ).multiplyDecimal(spotPrice);
+
+    // Check the gmx liquidity cap
+    uint maxGlobalLongSize = positionRouter.maxGlobalLongSizes(address(baseAsset));
+    if (maxGlobalLongSize != 0) {
+      uint guaranteedUSD = vault.guaranteedUsd(address(baseAsset));
+      if (guaranteedUSD >= maxGlobalLongSize) {
+        return 0;
+      } else {
+        uint remainingCappedDollars = _convertFromGMXPrecision(maxGlobalLongSize - guaranteedUSD);
+        return Math.min(remainingDollars, remainingCappedDollars);
+      }
+    } else {
+      return remainingDollars;
+    }
+  }
+
+
+  function getRemainingShortLiquidityDollars() public view returns (uint remainingDollars) {
+    remainingDollars = ConvertDecimals.convertTo18(
+      (vault.poolAmounts(address(quoteAsset)) - vault.reservedAmounts(address(quoteAsset))),
+      quoteAsset.decimals()
+    );
+
+    // Check the gmx liquidity cap
+    uint maxGlobalShortSize = positionRouter.maxGlobalShortSizes(address(baseAsset));
+    if (maxGlobalShortSize != 0) {
+      uint shortSize = vault.globalShortSizes(address(baseAsset));
+      if (shortSize >= maxGlobalShortSize) {
+        return 0;
+      } else {
+        uint remainingCappedDollars = _convertFromGMXPrecision(maxGlobalShortSize - shortSize);
+        return Math.min(remainingDollars, remainingCappedDollars);
+      }
+    } else {
+      return remainingDollars;
+    }
+  }
+
   /**
    * @dev returns the execution fee plus the cost of the gas callback
    */
@@ -1196,7 +1257,13 @@ contract GMXFuturesPoolHedger is
           baseReservedAmount: vault.reservedAmounts(address(baseAsset)),
           quotePoolAmount: vault.poolAmounts(address(quoteAsset)),
           quoteReservedAmount: vault.reservedAmounts(address(quoteAsset)),
-          minExecutionFee: _getExecutionFee()
+          maxGlobalLongSize: positionRouter.maxGlobalLongSizes(address(baseAsset)),
+          guaranteedUSD: vault.guaranteedUsd(address(baseAsset)),
+          maxGlobalShortSize: positionRouter.maxGlobalShortSizes(address(baseAsset)),
+          shortSize: vault.globalShortSizes(address(baseAsset)),
+          minExecutionFee: _getExecutionFee(),
+          remainingLongDollars: getRemainingLongLiquidityDollars(spotPrice),
+          remainingShortDollars: getRemainingShortLiquidityDollars()
         }),
         referralCode: referralCode,
         pendingOrderKey: pendingOrderKey,
