@@ -4,11 +4,7 @@ import { ethers } from 'hardhat';
 import { HardhatRuntimeEnvironment } from 'hardhat/src/types/runtime';
 import { DEFAULT_DECIMALS, MAX_UINT, OptionType, toBN, TradeDirection } from '../../scripts/util/web3utils';
 import { TestERC20Fail, TestERC20SetDecimals } from '../../typechain-types';
-import {
-  BoardViewStruct,
-  MarketViewStruct,
-  StrikeViewStruct,
-} from '../../typechain-types/OptionMarketViewer';
+import { BoardViewStruct, MarketViewStruct, StrikeViewStruct } from '../../typechain-types/OptionMarketViewer';
 import { TradeParametersStruct } from '../../typechain-types/OptionToken';
 import { openAllTrades } from './contractHelpers';
 import { STABLE_IDS } from './contractHelpers/wrapper';

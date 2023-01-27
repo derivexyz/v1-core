@@ -39,45 +39,45 @@ interface IPositionRouter {
   function increasePositionRequests(
     bytes32 key
   )
-  external
-  view
-  returns (
-    address account,
-    address[] memory,
-    address,
-    uint amountIn,
-    uint,
-    uint,
-    bool,
-    uint,
-    uint,
-    uint,
-    uint,
-    bool,
-    address
-  );
+    external
+    view
+    returns (
+      address account,
+      address[] memory,
+      address,
+      uint amountIn,
+      uint,
+      uint,
+      bool,
+      uint,
+      uint,
+      uint,
+      uint,
+      bool,
+      address
+    );
 
   function decreasePositionRequests(
     bytes32 key
   )
-  external
-  view
-  returns (
-    address account,
-    address[] memory,
-    address,
-    uint,
-    uint,
-    bool,
-    address,
-    uint,
-    uint,
-    uint,
-    uint,
-    uint,
-    bool,
-    address
-  );
+    external
+    view
+    returns (
+      address account,
+      address[] memory,
+      address,
+      uint,
+      uint,
+      bool,
+      address,
+      uint,
+      uint,
+      uint,
+      uint,
+      uint,
+      bool,
+      address
+    );
 
   function vault() external view returns (address);
 
@@ -125,5 +125,6 @@ interface IPositionRouter {
   function cancelDecreasePosition(bytes32 _key, address _executionFeeReceiver) external returns (bool);
 
   function maxGlobalLongSizes(address _token) external view returns (uint256);
+
   function maxGlobalShortSizes(address _token) external view returns (uint256);
 }

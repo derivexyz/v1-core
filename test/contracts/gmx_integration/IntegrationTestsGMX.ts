@@ -1,5 +1,14 @@
 import { ethers } from 'hardhat';
-import { getEvent, getEventArgs, OptionType, toBytes32, toBN, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
+import {
+  getEvent,
+  getEventArgs,
+  OptionType,
+  toBytes32,
+  toBN,
+  ZERO_ADDRESS,
+  MAX_UINT,
+  fromBN,
+} from '../../../scripts/util/web3utils';
 import {
   DEFAULT_OPTION_MARKET_PARAMS,
   DEFAULT_POOL_HEDGER_PARAMS,
@@ -17,6 +26,7 @@ import { seedTestSystemGMX, setPrice } from '../../utils/seedTestSystemGMX';
 import { assertCloseToPercentage } from '../../utils/assert';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { TestGMXFuturesPoolHedger } from '../../../typechain-types';
+import { getSpotPrice } from '../../utils/contractHelpers';
 
 // section for GMX tests to work in
 describe('Integration Tests - GMX', () => {
@@ -1038,6 +1048,236 @@ describe('Integration Tests - GMX', () => {
           'NoQuoteReceivedFromLP',
         );
         // })
+      });
+
+      async function openLong(amount: string) {
+        await c.gmx.USDC.approve(c.gmx.router.address, MAX_UINT);
+        await c.gmx.eth.approve(c.gmx.router.address, MAX_UINT);
+        const tx = await c.gmx.positionRouter.createIncreasePosition(
+          [usdcAddr, ethAddr],
+          ethAddr,
+          toBN(amount).div(2), // 2x leverage
+          0,
+          toBN(amount, 30),
+          true,
+          MAX_UINT,
+          await c.gmx.positionRouter.minExecutionFee(),
+          ethers.utils.randomBytes(32),
+          ethers.constants.AddressZero,
+          { value: await c.gmx.positionRouter.minExecutionFee() },
+        );
+        const key = await c.gmx.positionRouter.getRequestKey(
+          deployer.address,
+          getEventArgs(await tx.wait(), 'CreateIncreasePosition').index,
+        );
+        await c.gmx.positionRouter.executeIncreasePosition(key, deployer.address);
+      }
+
+      async function openShort(amount: string) {
+        await c.gmx.USDC.approve(c.gmx.router.address, MAX_UINT);
+        await c.gmx.eth.approve(c.gmx.router.address, MAX_UINT);
+        const tx = await c.gmx.positionRouter.createIncreasePosition(
+          [usdcAddr],
+          ethAddr,
+          toBN(amount).div(2), // 2x leverage
+          0,
+          toBN(amount, 30),
+          false,
+          0,
+          await c.gmx.positionRouter.minExecutionFee(),
+          ethers.utils.randomBytes(32),
+          ethers.constants.AddressZero,
+          { value: await c.gmx.positionRouter.minExecutionFee() },
+        );
+        const key = await c.gmx.positionRouter.getRequestKey(
+          deployer.address,
+          getEventArgs(await tx.wait(), 'CreateIncreasePosition').index,
+        );
+        await c.gmx.positionRouter.executeIncreasePosition(key, deployer.address);
+      }
+
+      it('getRemainingLongLiquidityDollars', async () => {
+        const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, PricingType.MIN_PRICE);
+        expect(spot).eq(toBN('1500'));
+        // spot at 1500, so open 100 longs worth
+        await openLong('150000');
+        const guaranteedUSD = await c.gmx.vault.guaranteedUsd(c.gmx.eth.address);
+        assertCloseToPercentage(guaranteedUSD, toBN('150000', 30).div(2), toBN('0.01'));
+
+        // 1.5M in long liquidity
+        // 150000 used
+        assertCloseToPercentage(
+          await c.futuresPoolHedger.getRemainingLongLiquidityDollars(spot),
+          toBN('1500000').sub(toBN('150000')),
+        );
+
+        {
+          // Very low long size - means 0 is available after the trade
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [toBN('1', 30)], [0]);
+          expect(await c.futuresPoolHedger.getRemainingLongLiquidityDollars(spot)).eq(0);
+        }
+
+        {
+          // long size equal to "guaranteedUSD" - means 0 remaining
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [guaranteedUSD], [0]);
+          expect(await c.futuresPoolHedger.getRemainingLongLiquidityDollars(spot)).eq(0);
+        }
+
+        {
+          // add 1 extra unit (30dp in gmx) to max global size
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [guaranteedUSD.add(toBN('1', 30))], [0]);
+          // as this value is in dollars, there is 1 dollar remaining:
+          expect(await c.futuresPoolHedger.getRemainingLongLiquidityDollars(spot)).eq(toBN('1'));
+        }
+
+        {
+          // guaranteedUSD < maxGlobalLongSize. remainingDollars < remainingCappedDollars
+          // Basically: cap < total available
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [toBN('1000000', 30)], [0]);
+
+          // If cap is 150M, remaining liquidity is 150M minus the 100 longs previously opened BUT ADDING the collateral
+          assertCloseToPercentage(
+            await c.futuresPoolHedger.getRemainingLongLiquidityDollars(spot),
+            toBN('1000000').sub(spot.mul(100).div(2)),
+          );
+        }
+
+        {
+          // maxGlobalLongSize < guaranteedUSD. remainingDollars < remainingCappedDollars
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [toBN('10000000', 30)], [0]);
+          // This time we only look at the pool liquidity disregarding the added collateral
+          assertCloseToPercentage(
+            await c.futuresPoolHedger.getRemainingLongLiquidityDollars(spot),
+            toBN('1500000').sub(toBN('150000')),
+          );
+        }
+      });
+
+      it('getRemainingShortLiquidityDollars', async () => {
+        const spot = await c.GMXAdapter.getSpotPriceForMarket(c.optionMarket.address, PricingType.MIN_PRICE);
+        expect(spot).eq(toBN('1500'));
+        await openShort('150000');
+        const globalShortSizes = await c.gmx.vault.globalShortSizes(c.gmx.eth.address);
+        expect(globalShortSizes).eq(toBN('150000', 30));
+
+        // Short side starts with 1M liquidity
+        // 150k is used
+        expect(await c.futuresPoolHedger.getRemainingShortLiquidityDollars()).eq(toBN('850000'));
+
+        {
+          // Very low long size - means 0 is available after the trade
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [toBN('1', 30)]);
+          expect(await c.futuresPoolHedger.getRemainingShortLiquidityDollars()).eq(0);
+        }
+
+        {
+          // long size equal to "guaranteedUSD" - means 0 remaining
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [globalShortSizes]);
+          expect(await c.futuresPoolHedger.getRemainingShortLiquidityDollars()).eq(0);
+        }
+
+        {
+          // add 1 extra unit (30dp in gmx) to max global size
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [globalShortSizes.add(toBN('1', 30))]);
+          // as this value is in dollars, there is 1 dollar remaining:
+          expect(await c.futuresPoolHedger.getRemainingShortLiquidityDollars()).eq(toBN('1'));
+        }
+
+        {
+          // globalShortSizes < maxGlobalShortSize. remainingDollars < remainingCappedDollars
+          // Basically: cap < total available
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [toBN('500000', 30)]);
+
+          // If cap is 150M, remaining liquidity is 150M minus the 100 longs previously opened NOT ADDING the collateral
+          assertCloseToPercentage(
+            await c.futuresPoolHedger.getRemainingShortLiquidityDollars(),
+            toBN('500000').sub(spot.mul(100)),
+          );
+        }
+
+        {
+          // maxGlobalShortSize < globalShortSizes. remainingDollars < remainingCappedDollars
+          await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [toBN('10000000', 30)]);
+          // This time we only look at the pool liquidity disregarding the added collateral
+          assertCloseToPercentage(await c.futuresPoolHedger.getRemainingShortLiquidityDollars(), toBN('850000'));
+        }
+      });
+
+      it('caps longs based on remaining GMX liquidity', async () => {
+        await increaseDeltaExposure(c, 5);
+        await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [toBN('1000', 30)], [0]);
+        await expect(await c.futuresPoolHedger.canHedge(0, false, 0)).false;
+        await expect(await c.futuresPoolHedger.canHedge(0, true, 0)).true;
+        await executeIncreaseHedge(c);
+
+        const hedgerState = await c.futuresPoolHedger.getHedgerState();
+
+        expect(hedgerState.currentPositions.longPosition.size).eq(toBN('1000'));
+        // 1.1 target leverage
+        assertCloseToPercentage(hedgerState.currentPositions.longPosition.collateral, toBN('1000').mul(10).div(11));
+
+        // set interactionDelay to 1 so we can hedge again
+        await c.futuresPoolHedger.setPoolHedgerParams({
+          ...DEFAULT_POOL_HEDGER_PARAMS,
+          interactionDelay: 1,
+        });
+
+        // Now if we increase the cap and hedge again, it will open more
+        await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [toBN('2000', 30)], [0]);
+        await executeIncreaseHedge(c);
+
+        const hedgerState2 = await c.futuresPoolHedger.getHedgerState();
+
+        // the longSize is buffered by the amount of collateral posted to the pool so we can actually open up to 2900ish
+        assertCloseToPercentage(hedgerState2.currentPositions.longPosition.size, toBN('2909'));
+        // 1.1 target leverage - but because of fees this ends up slightly over collateralised.
+        assertCloseToPercentage(
+          hedgerState2.currentPositions.longPosition.collateral,
+          toBN('2909').mul(10).div(11),
+          toBN('0.05'),
+        );
+      });
+
+      it('caps shorts based on remaining GMX liquidity', async () => {
+        await reduceDeltaExposure(c, 5);
+        await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [toBN('1000', 30)]);
+        await expect(await c.futuresPoolHedger.canHedge(0, true, 0)).false;
+        await expect(await c.futuresPoolHedger.canHedge(0, false, 0)).true;
+        await executeIncreaseHedge(c);
+
+        const hedgerState = await c.futuresPoolHedger.getHedgerState();
+
+        expect(hedgerState.currentPositions.shortPosition.size).eq(toBN('1000'));
+        // 1.1 target leverage
+        assertCloseToPercentage(hedgerState.currentPositions.shortPosition.collateral, toBN('1000').mul(10).div(11));
+
+        // set interactionDelay to 1 so we can hedge again
+        await c.futuresPoolHedger.setPoolHedgerParams({
+          ...DEFAULT_POOL_HEDGER_PARAMS,
+          interactionDelay: 1,
+        });
+
+        await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [toBN('2000', 30)]);
+        await executeIncreaseHedge(c);
+
+        const hedgerState2 = await c.futuresPoolHedger.getHedgerState();
+
+        // the longSize is buffered by the amount of collateral posted to the pool so we can actually open up to 2900ish
+        assertCloseToPercentage(hedgerState2.currentPositions.shortPosition.size, toBN('2000'));
+        // 1.1 target leverage - but because of fees this ends up slightly over collateralised.
+        assertCloseToPercentage(
+          hedgerState2.currentPositions.shortPosition.collateral,
+          toBN('2000').mul(10).div(11),
+          toBN('0.05'),
+        );
+
+        const lastInteraction = await c.futuresPoolHedger.lastInteraction();
+
+        await c.gmx.positionRouter.setMaxGlobalSizes([c.gmx.eth.address], [0], [toBN('1000', 30)]);
+        await c.futuresPoolHedger.hedgeDelta();
+
+        // last interaction not updated
+        expect(await c.futuresPoolHedger.lastInteraction()).eq(lastInteraction);
       });
 
       describe('canHedge', () => {
