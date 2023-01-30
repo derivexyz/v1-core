@@ -15,7 +15,7 @@ enum PriceType {
   MAX_PRICE,
   REFERENCE,
   FORCE_MIN,
-  FORCE_MAX
+  FORCE_MAX,
 }
 
 function convertParams(params: any) {

@@ -26,12 +26,9 @@ export async function seedTrades(deploymentParams: DeploymentParams, params: Par
     PricingType.REFERENCE,
   ])) as ExchangeParamsStruct;
 
-  const marketView: MarketViewStruct = await callLyraFunction(
-    deploymentParams,
-    'OptionMarketViewer',
-    'getMarket',
-    [optionMarketAddress],
-  );
+  const marketView: MarketViewStruct = await callLyraFunction(deploymentParams, 'OptionMarketViewer', 'getMarket', [
+    optionMarketAddress,
+  ]);
 
   for (const board of marketView.liveBoards) {
     let boardTotal = 0;

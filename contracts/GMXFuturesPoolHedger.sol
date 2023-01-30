@@ -461,12 +461,14 @@ contract GMXFuturesPoolHedger is
       return true;
     }
 
+    // Figure out the amount of remaining dollars for the specific direction the pool needs to hedge
     uint remainingDollars;
     if (expectedHedge > 0) {
       remainingDollars = getRemainingLongLiquidityDollars(spotPrice);
     } else {
       remainingDollars = getRemainingShortLiquidityDollars();
     }
+    // Convert the dollar amount to deltas by dividing by spot.
     uint remainingDeltas = remainingDollars.divideDecimal(spotPrice);
 
     uint absHedgeDiff = (Math.abs(expectedHedge) - Math.abs(currentHedge));
@@ -682,6 +684,7 @@ contract GMXFuturesPoolHedger is
     if (Math.abs(expectedHedge) > Math.abs(currHedgedNetDelta)) {
       uint collatDelta = expectedCollateral > collatAmount ? expectedCollateral - collatAmount : 0;
 
+      // figure out how many dollars are remaining of liquidity in the gmx vaults
       uint remainingDollars;
       if (isLong) {
         remainingDollars = getRemainingLongLiquidityDollars(spot);
@@ -689,20 +692,26 @@ contract GMXFuturesPoolHedger is
         remainingDollars = getRemainingShortLiquidityDollars();
       }
 
+      // If they are empty, don't update and don't change the interactionDelay - just refund the eth (in `hedgeDelta`)
       if (remainingDollars == 0) {
-        // don't update interactionDelay if no size, return eth to caller
         emit PositionNotUpdated(currentPos);
         return;
       }
 
+      // In the case the remaining dollars is less than the size we want to open
       if (remainingDollars < sizeDelta) {
+        // cap the size
         sizeDelta = remainingDollars;
         uint finalSize = currentPos.size + sizeDelta;
+
+        // figure out the final collateral we want with this new capped size
         uint finalCollat = _getTargetCollateral(finalSize);
 
+        // update collatDelta to match this target
         if (finalCollat > currentPos.collateral) {
           collatDelta = finalCollat - currentPos.collateral;
         } else {
+          // if we want to reduce collateral, don't do it now, as we are increasing position
           collatDelta = 0;
         }
       }
@@ -1103,12 +1112,15 @@ contract GMXFuturesPoolHedger is
     if (maxGlobalLongSize != 0) {
       uint guaranteedUSD = vault.guaranteedUsd(address(baseAsset));
       if (guaranteedUSD >= maxGlobalLongSize) {
+        // If the cap is used up (or overused), there are 0 dollars remaining
         return 0;
       } else {
+        // Otherwise find out how much of the cap is left, and compare to the poolAmount comparison from the vault
         uint remainingCappedDollars = _convertFromGMXPrecision(maxGlobalLongSize - guaranteedUSD);
         return Math.min(remainingDollars, remainingCappedDollars);
       }
     } else {
+      // If the cap is set to 0 (i.e. unset), just return the vault remaining amount
       return remainingDollars;
     }
   }
@@ -1124,12 +1136,15 @@ contract GMXFuturesPoolHedger is
     if (maxGlobalShortSize != 0) {
       uint shortSize = vault.globalShortSizes(address(baseAsset));
       if (shortSize >= maxGlobalShortSize) {
+        // If the cap is used up (or overused), there are 0 dollars remaining
         return 0;
       } else {
+        // Otherwise find out how much of the cap is left, and compare to the poolAmount comparison from the vault
         uint remainingCappedDollars = _convertFromGMXPrecision(maxGlobalShortSize - shortSize);
         return Math.min(remainingDollars, remainingCappedDollars);
       }
     } else {
+      // If the cap is set to 0 (i.e. unset), just return the vault remaining amount
       return remainingDollars;
     }
   }

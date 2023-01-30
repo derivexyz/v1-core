@@ -4,7 +4,7 @@ import { TestSystemContractsType } from '../../test/utils/deployTestSystem';
 import { fastForward } from '../../test/utils/evm';
 import { expect } from '../../test/utils/testSetup';
 import { TradeInputParametersStruct } from '../../typechain-types/OptionMarket';
-import {currentTime, fromBN, getEventArgs, MAX_UINT128, OptionType, ZERO_ADDRESS} from './web3utils';
+import { currentTime, fromBN, getEventArgs, MAX_UINT128, OptionType, ZERO_ADDRESS } from './web3utils';
 import { TestSystemContractsTypeGMX } from '../../test/utils/deployTestSystemGMX';
 
 export function sleep(ms: number) {
@@ -73,7 +73,7 @@ export function getMarketTradeArgs(parameters: {
     minTotalCost: parameters.minTotalCost || 0,
     maxTotalCost: parameters.maxTotalCost || MAX_UINT128,
     optionType: parameters.optionType,
-    referrer: ZERO_ADDRESS
+    referrer: ZERO_ADDRESS,
   };
 }
 
