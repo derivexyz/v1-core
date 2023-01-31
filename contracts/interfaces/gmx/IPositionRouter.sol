@@ -123,4 +123,8 @@ interface IPositionRouter {
   function cancelIncreasePosition(bytes32 _key, address _executionFeeReceiver) external returns (bool);
 
   function cancelDecreasePosition(bytes32 _key, address _executionFeeReceiver) external returns (bool);
+
+  function maxGlobalLongSizes(address _token) external view returns (uint256);
+
+  function maxGlobalShortSizes(address _token) external view returns (uint256);
 }

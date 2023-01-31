@@ -11,7 +11,7 @@ import {
   loadLyraContractData,
 } from './parseFiles';
 import { etherscanVerification } from './verification';
-import {fromBN, getEventArgs, MAX_UINT128, OptionType, ZERO_ADDRESS} from './web3utils';
+import { fromBN, getEventArgs, MAX_UINT128, OptionType, ZERO_ADDRESS } from './web3utils';
 
 const contracts: any = {};
 
@@ -402,6 +402,6 @@ export function getMarketTradeArgs(parameters: {
     minTotalCost: parameters.minTotalCost || 0,
     maxTotalCost: parameters.maxTotalCost || MAX_UINT128,
     optionType: parameters.optionType,
-    referrer: ZERO_ADDRESS
+    referrer: ZERO_ADDRESS,
   };
 }
