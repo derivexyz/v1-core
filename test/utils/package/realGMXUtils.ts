@@ -6,7 +6,6 @@ import {
   MockAggregatorV2V3,
   PriceFeed,
   Router,
-  TestERC20SetDecimals,
   TestERC20SetDecimalsFail,
   TestWETH,
   USDG,

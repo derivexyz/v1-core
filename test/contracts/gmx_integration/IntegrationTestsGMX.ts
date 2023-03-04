@@ -7,7 +7,6 @@ import {
   toBN,
   ZERO_ADDRESS,
   MAX_UINT,
-  fromBN,
 } from '../../../scripts/util/web3utils';
 import {
   DEFAULT_OPTION_MARKET_PARAMS,
@@ -26,7 +25,6 @@ import { seedTestSystemGMX, setPrice } from '../../utils/seedTestSystemGMX';
 import { assertCloseToPercentage } from '../../utils/assert';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { TestGMXFuturesPoolHedger } from '../../../typechain-types';
-import { getSpotPrice } from '../../utils/contractHelpers';
 
 // section for GMX tests to work in
 describe('Integration Tests - GMX', () => {

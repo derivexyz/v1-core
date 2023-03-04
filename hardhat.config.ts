@@ -78,7 +78,11 @@ const config: HardhatUserConfig = {
     // enabled: true,
   },
   etherscan: {
-    apiKey: etherscanApiKey,
+    apiKey: {
+      mainnet: etherscanApiKey,
+      arbitrumOne: loadEnv('mainnet-arbi').ETHERSCAN_KEY,
+      arbitrumGoerli: loadEnv('goerli-arbi').ETHERSCAN_KEY,
+    },
     customChains: [
       {
         network: 'goerli-ovm',

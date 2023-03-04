@@ -1,6 +1,6 @@
 import { BigNumber, Contract, ContractFactory, Signer } from 'ethers';
 import { ethers, tracer } from 'hardhat';
-import { currentTime, toBN, ZERO_ADDRESS } from '../../scripts/util/web3utils';
+import { currentTime, toBN } from '../../scripts/util/web3utils';
 import {
   BasicFeeCounter,
   BasicLiquidityCounter,
@@ -33,7 +33,6 @@ import {
   YieldTracker,
   GMXFuturesPoolHedger,
   MockAggregatorV2V3,
-  TestERC20SetDecimals,
   TestGMXVaultChainlinkPrice,
   Timelock,
   TestWETH,

@@ -26,4 +26,12 @@ contract TestGMXPositionRouter is Owned {
     uint[] memory vals = new uint[](8);
     return vals;
   }
+
+  function maxGlobalLongSizes(address) external pure returns (uint) {
+    return 0;
+  }
+
+  function maxGlobalShortSizes(address) external pure returns (uint) {
+    return 0;
+  }
 }

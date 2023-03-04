@@ -10,9 +10,9 @@
     "OptionMarketViewer": {
       "contractName": "OptionMarketViewer",
       "source": "OptionMarketViewer",
-      "address": "0x97B688cEd83a1164AF9D3c0244EC36602E6C3B88",
-      "txn": "0xb347332026130e27b572ba69d29bc0af12b8287a91bfb3898f10d872960fe679",
-      "blockNumber": 54905080
+      "address": "0x0527A05c3CEBc9Ef8171FeD29DE5900A7ea093a4",
+      "txn": "0x70cc582686a43d8d1afaf5189568171d410cd3b5641d9a0625f1d43b66376ed2",
+      "blockNumber": 57000361
     },
     "OptionMarketWrapper": {
       "contractName": "OptionMarketWrapper",
@@ -113,6 +113,78 @@
           "address": "0xaE6b4E307cBdc779F19d3965a7ddf8e4dE307487",
           "txn": "0x3b76100337e492ed9a8a063a2d9b4ebdeb653233ae9163dbd5c17b0b51df750e",
           "blockNumber": 54906479
+        }
+      },
+      "wBTC": {
+        "OptionMarket": {
+          "contractName": "OptionMarket",
+          "source": "OptionMarket",
+          "address": "0xe044919cf58dFb066FC9DE7c69C7db19f336B20c",
+          "txn": "0xaeb293a5f3c778a0701792954a20d9e9dd1eb03cca730b79f694545846080f74",
+          "blockNumber": 64257080
+        },
+        "OptionMarketPricer": {
+          "contractName": "OptionMarketPricer",
+          "source": "OptionMarketPricer",
+          "address": "0x6d859a7d88d94870EE6510aCAa48E3D8684E7b03",
+          "txn": "0x4a760c5142a1195d27b627f6093adf197167623768e80939b3aab4e5f8b918de",
+          "blockNumber": 64257114
+        },
+        "OptionGreekCache": {
+          "contractName": "OptionGreekCache",
+          "source": "OptionGreekCache",
+          "address": "0x4f7C8Ee91d41867Fe3FB564B4B293456F36a78e0",
+          "txn": "0xf9c190c7df5f0ebf328d12a10405386457f110cf27f9bac1358d1d1a86ef1924",
+          "blockNumber": 64257157
+        },
+        "OptionToken": {
+          "contractName": "OptionToken",
+          "source": "OptionToken",
+          "address": "0x0e97498F3d91756Ec7F2d244aC97F6Ea9f4eBbC3",
+          "txn": "0xee6f2d215bf35bb867fff6b9c1e889df6d00b5bb932c8c51cc18da40f52924bb",
+          "blockNumber": 64257210
+        },
+        "LiquidityPool": {
+          "contractName": "LiquidityPool",
+          "source": "LiquidityPool",
+          "address": "0xEC6F3ef9481e7B8484290edBaE2CEDcdb0Ce790e",
+          "txn": "0x78ded6abc0bf5a71d12d8b415b3d05a58ee0aaf36e184fa113371ed3c53da6d3",
+          "blockNumber": 64257280
+        },
+        "LiquidityToken": {
+          "contractName": "LiquidityToken",
+          "source": "LiquidityToken",
+          "address": "0xbB6D72147280a2147a23Ce196326e0547eaec401",
+          "txn": "0x25b9df4e7722ed5ba9919b9851bab77c5a30d335284fd81fbb03f68997931e79",
+          "blockNumber": 64257361
+        },
+        "ShortCollateral": {
+          "contractName": "ShortCollateral",
+          "source": "ShortCollateral",
+          "address": "0x5A4842c0c1F81EbbAE7bB3eC07EDf7Ae55aac631",
+          "txn": "0x2dbd56b4d5d2c0afaae61bbdee1872bb46c621d374bba09ceb0d3ace04a514e4",
+          "blockNumber": 64257413
+        },
+        "GMXFuturesPoolHedger": {
+          "contractName": "GMXFuturesPoolHedger",
+          "source": "GMXFuturesPoolHedger",
+          "address": "0x8dcd2f1Bb3380927bbE68530b6eb383B1e8C440A",
+          "txn": "0x369b11d7d64e3da537cc5050bb3b82335647821cf267993430f1dd67f17c584f",
+          "blockNumber": 64257484
+        },
+        "KeeperHelper": {
+          "contractName": "KeeperHelper",
+          "source": "KeeperHelper",
+          "address": "0x8A873b93C9b19a712744873E7eD305C924F54888",
+          "txn": "0xd96a31f700c3451c7a0581b537f0926be348ae5a0b9f61e89a65f4d74af5833d",
+          "blockNumber": 64257580
+        },
+        "GWAVOracle": {
+          "contractName": "GWAVOracle",
+          "source": "GWAVOracle",
+          "address": "0x339C589b18D70aeAE86700D1717a88B521538498",
+          "txn": "0x1aa21b8273024314dd33f8a29ee783c4913b38ed6d508e14db2c83188d775c1f",
+          "blockNumber": 64257655
         }
       }
     }

@@ -50,8 +50,8 @@
     },
     "hedgeDelta": {
       "markets": {
-        "sETH": true,
-        "sBTC": true
+        "sETH": false,
+        "sBTC": false
       }
     },
     "seedTrades": {

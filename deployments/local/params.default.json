@@ -88,15 +88,15 @@
       "capSkewsToAbs": false
     },
     "VarianceFeeParams": {
-      "defaultVarianceFeeCoefficient": "25",
-      "forceCloseVarianceFeeCoefficient": "0.25",
-      "skewAdjustmentCoefficient": "0.3",
-      "referenceSkew": "1",
-      "minimumStaticSkewAdjustment": "0.1",
-      "vegaCoefficient": "01",
-      "minimumStaticVega": "0.0",
-      "ivVarianceCoefficient": "1.5",
-      "minimumStaticIvVariance": "1"
+      "defaultVarianceFeeCoefficient": "0.65",
+      "forceCloseVarianceFeeCoefficient": "0.3",
+      "skewAdjustmentCoefficient": "1",
+      "referenceSkew": "0",
+      "minimumStaticSkewAdjustment": "0",
+      "vegaCoefficient": "1",
+      "minimumStaticVega": "0",
+      "ivVarianceCoefficient": "1",
+      "minimumStaticIvVariance": "0"
     },
     "PartialCollatParams": {
       "penaltyRatio": "0.2",
