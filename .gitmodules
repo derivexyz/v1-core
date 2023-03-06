@@ -1,3 +1,3 @@
-[submodule "lib/board-generator"]
-	path = lib/board-generator
-	url = git@github.com/lyra-finance/board-generator.git
+[submodule "lib/listing-manager"]
+	path = lib/listing-manager
+	url = https://github.com/lyra-finance/listing-manager.git
