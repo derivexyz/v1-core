@@ -9,7 +9,7 @@ import "../../interfaces/IDelegateApprovals.sol";
 import "../ITestERC20.sol";
 import "../../synthetix/DecimalMath.sol";
 
-import "../../SynthetixAdapter.sol";
+import "./../SynthetixAdapter.sol";
 
 contract TestSynthetix is ISynthetix {
   using DecimalMath for uint;

@@ -238,6 +238,12 @@ contract OptionMarketWrapperWithSwaps is Owned {
     return _closePosition(params, true);
   }
 
+  function addEthCollateral(OptionMarket optionMarket, uint positionId) external payable {
+    _wrapETH(msg.value);
+    marketContracts[optionMarket].baseAsset.approve(address(optionMarket), msg.value);
+    optionMarket.addCollateral(positionId, msg.value);
+  }
+
   //////////////
   // Internal //
   //////////////

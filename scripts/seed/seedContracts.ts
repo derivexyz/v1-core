@@ -8,23 +8,28 @@ import { hedgeDelta } from './hedgeDelta';
 import { seedDeposit } from './seedDeposit';
 import { seedMint } from './seedMint';
 import { seedTrades } from './seedTrades';
+import { updateGlobalOwners, updateMarketOwners } from './changeOwners';
 
 export async function seedContracts(deploymentParams: DeploymentParams, params: ParamHandler) {
   await callLyraFunction(deploymentParams, 'TestFaucet', 'drip', []);
+  console.log('params', params);
 
+  console.log('Seed minting running');
   if (params.get('Seed', 'mintFunds', 'run')) {
     for (const market in params.get('Seed', 'mintFunds', 'markets')) {
+      console.log('PARAMS being passed into seedMint', params);
       await seedMint(deploymentParams, params, market);
     }
   }
 
+  console.log('seed deposit running');
   if (params.get('Seed', 'deposit', 'run')) {
     for (const market in params.get('Seed', 'deposit', 'markets')) {
       await seedDeposit(deploymentParams, params, market);
     }
   }
-  // TODO: remove references to SNX in following functions
-  // //exercisable board simulation
+  // TODO: generalise/remove references to SNX in following functions
+  // exercisable board simulation
   // for (const market in params.get('Seed', 'addExercisableOptions', 'markets')) {
   //   if (params.get('Seed', 'addExercisableOptions', 'markets', market, 'run')) {
   //     await exercisableBoardScenario(deploymentParams, market, params.get('Markets', market, 'MockPrice'));
@@ -70,13 +75,13 @@ export async function seedContracts(deploymentParams: DeploymentParams, params: 
       await hedgeDelta(deploymentParams, market);
     }
   }
-  //
-  // if (params.get('Seed', 'changeOwner', 'run')) {
-  //   if (params.get('Seed', 'changeOwner', 'globalOwner')) {
-  //     await updateGlobalOwners(deploymentParams, params.get('Seed', 'changeOwner', 'globalOwner'));
-  //   }
-  //   for (const market in params.get('Seed', 'changeOwner', 'markets')) {
-  //     await updateMarketOwners(deploymentParams, market, params.get('Seed', 'changeOwner', 'markets', market));
-  //   }
-  // }
+
+  if (params.get('Seed', 'changeOwner', 'run')) {
+    if (params.get('Seed', 'changeOwner', 'globalOwner')) {
+      await updateGlobalOwners(deploymentParams, params.get('Seed', 'changeOwner', 'globalOwner'));
+    }
+    for (const market in params.get('Seed', 'changeOwner', 'markets')) {
+      await updateMarketOwners(deploymentParams, market, params.get('Seed', 'changeOwner', 'markets', market));
+    }
+  }
 }

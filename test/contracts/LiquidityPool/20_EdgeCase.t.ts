@@ -54,7 +54,7 @@ describe('Liquidity Accounting', async () => {
 
     await hre.f.c.liquidityPool.connect(hre.f.deployer).initiateWithdraw(hre.f.deployer.address, toBN('1000000'));
 
-    console.log(await hre.f.c.liquidityPool.getLiquidity());
+    // console.log(await hre.f.c.liquidityPool.getLiquidity());
 
     // With default parameters:
     // As free liquidity is < 1% of total NAV, circuit breaker is fired and withdrawal can't go through

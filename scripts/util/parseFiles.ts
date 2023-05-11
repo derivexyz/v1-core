@@ -5,19 +5,25 @@ import dotenv from 'dotenv';
 import { Contract } from 'ethers';
 import fs from 'fs';
 import path, { resolve } from 'path';
-import { AllowedNetworks, DeploymentParams, EnvVars, isMockGmx, isMockSnx, SystemParams } from './index';
+import {
+  AllowedNetworks,
+  DeploymentParams,
+  DeploymentType,
+  EnvVars,
+  isMockGmx,
+  isMockSnx,
+  SystemParams,
+} from './index';
 
 function isObject(obj: any) {
   return obj !== null && typeof obj === 'object';
 }
 
 export class ParamHandler {
-  default: SystemParams;
-  overrides: SystemParams;
+  params: SystemParams;
 
-  constructor(_default: SystemParams, _overrides: SystemParams) {
-    this.default = _default;
-    this.overrides = _overrides;
+  constructor(_params: SystemParams) {
+    this.params = _params;
   }
 
   getRecursive(val?: any, ...keys: string[]): any {
@@ -38,19 +44,11 @@ export class ParamHandler {
   }
 
   get(...keys: string[]): any {
-    const defaultVal = this.getRecursive(this.default, ...keys);
-    const override = this.getRecursive(this.overrides, ...keys);
-    return override != undefined ? override : defaultVal;
+    return this.getRecursive(this.params, ...keys);
   }
 
   getObj(...keys: string[]): any {
-    const defaultObj = this.getRecursive(this.default, ...keys);
-    const overrideObj = this.getRecursive(this.overrides, ...keys);
-
-    const obj = {
-      ...(defaultObj || {}),
-      ...(overrideObj || {}),
-    };
+    const obj = this.getRecursive(this.params, ...keys);
 
     if (!isObject(obj)) {
       console.log('warning: no object for', keys);
@@ -65,21 +63,16 @@ export class ParamHandler {
 }
 
 export function loadParams(deploymentParams: DeploymentParams): ParamHandler {
-  const defaultParams = require(path.join(
-    __dirname,
-    '../../deployments',
-    deploymentParams.network,
-    'params.default.json',
-  ));
   console.log(deploymentParams.deploymentType);
-  const overrides = require(path.join(
+  const params = require(path.join(
     __dirname,
     '../../deployments',
     deploymentParams.network,
     `params.${deploymentParams.deploymentType}.json`,
   ));
-
-  return new ParamHandler(defaultParams, overrides);
+  
+  console.log('params', params);
+  return new ParamHandler(params);
 }
 
 export function loadEnv(network: AllowedNetworks): EnvVars {
@@ -113,7 +106,7 @@ export function getContractDetails(c: Contract, name: string, source?: string) {
     source: source || name,
     address: c.address,
     // TODO: hacky skip
-    txn: c.deployTransaction?.hash,
+    txn: c.deployTransaction?.hash || '',
     blockNumber: c.deployTransaction?.blockNumber || 0,
   };
 }
@@ -155,6 +148,42 @@ export function getContractArtifact(network: AllowedNetworks, contractName: stri
   try {
     return require(path.join(artifactPath, 'libraries', contractName + '.sol', contractName + '.json'));
   } catch (e) {}
+  try {
+    return require(path.join(
+      artifactPath,
+      '..',
+      'lib',
+      'listing-manager',
+      'src',
+      contractName + '.sol',
+      contractName + '.json',
+    ));
+  } catch (e) {}
+  try {
+    return require(path.join(
+      artifactPath,
+      'governance-wrapper',
+      'modules',
+      contractName + '.sol',
+      contractName + '.json',
+    ));
+  } catch (e) {}
+  try {
+    return require(path.join(
+      artifactPath,
+      'governance-wrapper',
+      'modules',
+      'gmx',
+      contractName + '.sol',
+      contractName + '.json',
+    ));
+  } catch (e) {}
+  try {
+    return require(path.join(artifactPath, 'governance-wrapper', contractName + '.sol', contractName + '.json'));
+  } catch (e) {}
+  try {
+    return require(path.join('../../artifacts', 'synthetix/contracts', contractName + '.sol', contractName + '.json'));
+  } catch (e) {}
   throw new Error('Contract ' + contractName + ' not found');
 }
 
@@ -166,6 +195,10 @@ export function addMockedExternalContract(
   filePath?: string,
   artifactPath?: string,
 ) {
+  if (deploymentParams.deploymentType == DeploymentType.SNXCannon) {
+    console.log('NOT SAVING MOCKED EXTERNAL CONTRACT FOR CANNON DEPLOYMENT');
+    return;
+  }
   if (filePath === undefined) {
     filePath = path.join(
       __dirname,
@@ -231,6 +264,50 @@ export function addLyraContract(
   console.log(chalk.grey(`Saved contract ${name} to ${filePath}`));
 }
 
+// to allow for deploying contracts that have references else where
+export function addEmptyContract(
+  deploymentParams: DeploymentParams,
+  source: string,
+  name: string,
+  toSave: any,
+  market?: string,
+  filePath?: string,
+  artifactPath?: string,
+) {
+  if (filePath === undefined) {
+    filePath = path.join(
+      __dirname,
+      '../../deployments',
+      deploymentParams.network,
+      `lyra.${deploymentParams.deploymentType}.json`,
+    );
+  }
+  console.log({ name, source });
+  name = name || source;
+
+  let data: any;
+  try {
+    data = require(filePath);
+  } catch (e) {
+    data = { targets: {}, sources: {} };
+  }
+  if (!market) {
+    data.targets[name] = toSave;
+  } else {
+    if (!data.targets.markets) {
+      data.targets.markets = {};
+    }
+    if (!data.targets.markets[market]) {
+      data.targets.markets[market] = {};
+    }
+    data.targets.markets[market][name] = toSave;
+  }
+
+  data.sources[source] = {};
+  saveFile(deploymentParams.network, filePath, data);
+  console.log(chalk.grey(`Saved contract ${name} to ${filePath}`));
+}
+
 function saveFile(network: string, filePath: string, data: any) {
   if (!fs.existsSync('deployments/')) {
     fs.mkdirSync('deployments/');
@@ -281,6 +358,19 @@ export function loadExternalContractData(
   mockOverride?: boolean,
   filePath?: string,
 ) {
+  if (deploymentParams.deploymentType == DeploymentType.SNXCannon) {
+    const data = require(path.join(__dirname, '../../.cannon-deployment', `${name}.json`));
+
+    return {
+      source: {
+        abi: data.abi,
+      },
+      target: {
+        address: data.address,
+      },
+    };
+  }
+
   if (filePath === undefined) {
     if (mockOverride === true) {
       filePath = path.join(

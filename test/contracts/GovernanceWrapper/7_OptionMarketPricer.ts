@@ -1,4 +1,4 @@
-import { DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS } from '../../utils/defaultParams';
+import { DEFAULT_GOV_LIQUIDITY_POOL_BOUNDS, DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS } from '../../utils/defaultParams';
 import { DAY_SEC, MAX_UINT, toBN } from '../../../scripts/util/web3utils';
 import { allCurrenciesFixtureGMX } from '../../utils/fixture';
 import { compareStruct, deployGovernanceWrappers, GovernanceWrappersTypeGMX } from './utils';
@@ -135,31 +135,34 @@ describe('OptionMarketPricerGovernanceWrapper', () => {
   });
 
   it('can set variance fee', async () => {
+    const testBounds = {
+      ...DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS,
+      minVarianceFeeParams: {
+        ...DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.minVarianceFeeParams,
+        forceCloseVarianceFeeCoefficient: toBN('0.01'),
+      },
+      maxVarianceFeeParams: {
+        ...DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.maxVarianceFeeParams,
+        forceCloseVarianceFeeCoefficient: toBN('99'),
+      },
+    };
+    await govWrap.optionMarketPricerGov.setOptionMarketPricerBounds(testBounds);
     await govWrap.optionMarketPricerGov.setVarianceFeeParams(
       DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.maxVarianceFeeParams,
     );
-    await govWrap.optionMarketPricerGov
-      .connect(RC)
-      .setVarianceFeeParams(DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.minVarianceFeeParams);
-    await govWrap.optionMarketPricerGov
-      .connect(RC)
-      .setVarianceFeeParams(DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.maxVarianceFeeParams);
+    await govWrap.optionMarketPricerGov.connect(RC).setVarianceFeeParams(testBounds.minVarianceFeeParams);
+    await govWrap.optionMarketPricerGov.connect(RC).setVarianceFeeParams(testBounds.maxVarianceFeeParams);
 
     await expect(
-      govWrap.optionMarketPricerGov
-        .connect(hre.f.signers[3])
-        .setVarianceFeeParams(DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.minVarianceFeeParams),
+      govWrap.optionMarketPricerGov.connect(hre.f.signers[3]).setVarianceFeeParams(testBounds.minVarianceFeeParams),
     ).revertedWith('BGW_OnlyOwnerOrRiskCouncil');
 
-    compareStruct(
-      await hre.f.gc.optionGreekCache.getMinCollatParams(),
-      DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.maxVarianceFeeParams,
-    );
+    compareStruct(await hre.f.gc.optionGreekCache.getMinCollatParams(), testBounds.maxVarianceFeeParams);
 
     // reverts if lower than min
     await expect(
       govWrap.optionMarketPricerGov.connect(RC).setVarianceFeeParams({
-        ...DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.minVarianceFeeParams,
+        ...testBounds.minVarianceFeeParams,
         forceCloseVarianceFeeCoefficient: toBN('0.0001'),
       }),
     ).revertedWith('OMPGW_VarianceFeeParamsOutOfBounds');
@@ -167,14 +170,14 @@ describe('OptionMarketPricerGovernanceWrapper', () => {
     // reverts if higher than max
     await expect(
       govWrap.optionMarketPricerGov.connect(RC).setVarianceFeeParams({
-        ...DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.maxVarianceFeeParams,
+        ...testBounds.maxVarianceFeeParams,
         forceCloseVarianceFeeCoefficient: toBN('100'),
       }),
     ).revertedWith('OMPGW_VarianceFeeParamsOutOfBounds');
 
     // owner can bypass bounds
     await govWrap.optionMarketPricerGov.setVarianceFeeParams({
-      ...DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS.minVarianceFeeParams,
+      ...testBounds.minVarianceFeeParams,
       forceCloseVarianceFeeCoefficient: toBN('0.0001'),
     });
   });

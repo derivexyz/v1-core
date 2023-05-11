@@ -32,6 +32,10 @@ import { OptionMarketPricerBoundsStruct } from '../../typechain-types/OptionMark
 import { OptionTokenBoundsStruct } from '../../typechain-types/OptionTokenGovernanceWrapper';
 import { GMXAdapterBoundsStruct } from '../../typechain-types/GMXAdapterGovernanceWrapper';
 import { GreekCacheBoundsStruct } from '../../typechain-types/OptionGreekCacheGovernanceWrapper';
+import { SNXPerpsV2PoolHedgerParametersStruct } from '../../typechain-types/SNXPerpsV2PoolHedger';
+import { HedgerBoundsStruct } from '../../typechain-types/SNXHedgerGovernanceWrapper';
+import { SNXAdapterBoundsParametersStruct } from '../../typechain-types/SNXAdapterGovernanceWrapper';
+import { UniswapPoolInfoStruct } from '../../typechain-types/SNXPerpV2Adapter';
 
 export enum PricingType {
   MIN_PRICE,
@@ -149,6 +153,8 @@ export const DEFAULT_VARIANCE_FEE_PARAMS: VarianceFeeParametersStruct = {
 
 export const DEFAULT_SECURITY_MODULE = '0xefeefeefeefeefeefeefeefeefeefeefeefeefee';
 
+export const DEFAULT_OPTION_MARKET_BASE_LIMIT = MAX_UINT;
+
 export const DEFAULT_OPTION_MARKET_PARAMS: OptionMarketParametersStruct = {
   securityModule: DEFAULT_SECURITY_MODULE,
   feePortionReserved: toBN('0.1'),
@@ -187,6 +193,66 @@ export const DEFAULT_GMX_ADAPTER_PARAMS: MarketPricingParamsStruct = {
   chainlinkStalenessCheck: YEAR_SEC,
 };
 
+export const DEFAULT_SNX_FUTURES_HEDGER_PARAMS: SNXPerpsV2PoolHedgerParametersStruct = {
+  targetLeverage: toBN('1.1'),
+  maximumFundingRate: toBN('0.1'),
+  deltaThreshold: toBN('100'),
+  marketDepthBuffer: toBN('1.1'),
+  priceDeltaBuffer: toBN('1.1'),
+  worstStableRate: toBN('1.1'),
+  maxOrderCap: toBN('100')
+};
+
+export const DEFAULT_GOV_SNX_FUTURES_HEDGER_PARAMS: HedgerBoundsStruct = {
+  minPoolHedgerParams: {
+    interactionDelay: HOUR_SEC,
+    hedgeCap: toBN('1'),
+  },
+  maxPoolHedgerParams: {
+    interactionDelay: YEAR_SEC,
+    hedgeCap: MAX_UINT,
+  },
+  maxFuturesPoolHedgerParams: {
+    targetLeverage: toBN('5'),
+    maximumFundingRate: toBN('0.5'),
+    deltaThreshold: toBN('1000'),
+    marketDepthBuffer: toBN('1.5'),
+    priceDeltaBuffer: toBN('1.5'),
+    worstStableRate: toBN('1.5'),
+    maxOrderCap: MAX_UINT
+  },
+  minFuturesPoolHedgerParams: {
+    targetLeverage: toBN('1'),
+    maximumFundingRate: toBN('0.1'),
+    deltaThreshold: toBN('100'),
+    marketDepthBuffer: toBN('1.1'),
+    priceDeltaBuffer: toBN('1.1'),
+    worstStableRate: toBN('1.1'),
+    maxOrderCap: 0
+  },
+};
+
+export const DEFAULT_GOV_SNX_ADAPTER_BOUNDS: SNXAdapterBoundsParametersStruct = {
+  minMarketPricingParams: {
+    staticEstimationDiscount: toBN('0.01'),
+    snxPerpV2MarketAddress: ZERO_ADDRESS,
+    uniswapInfo: {
+      pool: ZERO_ADDRESS,
+      feeTier: 1,
+    } as UniswapPoolInfoStruct,
+  },
+  maxMarketPricingParams: {
+    staticEstimationDiscount: toBN('0.1'),
+    snxPerpV2MarketAddress: ZERO_ADDRESS,
+    uniswapInfo: {
+      pool: ZERO_ADDRESS,
+      feeTier: 2,
+    } as UniswapPoolInfoStruct,
+  },
+  minRiskFreeRate: toBN('0.01'),
+  maxRiskFreeRate: toBN('1'),
+};
+
 export const DEFAULT_BOARD_PARAMS: BoardParameters = {
   expiresIn: MONTH_SEC,
   baseIV: '1',
@@ -201,31 +267,36 @@ export type BoardParameters = {
   skews: string[];
 };
 
+////////////////////////
+// Gov wrapper bounds //
+////////////////////////
+
 export const DEFAULT_GOV_GMX_ADAPTER_BOUNDS: GMXAdapterBoundsStruct = {
   minMarketPricingParams: {
     staticSwapFeeEstimate: toBN('1'),
     gmxUsageThreshold: toBN('0'),
-    priceVarianceCBPercent: toBN('0'),
+    priceVarianceCBPercent: toBN('0.01'),
     chainlinkStalenessCheck: 60,
   },
   maxMarketPricingParams: {
-    staticSwapFeeEstimate: toBN('1.2'),
-    gmxUsageThreshold: toBN('0.01'),
-    priceVarianceCBPercent: toBN('0.1'),
-    chainlinkStalenessCheck: HOUR_SEC,
+    staticSwapFeeEstimate: toBN('1.1'),
+    gmxUsageThreshold: toBN('0.005'),
+    priceVarianceCBPercent: toBN('0.03'),
+    chainlinkStalenessCheck: HOUR_SEC * 12,
   },
   minRiskFreeRate: toBN('-0.1'),
-  maxRiskFreeRate: toBN('0.2'),
+  maxRiskFreeRate: toBN('0.35'),
 };
 
 export const DEFAULT_GOV_OPTION_MARKET_BOUNDS: OptionMarketBoundsStruct = {
-  boardFreezingBlocked: true,
+  boardFreezingBlocked: false,
   boardForceSettlingBlocked: true,
-  minBaseIv: toBN('0.1'),
-  maxBaseIv: toBN('10'),
-  minSkew: toBN('0.15'),
-  maxSkew: toBN('5'),
-  recoverFundsBlocked: true,
+  minBaseIv: 1,
+  maxBaseIv: 0,
+  minSkew: 1,
+  maxSkew: 0,
+  recoverFundsBlocked: false,
+  canZeroBaseLimit: true
 };
 
 export const DEFAULT_GOV_LIQUIDITY_POOL_BOUNDS = {
@@ -233,45 +304,45 @@ export const DEFAULT_GOV_LIQUIDITY_POOL_BOUNDS = {
     minDepositWithdraw: toBN('1'),
     depositDelay: 3 * DAY_SEC,
     withdrawalDelay: 3 * DAY_SEC,
-    withdrawalFee: toBN('0.005'),
+    withdrawalFee: toBN('0.003'),
     guardianMultisig: ZERO_ADDRESS,
-    guardianDelay: WEEK_SEC,
-    adjustmentNetScalingFactor: toBN('0.45'),
-    callCollatScalingFactor: toBN('0.5'),
-    putCollatScalingFactor: toBN('0.5'),
+    guardianDelay: 6 * HOUR_SEC,
+    adjustmentNetScalingFactor: toBN('0.9'),
+    callCollatScalingFactor: toBN('0.8'),
+    putCollatScalingFactor: toBN('0.8'),
   } as LiquidityPoolParametersStruct,
   maxLiquidityPoolParams: {
-    minDepositWithdraw: toBN('2'),
+    minDepositWithdraw: toBN('1'),
     depositDelay: 2 * WEEK_SEC,
     withdrawalDelay: 2 * WEEK_SEC,
-    withdrawalFee: toBN('0.1'),
+    withdrawalFee: toBN('0.003'),
     guardianMultisig: ZERO_ADDRESS,
-    guardianDelay: WEEK_SEC * 2,
-    adjustmentNetScalingFactor: toBN('1.8'),
-    callCollatScalingFactor: toBN('2'),
-    putCollatScalingFactor: toBN('2'),
+    guardianDelay: 2 * WEEK_SEC,
+    adjustmentNetScalingFactor: toBN('0.9'),
+    callCollatScalingFactor: toBN('0.8'),
+    putCollatScalingFactor: toBN('0.8'),
   } as LiquidityPoolParametersStruct,
   minCircuitBreakerParams: {
-    liquidityCBThreshold: toBN('0.005'),
-    liquidityCBTimeout: DAY_SEC,
-    ivVarianceCBThreshold: toBN('0.05'),
+    liquidityCBThreshold: toBN('0.01'),
+    liquidityCBTimeout: 2 * DAY_SEC,
+    ivVarianceCBThreshold: toBN('0.15'),
     skewVarianceCBThreshold: toBN('0.15'),
-    ivVarianceCBTimeout: HOUR_SEC * 6,
-    skewVarianceCBTimeout: HOUR_SEC * 6,
-    boardSettlementCBTimeout: HOUR_SEC * 3,
-    contractAdjustmentCBTimeout: HOUR_SEC * 6,
-  } as CircuitBreakerParametersStruct,
-  maxCircuitBreakerParams: {
-    liquidityCBThreshold: toBN('0.02'),
-    liquidityCBTimeout: DAY_SEC * 6,
-    ivVarianceCBThreshold: toBN('0.2'),
-    skewVarianceCBThreshold: toBN('0.7'),
-    ivVarianceCBTimeout: DAY_SEC,
-    skewVarianceCBTimeout: DAY_SEC,
-    boardSettlementCBTimeout: HOUR_SEC * 12,
+    ivVarianceCBTimeout: DAY_SEC / 2,
+    skewVarianceCBTimeout: DAY_SEC / 2,
+    boardSettlementCBTimeout: HOUR_SEC,
     contractAdjustmentCBTimeout: DAY_SEC,
   } as CircuitBreakerParametersStruct,
-  recoverFundsBlocked: true,
+  maxCircuitBreakerParams: {
+    liquidityCBThreshold: toBN('0.01'),
+    liquidityCBTimeout: 2 * DAY_SEC,
+    ivVarianceCBThreshold: toBN('0.15'),
+    skewVarianceCBThreshold: toBN('0.15'),
+    ivVarianceCBTimeout: DAY_SEC / 2,
+    skewVarianceCBTimeout: DAY_SEC / 2,
+    boardSettlementCBTimeout: HOUR_SEC * 12,
+    contractAdjustmentCBTimeout: DAY_SEC * 7,
+  } as CircuitBreakerParametersStruct,
+  recoverFundsBlocked: false,
   updateHedgerBlocked: true,
   defaultGuardianMultisig: ZERO_ADDRESS,
 } as LiquidityPoolBoundsStruct;
@@ -279,189 +350,196 @@ export const DEFAULT_GOV_LIQUIDITY_POOL_BOUNDS = {
 export const DEFAULT_GOV_OPTION_MARKET_PRICER_BOUNDS: OptionMarketPricerBoundsStruct = {
   minPricingParams: {
     optionPriceFeeCoefficient: toBN('0.005'),
-    optionPriceFee1xPoint: WEEK_SEC * 3,
-    optionPriceFee2xPoint: WEEK_SEC * 8,
+    optionPriceFee1xPoint: WEEK_SEC * 2,
+    optionPriceFee2xPoint: WEEK_SEC * 4,
     spotPriceFeeCoefficient: toBN('0.005'),
-    spotPriceFee1xPoint: WEEK_SEC * 3,
-    spotPriceFee2xPoint: WEEK_SEC * 6,
-    vegaFeeCoefficient: toBN('50'),
+    spotPriceFee1xPoint: WEEK_SEC * 2,
+    spotPriceFee2xPoint: WEEK_SEC * 4,
+    // TODO: different for eth/btc; eth: 2000; btc: 15000
+    vegaFeeCoefficient: toBN('1000'),
+    // TODO: different for eth/btc; eth: 60; btc: 2
     standardSize: toBN('2.5'),
-    skewAdjustmentFactor: toBN('0.375'),
+    skewAdjustmentFactor: toBN('1'),
   } as PricingParametersStruct,
   maxPricingParams: {
-    optionPriceFeeCoefficient: toBN('0.04'),
-    optionPriceFee1xPoint: WEEK_SEC * 12,
-    optionPriceFee2xPoint: WEEK_SEC * 32,
+    optionPriceFeeCoefficient: toBN('0.03'),
+    optionPriceFee1xPoint: WEEK_SEC * 6,
+    optionPriceFee2xPoint: WEEK_SEC * 16,
     spotPriceFeeCoefficient: toBN('0.02'),
-    spotPriceFee1xPoint: WEEK_SEC * 12,
-    spotPriceFee2xPoint: WEEK_SEC * 24,
-    vegaFeeCoefficient: toBN('200'),
+    spotPriceFee1xPoint: WEEK_SEC * 6,
+    spotPriceFee2xPoint: WEEK_SEC * 16,
+    // TODO: different for eth/btc; eth: 10000; btc: 50000
+    vegaFeeCoefficient: toBN('50000'),
+    // TODO: different for eth/btc; eth: 60; btc: 2
     standardSize: toBN('10'),
-    skewAdjustmentFactor: toBN('0.9'),
+    skewAdjustmentFactor: toBN('1.5'),
   } as PricingParametersStruct,
   minTradeLimitParams: {
-    maxBaseIV: toBN('1'),
-    maxSkew: toBN('0.75'),
-    minBaseIV: toBN('0.175'),
-    minSkew: toBN('0.25'),
-    minDelta: toBN('0.001'),
+    minDelta: toBN('0.085'),
     minForceCloseDelta: toBN('0.125'),
-    minVol: toBN('0.26'),
-    maxVol: toBN('1.5'),
-    tradingCutoff: DAY_SEC / 4,
-    absMaxSkew: toBN('2.5'),
-    absMinSkew: toBN('0.1'),
+    tradingCutoff: DAY_SEC / 2,
+    minBaseIV: toBN('0.2'),
+    maxBaseIV: toBN('1'),
+    minSkew: toBN('0.25'),
+    maxSkew: toBN('1'),
+    minVol: toBN('0.25'),
+    maxVol: toBN('0.8'),
+    absMinSkew: toBN('0.25'),
+    absMaxSkew: toBN('1.25'),
     capSkewsToAbs: false,
   } as TradeLimitParametersStruct,
   maxTradeLimitParams: {
+    minDelta: toBN('0.6'),
+    minForceCloseDelta: toBN('0.6'),
+    tradingCutoff: DAY_SEC / 2,
+    minBaseIV: toBN('1'),
     maxBaseIV: toBN('4'),
-    maxSkew: toBN('3'),
-    minBaseIV: toBN('0.7'),
     minSkew: toBN('1'),
-    minDelta: toBN('0.3'),
-    minForceCloseDelta: toBN('0.5'),
-    minVol: toBN('1.1'),
+    maxSkew: toBN('2'),
+    minVol: toBN('0.5'),
     maxVol: toBN('6'),
-    tradingCutoff: DAY_SEC,
-    absMaxSkew: toBN('10'),
-    absMinSkew: toBN('0.3'),
-    capSkewsToAbs: false,
+    absMinSkew: toBN('1'),
+    absMaxSkew: toBN('8'),
+    capSkewsToAbs: true,
   } as TradeLimitParametersStruct,
   minVarianceFeeParams: {
-    defaultVarianceFeeCoefficient: toBN('0.1'),
-    forceCloseVarianceFeeCoefficient: toBN('0.1'),
-    skewAdjustmentCoefficient: toBN('1.5'),
-    referenceSkew: toBN('0.5'),
-    minimumStaticSkewAdjustment: toBN('0.5'),
-    vegaCoefficient: toBN('0.005'),
+    defaultVarianceFeeCoefficient: toBN('0.2'),
+    forceCloseVarianceFeeCoefficient: toBN('0'),
+    skewAdjustmentCoefficient: toBN('0'),
+    referenceSkew: toBN('0'),
+    minimumStaticSkewAdjustment: toBN('0'),
+    vegaCoefficient: toBN('0'),
     minimumStaticVega: toBN('0'),
-    ivVarianceCoefficient: toBN('0.75'),
-    minimumStaticIvVariance: toBN('0.5'),
+    ivVarianceCoefficient: toBN('0'),
+    minimumStaticIvVariance: toBN('0'),
   } as VarianceFeeParametersStruct,
   maxVarianceFeeParams: {
-    defaultVarianceFeeCoefficient: toBN('0.5'),
-    forceCloseVarianceFeeCoefficient: toBN('0.5'),
-    skewAdjustmentCoefficient: toBN('6'),
-    referenceSkew: toBN('2'),
+    defaultVarianceFeeCoefficient: toBN('10'),
+    forceCloseVarianceFeeCoefficient: toBN('10'),
+    skewAdjustmentCoefficient: toBN('10'),
+    referenceSkew: toBN('1'),
     minimumStaticSkewAdjustment: toBN('2'),
-    vegaCoefficient: toBN('0.02'),
-    minimumStaticVega: toBN('0'),
+    vegaCoefficient: toBN('10'),
+    minimumStaticVega: toBN('1'),
     ivVarianceCoefficient: toBN('3'),
-    minimumStaticIvVariance: toBN('2'),
+    minimumStaticIvVariance: toBN('1'),
   } as VarianceFeeParametersStruct,
 };
 
 export const DEFAULT_GOV_GREEK_CACHE_BOUNDS: GreekCacheBoundsStruct = {
   minGreekCacheParams: {
-    maxStrikesPerBoard: 1,
-    acceptableSpotPricePercentMove: toBN('0.01'),
-    staleUpdateDuration: HOUR_SEC,
-    varianceIvGWAVPeriod: DAY_SEC,
-    varianceSkewGWAVPeriod: DAY_SEC,
-    optionValueIvGWAVPeriod: DAY_SEC / 2,
-    optionValueSkewGWAVPeriod: DAY_SEC,
+    maxStrikesPerBoard: 30,
+    acceptableSpotPricePercentMove: toBN('0.005'),
+    staleUpdateDuration: HOUR_SEC / 2,
+    varianceIvGWAVPeriod: DAY_SEC / 2,
+    varianceSkewGWAVPeriod: DAY_SEC / 2,
+    optionValueIvGWAVPeriod: DAY_SEC * 1.5,
+    optionValueSkewGWAVPeriod: DAY_SEC * 1.5,
     gwavSkewFloor: toBN('0.25'),
-    gwavSkewCap: toBN('1'),
+    gwavSkewCap: toBN('3'),
   } as GreekCacheParametersStruct,
   maxGreekCacheParams: {
-    maxStrikesPerBoard: 35,
-    acceptableSpotPricePercentMove: toBN('0.1'),
-    staleUpdateDuration: HOUR_SEC * 6,
-    varianceIvGWAVPeriod: DAY_SEC * 2,
-    varianceSkewGWAVPeriod: DAY_SEC * 6,
-    optionValueIvGWAVPeriod: DAY_SEC * 2,
-    optionValueSkewGWAVPeriod: DAY_SEC * 6,
-    gwavSkewFloor: toBN('1'),
-    gwavSkewCap: toBN('4'),
+    maxStrikesPerBoard: 30,
+    acceptableSpotPricePercentMove: toBN('0.005'),
+    staleUpdateDuration: HOUR_SEC * 2,
+    varianceIvGWAVPeriod: DAY_SEC / 2,
+    varianceSkewGWAVPeriod: DAY_SEC / 2,
+    optionValueIvGWAVPeriod: DAY_SEC * 1.5,
+    optionValueSkewGWAVPeriod: DAY_SEC * 1.5,
+    gwavSkewFloor: toBN('0.5'),
+    gwavSkewCap: toBN('6'),
   } as GreekCacheParametersStruct,
   minForceCloseParams: {
-    ivGWAVPeriod: HOUR_SEC * 6,
+    ivGWAVPeriod: HOUR_SEC * 12,
     skewGWAVPeriod: HOUR_SEC * 12,
-    shortVolShock: toBN('1.001'),
-    shortPostCutoffVolShock: toBN('1.001'),
-    longVolShock: toBN('0.4'),
-    longPostCutoffVolShock: toBN('0.4'),
-    liquidateVolShock: toBN('1.0001'),
-    liquidatePostCutoffVolShock: toBN('1.0001'),
-    shortSpotMin: toBN('0.005'),
-    liquidateSpotMin: toBN('0.04'),
+    shortVolShock: toBN('1.05'),
+    shortPostCutoffVolShock: toBN('1.35'),
+    longVolShock: toBN('0.8'),
+    longPostCutoffVolShock: toBN('0.65'),
+    liquidateVolShock: toBN('1.15'),
+    liquidatePostCutoffVolShock: toBN('1.45'),
+    shortSpotMin: toBN('0.0015'),
+    liquidateSpotMin: toBN('0.01'),
   } as ForceCloseParametersStruct,
   maxForceCloseParams: {
-    ivGWAVPeriod: HOUR_SEC * 24,
+    ivGWAVPeriod: HOUR_SEC * 12,
     skewGWAVPeriod: HOUR_SEC * 12,
-    shortVolShock: toBN('2'),
-    shortPostCutoffVolShock: toBN('2'),
-    longVolShock: toBN('0.99'),
-    longPostCutoffVolShock: toBN('1'),
-    liquidateVolShock: toBN('2.6'),
-    liquidatePostCutoffVolShock: toBN('3.2'),
-    shortSpotMin: toBN('0.04'),
-    liquidateSpotMin: toBN('0.04'),
+    shortVolShock: toBN('1.2'),
+    shortPostCutoffVolShock: toBN('1.35'),
+    longVolShock: toBN('0.95'),
+    longPostCutoffVolShock: toBN('0.65'),
+    liquidateVolShock: toBN('1.15'),
+    liquidatePostCutoffVolShock: toBN('1.45'),
+    shortSpotMin: toBN('0.01'),
+    liquidateSpotMin: toBN('0.01'),
   } as ForceCloseParametersStruct,
   minMinCollateralParams: {
-    minStaticBaseCollateral: toBN('0.1'),
-    minStaticQuoteCollateral: toBN('100'),
-    shockVolA: toBN('1.25'),
-    shockVolPointA: WEEK_SEC,
-    shockVolB: toBN('0.9'),
-    shockVolPointB: WEEK_SEC + DAY_SEC,
-    callSpotPriceShock: toBN('1.001'),
-    putSpotPriceShock: toBN('0.4'),
+    // TODO: different for eth/btc
+    minStaticBaseCollateral: toBN('0.03'),
+    minStaticQuoteCollateral: toBN('400'),
+    shockVolA: toBN('3'),
+    shockVolPointA: WEEK_SEC * 4,
+    shockVolB: toBN('1.8'),
+    shockVolPointB: WEEK_SEC * 8,
+    callSpotPriceShock: toBN('1.05'),
+    putSpotPriceShock: toBN('0.95'),
   } as MinCollateralParametersStruct,
   maxMinCollateralParams: {
-    minStaticBaseCollateral: toBN('0.4'),
+    // TODO: different for eth/btc
+    minStaticBaseCollateral: toBN('0.03'),
     minStaticQuoteCollateral: toBN('400'),
-    shockVolA: toBN('5'),
+    shockVolA: toBN('3'),
     shockVolPointA: WEEK_SEC * 4,
-    shockVolB: toBN('3.6'),
+    shockVolB: toBN('1.8'),
     shockVolPointB: WEEK_SEC * 8,
-    callSpotPriceShock: toBN('1.2'),
-    putSpotPriceShock: toBN('0.8'),
+    callSpotPriceShock: toBN('1.05'),
+    putSpotPriceShock: toBN('0.95'),
   } as MinCollateralParametersStruct,
 };
 
-export const DEFAULT_GOV_FUTURES_HEDGER_BOUNDS = {
+export const DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS = {
   minPoolHedgerParams: {
     interactionDelay: HOUR_SEC,
     hedgeCap: toBN('0'),
   } as PoolHedgerParametersStruct,
   maxPoolHedgerParams: {
-    interactionDelay: HOUR_SEC * 6,
-    hedgeCap: toBN('100'),
+    interactionDelay: DAY_SEC * 2,
+    hedgeCap: toBN('1000000'),
   } as PoolHedgerParametersStruct,
   minFuturesPoolHedgerParams: {
-    acceptableSpotSlippage: toBN('1.05'),
+    acceptableSpotSlippage: toBN('1'),
+    // TODO: different for btc/eth
     deltaThreshold: toBN('100'),
     marketDepthBuffer: toBN('1'),
-    vaultLiquidityCheckEnabled: true,
+    vaultLiquidityCheckEnabled: false,
     targetLeverage: toBN('1.1'),
-    maxLeverage: toBN('10'),
+    maxLeverage: toBN('4'),
     minCollateralUpdate: toBN('5'),
-    minCancelDelay: 1200, // 20 minutes
+    minCancelDelay: 30, // 30 sec
   } as FuturesPoolHedgerParametersStruct,
   maxFuturesPoolHedgerParams: {
-    acceptableSpotSlippage: toBN('1.5'),
+    acceptableSpotSlippage: toBN('1.3'),
     deltaThreshold: toBN('1000'),
     marketDepthBuffer: toBN('2'),
     vaultLiquidityCheckEnabled: true,
     targetLeverage: toBN('3'),
-    maxLeverage: toBN('20'),
-    minCollateralUpdate: toBN('10'),
+    maxLeverage: toBN('10'),
+    minCollateralUpdate: toBN('50'),
     minCancelDelay: 2400, // 20 minutes
   } as FuturesPoolHedgerParametersStruct,
 };
 
 export const DEFAULT_GOV_OPTION_TOKEN_BOUNDS: OptionTokenBoundsStruct = {
   minPartialCollatParams: {
-    penaltyRatio: toBN('0.01'),
-    liquidatorFeeRatio: toBN('0.1'),
-    smFeeRatio: toBN('0.1'),
+    penaltyRatio: toBN('0'),
+    liquidatorFeeRatio: toBN('0'),
+    smFeeRatio: toBN('0'),
     minLiquidationFee: toBN('5'),
   } as PartialCollateralParametersStruct,
   maxPartialCollatParams: {
-    penaltyRatio: toBN('0.8'),
-    liquidatorFeeRatio: toBN('0.8'),
-    smFeeRatio: toBN('0.19'),
+    penaltyRatio: toBN('0.2'),
+    liquidatorFeeRatio: toBN('0.2'),
+    smFeeRatio: toBN('0'),
     minLiquidationFee: toBN('20'),
   } as PartialCollateralParametersStruct,
 };

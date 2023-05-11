@@ -331,7 +331,7 @@ export async function exportMarketDeployment(marketSystem: MarketTestSystemContr
   addLyraContract(deploymentParams, 'LiquidityPool', marketSystem.liquidityPool, market, lyraDir);
   addLyraContract(deploymentParams, 'LiquidityToken', marketSystem.liquidityToken, market, lyraDir);
   addLyraContract(deploymentParams, 'ShortCollateral', marketSystem.shortCollateral, market, lyraDir);
-  addLyraContract(deploymentParams, 'SNXFuturesPoolHedger', marketSystem.poolHedger, market, lyraDir);
+  addLyraContract(deploymentParams, 'SNXPerpsV2PoolHedger', marketSystem.poolHedger, market, lyraDir);
   addLyraContract(deploymentParams, 'GWAVOracle', marketSystem.GWAVOracle, market, lyraDir);
   addLyraContract(deploymentParams, 'BasicLiquidityCounter', marketSystem.basicLiquidityCounter, market, lyraDir);
   addMockedExternalContract(deploymentParams, `Proxy${market}`, 'TestERC20Fail', marketSystem.snx.baseAsset, snxDir);

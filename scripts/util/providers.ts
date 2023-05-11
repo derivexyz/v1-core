@@ -14,6 +14,7 @@ export async function getDeployer(envVars: EnvVars) {
       return ethers.BigNumber.from(envVars.GAS_LIMIT);
     };
   }
+  
   return new ethers.Wallet(envVars.PRIVATE_KEY, provider);
 }
 

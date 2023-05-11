@@ -19,6 +19,7 @@ export async function compileAndDeployRealSynthetix(compileSNX: boolean) {
 
   const network = 'local'; // changed from local
   const useOvm = false;
+  const futuresMarketManager = true;
 
   const buildPath = path.join('.snx', 'contracts');
   const deploymentPath = '.snx';
@@ -45,6 +46,7 @@ export async function compileAndDeployRealSynthetix(compileSNX: boolean) {
     providerPort: 8545,
     providerUrl: 'http://localhost',
     useOvm,
+    futuresMarketManager,
   });
 
   copySynthetixDeploy(path.join(deploymentPath, 'deployment.json'), network);

@@ -64,7 +64,7 @@ async function main() {
   const optionMarket = getLyraContract(deploymentParams, 'OptionMarket', 'sETH');
   const optionGreekCache = getLyraContract(deploymentParams, 'OptionGreekCache', 'sETH');
   const liquidityPool = getLyraContract(deploymentParams, 'LiquidityPool', 'sETH');
-  const poolHedger = getLyraContract(deploymentParams, 'ShortPoolHedger', 'sETH');
+  const poolHedger = getLyraContract(deploymentParams, 'SNXPerpsV2PoolHedger', 'sETH');
   const liquidityToken = getLyraContract(deploymentParams, 'LiquidityToken', 'sETH');
   const optionToken = getLyraContract(deploymentParams, 'OptionToken', 'sETH');
   const shortCollateral = getLyraContract(deploymentParams, 'ShortCollateral', 'sETH');

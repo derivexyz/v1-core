@@ -12,20 +12,20 @@
 pragma solidity 0.8.16;
 
 // Libraries
-import "./synthetix/DecimalMath.sol";
-import "./libraries/ConvertDecimals.sol";
+import "../synthetix/DecimalMath.sol";
+import "../libraries/ConvertDecimals.sol";
 
 // Inherited
-import "./BaseExchangeAdapter.sol";
+import "../BaseExchangeAdapter.sol";
 
 // Interfaces
-import "./interfaces/ISynthetix.sol";
-import "./interfaces/IAddressResolver.sol";
-import "./interfaces/IExchanger.sol";
-import "./interfaces/IExchangeRates.sol";
-import "./interfaces/IDelegateApprovals.sol";
-import "./interfaces/IERC20Decimals.sol";
-import "./OptionMarket.sol";
+import "../interfaces/ISynthetix.sol";
+import "../interfaces/IAddressResolver.sol";
+import "../interfaces/IExchanger.sol";
+import "../interfaces/IExchangeRates.sol";
+import "../interfaces/IDelegateApprovals.sol";
+import "../interfaces/IERC20Decimals.sol";
+import "../OptionMarket.sol";
 
 /**
  * @title SynthetixAdapter

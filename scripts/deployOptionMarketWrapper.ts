@@ -29,6 +29,7 @@ async function main() {
   ]);
 
   await execute(wrapper, 'updateContractParams', [
+    ZERO_ADDRESS,
     getExternalContract(deploymentParams, 'CurvePool').address,
     ZERO_ADDRESS,
     toBN('0.1'),

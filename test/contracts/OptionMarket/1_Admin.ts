@@ -1,4 +1,4 @@
-import { currentTime, getEventArgs, MONTH_SEC, toBN, toBN18, WEEK_SEC } from '../../../scripts/util/web3utils';
+import { currentTime, getEventArgs, MAX_UINT, MONTH_SEC, toBN, toBN18, WEEK_SEC } from '../../../scripts/util/web3utils';
 import { closeLongCall, openDefaultLongCall } from '../../utils/contractHelpers';
 import { fastForward } from '../../utils/evm';
 import { seedFixture } from '../../utils/fixture';

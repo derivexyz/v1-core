@@ -61,7 +61,7 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
   }
 
   /// @dev Revert if the global state is paused
-  function requireNotGlobalPaused(address optionMarket) external view {
+  function requireNotGlobalPaused(address /*optionMarket*/) external view {
     _checkNotGlobalPaused();
   }
 
@@ -83,12 +83,12 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @notice Gets spot price of the optionMarket's base asset.
    * @dev All rates are denominated in terms of quoteAsset.
    *
-   * @param pricing enum to specify which pricing to use
+   * @param /*pricing enum to specify which pricing to use
    */
   function getSpotPriceForMarket(
     address optionMarket,
-    PriceType pricing
-  ) external view virtual notPaused(optionMarket) returns (uint spotPrice) {
+    PriceType /*pricing*/
+  ) external view virtual notPaused(optionMarket) returns (uint /*spotPrice*/) {
     revert NotImplemented(address(this));
   }
 
@@ -100,8 +100,8 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    */
   function getSettlementPriceForMarket(
     address optionMarket,
-    uint expiry
-  ) external view virtual notPaused(optionMarket) returns (uint spotPrice) {
+    uint /*expiry*/
+  ) external view virtual notPaused(optionMarket) returns (uint /*spotPrice*/) {
     revert NotImplemented(address(this));
   }
 
@@ -113,13 +113,13 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @notice Returns the base needed to swap for the amount in quote
    * @dev All rates are denominated in terms of quoteAsset.
    *
-   * @param optionMarket the baseAsset used for this optionMarket
-   * @param amountQuote the requested amount of quote
+   * @param /*optionMarket the baseAsset used for this optionMarket
+   * @param /*amountQuote the requested amount of quote
    */
   function estimateExchangeToExactQuote(
-    address optionMarket,
-    uint amountQuote
-  ) external view virtual returns (uint baseNeeded) {
+    address /*optionMarket*/,
+    uint /*amountQuote*/
+  ) external view virtual returns (uint /*baseNeeded*/) {
     revert NotImplemented(address(this));
   }
 
@@ -128,9 +128,9 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @dev All rates are denominated in terms of quoteAsset.
    */
   function estimateExchangeToExactBase(
-    address optionMarket,
-    uint amountBase
-  ) external view virtual returns (uint quoteNeeded) {
+    address /*optionMarket*/,
+    uint /*amountBase*/
+  ) external view virtual returns (uint /*quoteNeeded*/) {
     revert NotImplemented(address(this));
   }
 
@@ -142,14 +142,20 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @notice Swaps base for quote
    * @dev All rates are denominated in terms of quoteAsset.
    */
-  function exchangeFromExactBase(address optionMarket, uint amountBase) external virtual returns (uint quoteReceived) {
+  function exchangeFromExactBase(
+    address /*optionMarket*/,
+    uint /*amountBase*/
+  ) external virtual returns (uint /*quoteReceived*/) {
     revert NotImplemented(address(this));
   }
 
   /**
    * @dev Swap an exact amount of quote for base.
    */
-  function exchangeFromExactQuote(address optionMarket, uint amountQuote) external virtual returns (uint baseReceived) {
+  function exchangeFromExactQuote(
+    address /*optionMarket*/,
+    uint /*amountQuote*/
+  ) external virtual returns (uint /*baseReceived*/) {
     revert NotImplemented(address(this));
   }
 
@@ -157,13 +163,13 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @notice Swaps quote for base
    * @dev All rates are denominated in terms of quoteAsset.
    *
-   * @param quoteLimit The max amount of quote that can be used to receive `amountBase`.
+   * @param /*quoteLimit The max amount of quote that can be used to receive `amountBase`.
    */
   function exchangeToExactBaseWithLimit(
-    address optionMarket,
-    uint amountBase,
-    uint quoteLimit
-  ) external virtual returns (uint quoteSpent, uint baseReceived) {
+    address /*optionMarket*/,
+    uint /*amountBase*/,
+    uint /*quoteLimit*/
+  ) external virtual returns (uint /*quoteSpent*/, uint /*baseReceived*/) {
     revert NotImplemented(address(this));
   }
 
@@ -171,9 +177,9 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @notice Swap an exact amount of base for any amount of quote.
    */
   function exchangeToExactBase(
-    address optionMarket,
-    uint amountBase
-  ) external virtual returns (uint quoteSpent, uint baseReceived) {
+    address /*optionMarket*/,
+    uint /*amountBase*/
+  ) external virtual returns (uint /*quoteSpent*/, uint /*baseReceived*/) {
     revert NotImplemented(address(this));
   }
 
@@ -181,13 +187,13 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @notice Swaps quote for base
    * @dev All rates are denominated in terms of quoteAsset.
    *
-   * @param baseLimit The max amount of base that can be used to receive `amountQuote`.
+   * @param /*baseLimit The max amount of base that can be used to receive `amountQuote`.
    */
   function exchangeToExactQuoteWithLimit(
-    address optionMarket,
-    uint amountQuote,
-    uint baseLimit
-  ) external virtual returns (uint quoteSpent, uint baseReceived) {
+    address /*optionMarket*/,
+    uint /*amountQuote*/,
+    uint /*baseLimit*/
+  ) external virtual returns (uint /*quoteSpent*/, uint /*baseReceived*/) {
     revert NotImplemented(address(this));
   }
 
@@ -195,9 +201,9 @@ abstract contract BaseExchangeAdapter is OwnedUpgradeable {
    * @notice Swap to an exact amount of quote for any amount of base.
    */
   function exchangeToExactQuote(
-    address optionMarket,
-    uint amountQuote
-  ) external virtual returns (uint baseSpent, uint quoteReceived) {
+    address /*optionMarket*/,
+    uint /*amountQuote*/
+  ) external virtual returns (uint /*baseSpent*/, uint /*quoteReceived*/) {
     revert NotImplemented(address(this));
   }
 

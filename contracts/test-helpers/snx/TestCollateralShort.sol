@@ -6,7 +6,7 @@ import "../TestERC20SetDecimals.sol";
 import "../../interfaces/ICollateralShort.sol";
 import "../../interfaces/IExchangeRates.sol";
 import "../../synthetix/DecimalMath.sol";
-import "../../SynthetixAdapter.sol";
+import "./../SynthetixAdapter.sol";
 import "../../libraries/ConvertDecimals.sol";
 
 contract TestCollateralShort is ICollateralShort, Owned {

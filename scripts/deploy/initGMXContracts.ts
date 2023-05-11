@@ -35,7 +35,7 @@ export async function initGMXContracts(
   deploymentParams: DeploymentParams,
   systemParams: ParamHandler,
   baseTicker: string,
-  id: number,
+  _: number,
 ) {
   if (!isMockGmx(deploymentParams.deploymentType) && !isRealGmx(deploymentParams.deploymentType)) {
     throw Error('Invalid deploy type');
@@ -52,7 +52,7 @@ export async function initGMXContracts(
       getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
       getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
       getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
+      getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
       getExternalContract(deploymentParams, baseTicker).address,
     ],
     baseTicker,
@@ -89,9 +89,10 @@ export async function initGMXContracts(
       getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
       getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
       getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      getLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker).address,
+      ZERO_ADDRESS,
+      // getLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker).address,
       getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
-      getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
+      getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
       getExternalContract(deploymentParams, baseTicker).address,
     ],
     baseTicker,
@@ -105,32 +106,32 @@ export async function initGMXContracts(
     baseTicker,
   );
 
-  let weth;
-  try {
-    weth = getExternalContract(deploymentParams, 'wETH');
-  } catch (e) {
-    if (['mainnet', 'goerli'].includes(deploymentParams.network.split('-')[0])) {
-      throw Error('Missing required wETH address');
-    }
-  }
-
-  await executeLyraFunction(
-    deploymentParams,
-    'GMXFuturesPoolHedger',
-    'init',
-    [
-      getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
-      getExternalContract(deploymentParams, 'GMX_PositionRouter').address,
-      getExternalContract(deploymentParams, 'GMX_Router').address,
-      getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
-      getExternalContract(deploymentParams, baseTicker).address,
-      weth?.address || ZERO_ADDRESS,
-    ],
-    baseTicker,
-  );
+  // let weth;
+  // try {
+  //   weth = getExternalContract(deploymentParams, 'wETH');
+  // } catch (e) {
+  //   if (['mainnet', 'goerli'].includes(deploymentParams.network.split('-')[0])) {
+  //     throw Error('Missing required wETH address');
+  //   }
+  // }
+  //
+  // await executeLyraFunction(
+  //   deploymentParams,
+  //   'GMXFuturesPoolHedger',
+  //   'init',
+  //   [
+  //     getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
+  //     getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
+  //     getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
+  //     getLyraContract(deploymentParams, 'ExchangeAdapter').address,
+  //     getExternalContract(deploymentParams, 'GMX_PositionRouter').address,
+  //     getExternalContract(deploymentParams, 'GMX_Router').address,
+  //     getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
+  //     getExternalContract(deploymentParams, baseTicker).address,
+  //     weth?.address || ZERO_ADDRESS,
+  //   ],
+  //   baseTicker,
+  // );
 
   await executeLyraFunction(
     deploymentParams,
@@ -140,8 +141,8 @@ export async function initGMXContracts(
       getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
       getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
       getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      getExternalContract(deploymentParams, 'ExchangeAdapter').address,
-      getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
+      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
+      getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
       getExternalContract(deploymentParams, baseTicker).address,
     ],
     baseTicker,
@@ -190,12 +191,7 @@ export async function initGMXContracts(
     deploymentParams,
     'LiquidityPool',
     'setLiquidityPoolParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'LiquidityPoolParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'LiquidityPoolParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'LiquidityPoolParams'))],
     baseTicker,
   );
 
@@ -203,12 +199,7 @@ export async function initGMXContracts(
     deploymentParams,
     'LiquidityPool',
     'setCircuitBreakerParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'CircuitBreakerParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'CircuitBreakerParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'CircuitBreakerParams'))],
     baseTicker,
   );
 
@@ -216,49 +207,25 @@ export async function initGMXContracts(
     deploymentParams,
     'OptionGreekCache',
     'setGreekCacheParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'GreekCacheParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'GreekCacheParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'GreekCacheParams'))],
     baseTicker,
   );
 
   await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setRiskFreeRate', [
     getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    convertParams({
-      ...systemParams.getObj('Parameters', 'GreekCacheParams'),
-      ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'GreekCacheParams'),
-    }).rateAndCarry,
+    convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'GreekCacheParams')).rateAndCarry,
   ]);
 
   await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setMarketPricingParams', [
     getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    convertParams({
-      ...systemParams.getObj('Parameters', 'MarketPricingParams'),
-      ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'MarketPricingParams'),
-    }),
-  ]);
-
-  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setMarketPricingParams', [
-    getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    convertParams({
-      ...systemParams.getObj('Parameters', 'MarketPricingParams'),
-      ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'MarketPricingParams'),
-    }),
+    convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'MarketPricingParams')),
   ]);
 
   await executeLyraFunction(
     deploymentParams,
     'OptionGreekCache',
     'setMinCollateralParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'MinCollateralParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'MinCollateralParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'MinCollateralParams'))],
     baseTicker,
   );
 
@@ -266,12 +233,7 @@ export async function initGMXContracts(
     deploymentParams,
     'OptionGreekCache',
     'setForceCloseParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'ForceCloseParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'ForceCloseParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'ForceCloseParams'))],
     baseTicker,
   );
 
@@ -279,12 +241,7 @@ export async function initGMXContracts(
     deploymentParams,
     'OptionMarketPricer',
     'setPricingParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'PricingParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'PricingParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'PricingParams'))],
     baseTicker,
   );
 
@@ -292,12 +249,7 @@ export async function initGMXContracts(
     deploymentParams,
     'OptionMarketPricer',
     'setTradeLimitParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'TradeLimitParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'TradeLimitParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'TradeLimitParams'))],
     baseTicker,
   );
 
@@ -305,12 +257,7 @@ export async function initGMXContracts(
     deploymentParams,
     'OptionMarketPricer',
     'setVarianceFeeParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'VarianceFeeParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'VarianceFeeParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'VarianceFeeParams'))],
     baseTicker,
   );
 
@@ -318,51 +265,35 @@ export async function initGMXContracts(
     deploymentParams,
     'OptionToken',
     'setPartialCollateralParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'PartialCollatParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'PartialCollatParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'PartialCollatParams'))],
     baseTicker,
   );
-
-  await executeLyraFunction(
-    deploymentParams,
-    'GMXFuturesPoolHedger',
-    'setPoolHedgerParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'PoolHedgerParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'PoolHedgerParams'),
-      }),
-    ],
-    baseTicker,
-  );
-
-  await executeLyraFunction(
-    deploymentParams,
-    'GMXFuturesPoolHedger',
-    'setFuturesPoolHedgerParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'FuturesPoolHedgerParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'FuturesPoolHedgerParams'),
-      }),
-    ],
-    baseTicker,
-  );
-
+  //
+  // await executeLyraFunction(
+  //   deploymentParams,
+  //   'GMXFuturesPoolHedger',
+  //   'setPoolHedgerParams',
+  //   [
+  //     convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'PoolHedgerParams')),
+  //   ],
+  //   baseTicker,
+  // );
+  //
+  // await executeLyraFunction(
+  //   deploymentParams,
+  //   'GMXFuturesPoolHedger',
+  //   'setFuturesPoolHedgerParams',
+  //   [
+  //     convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'FuturesPoolHedgerParams')),
+  //   ],
+  //   baseTicker,
+  // );
+    
   await executeLyraFunction(
     deploymentParams,
     'OptionMarket',
     'setOptionMarketParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'OptionMarketParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'OptionMarketParams'),
-      }),
-    ],
+    [convertParams(systemParams.getObj('Markets', baseTicker, 'Parameters', 'OptionMarketParams'))],
     baseTicker,
   );
 
@@ -374,24 +305,25 @@ export async function initGMXContracts(
       optionMarket: getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
       optionMarketPricer: getLyraContract(deploymentParams, 'OptionMarketPricer', baseTicker).address,
       optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      poolHedger: getLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker).address,
+      // poolHedger: getLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker).address,
+      poolHedger: ZERO_ADDRESS,
       shortCollateral: getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
       baseAsset: getExternalContract(deploymentParams, baseTicker).address,
-      quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
+      quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
     },
   ]);
-
-  await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addMarket', [
-    getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    id,
-    {
-      quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
-      baseAsset: getExternalContract(deploymentParams, baseTicker).address,
-      optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
-    },
-  ]);
+  //
+  // await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addMarket', [
+  //   getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
+  //   id,
+  //   {
+  //     quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
+  //     baseAsset: getExternalContract(deploymentParams, baseTicker).address,
+  //     optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
+  //     liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
+  //     liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
+  //   },
+  // ]);
 
   await executeLyraFunction(deploymentParams, 'LyraRegistry', 'addMarket', [
     {
@@ -401,11 +333,12 @@ export async function initGMXContracts(
       optionMarket: getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
       optionMarketPricer: getLyraContract(deploymentParams, 'OptionMarketPricer', baseTicker).address,
       optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      poolHedger: getLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker).address,
+      poolHedger: ZERO_ADDRESS,
+      // poolHedger: getLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker).address,
       shortCollateral: getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
       gwavOracle: getLyraContract(deploymentParams, 'GWAVOracle', baseTicker).address,
       baseAsset: getExternalContract(deploymentParams, baseTicker).address,
-      quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteTicker')).address,
+      quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
     },
   ]);
 

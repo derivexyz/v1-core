@@ -12,6 +12,7 @@ import {
   ShortCollateral,
   TestERC20,
 } from '../../typechain-types';
+import { JsonRpcProvider } from '@ethersproject/providers';
 
 (global as any).hashes = [];
 
@@ -132,9 +133,9 @@ export type AllParams = {
 };
 
 export type MarketParams = {
-  BaseTicker: string;
+  BaseAsset: string;
   MockPrice?: string;
-  ParameterOverrides: AllParams;
+  Parameters: AllParams;
   // Boards: { BaseIv: string; Expiry: number; Skews: string[]; Strikes: string[] }[];
 };
 
@@ -193,7 +194,7 @@ export type SeedParams = {
 };
 
 export type SystemParams = {
-  QuoteTicker: string;
+  QuoteAsset: string;
   Parameters: AllParams;
   SwapRouter: string;
   SwapTestERC20s: { [key: string]: { Ticker: string; Decimals: number; Name: string; Rate: string } };
@@ -211,12 +212,14 @@ export enum DeploymentType {
   MockGmxRealPricing = 'realPricingMockGmx',
   GMX = 'realGMX',
   SNX = 'realSNX',
+  SNXCannon = 'snxCannon',
 }
 
 export type DeploymentParams = {
   network: AllowedNetworks;
   deploymentType: DeploymentType;
   deployer: Wallet;
+  provider?: JsonRpcProvider;
 };
 
 export function isMockSnx(deploymentType: DeploymentType) {
@@ -224,7 +227,7 @@ export function isMockSnx(deploymentType: DeploymentType) {
 }
 
 export function isRealSnx(deploymentType: DeploymentType) {
-  return [DeploymentType.SNX].includes(deploymentType);
+  return [DeploymentType.SNX, DeploymentType.SNXCannon].includes(deploymentType);
 }
 
 export function isMockGmx(deploymentType: DeploymentType) {
@@ -233,6 +236,12 @@ export function isMockGmx(deploymentType: DeploymentType) {
 
 export function isRealGmx(deploymentType: DeploymentType) {
   return [DeploymentType.GMX].includes(deploymentType);
+}
+
+export function isGMX(deploymentType: DeploymentType) {
+  return [DeploymentType.GMX, DeploymentType.MockGmxMockPricing, DeploymentType.MockGmxRealPricing].includes(
+    deploymentType,
+  );
 }
 
 export function getSelectedNetwork(): AllowedNetworks {

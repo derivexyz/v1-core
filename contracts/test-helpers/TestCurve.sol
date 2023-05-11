@@ -71,6 +71,11 @@ contract TestCurve is ICurve, Owned {
     amountOut = (_amount * _toRate) / _fromRate;
     require(amountOut >= _expected, "not enough expected");
 
+    // convert amount out to be the number of decimals that from has
+    if (ERC20(_from).decimals() != 18) {
+      amountOut = amountOut * (10 ** (ERC20(_to).decimals() - fromToken.decimals()));
+    }
+
     // mint the amountOut
     toToken.mint(_receiver, amountOut);
     return amountOut;

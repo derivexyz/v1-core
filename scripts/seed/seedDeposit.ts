@@ -1,19 +1,19 @@
 import { DeploymentParams } from '../util';
 import { executeLyraFunction, executeExternalFunction, getLyraContract } from '../util/transactions';
-import { fromBN } from '../util/web3utils';
+import { fromBN, toBN } from '../util/web3utils';
 import { ParamHandler } from '../util/parseFiles';
-import { BigNumber } from 'ethers';
 
 export async function seedDeposit(deploymentParams: DeploymentParams, params: ParamHandler, market: string) {
   console.log(`\n= Depositing to LP for market ${market}`);
 
-  const quoteTicker = params.get('QuoteTicker');
-  const quoteDecimals = params.get('QuoteDecimals');
+  const quoteTicker = params.get('QuoteAsset');
 
   const depositParams = params.get('Seed', 'deposit');
+  const quoteDecimals = params.get('QuoteDecimals');
 
-  const amount = BigNumber.from(10).pow(quoteDecimals).mul(depositParams.markets[market].quoteAmount);
+  const amount = toBN(depositParams.markets[market].quoteAmount, quoteDecimals);
 
+  console.log('amount', amount);
   console.log(`Approving LP for ${fromBN(amount)} sUSD`);
   await executeExternalFunction(deploymentParams, quoteTicker, 'approve', [
     getLyraContract(deploymentParams, 'LiquidityPool', market).address,

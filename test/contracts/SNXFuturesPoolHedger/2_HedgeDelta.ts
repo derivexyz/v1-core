@@ -1,121 +1,166 @@
-// import { beforeEach } from 'mocha';
-// import { HOUR_SEC, OptionType, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
-// import { OptionMarket } from '../../../typechain-types';
-// import { TradeInputParametersStruct } from '../../../typechain-types/BasicOptionMarketWrapper';
-// import {
-//   changeDelegateApprovalAddress,
-//   getSpotPrice,
-//   mockPrice,
-//   openDefaultShortPutQuote,
-// } from '../../utils/contractHelpers';
-// import { DEFAULT_POOL_HEDGER_PARAMS } from '../../utils/defaultParams';
-// import { seedFixture } from '../../utils/fixture';
-// import { expect, hre } from '../../utils/testSetup';
-//
-// const modParams = {
-//   shortBuffer: toBN('2.1'),
-//   hedgeCap: toBN('1000000'),
-//   interactionDelay: HOUR_SEC * 6,
-// };
-//
-// async function poolLong() {
-//   //get strike
-//   // iterations is 1
-//   // option type is short put
-//   // number of contracts, large amount, 20?
-//   // setCollat to what ever the min collat is
-//   // min total cost 0
-//   // max total cost is a max unit
-//
-//   const spotPrice = await getSpotPrice();
-//
-//   const amount = toBN('100');
-//   const boards = await hre.f.c.optionMarket.getLiveBoards();
-//   const strikeId = (await hre.f.c.optionMarket.getBoardStrikes(boards[0]))[0];
-//   const strike = await hre.f.c.optionMarket.getStrikeAndExpiry(strikeId);
-//   const minCollat = await hre.f.c.optionGreekCache.getMinCollateral(
-//     OptionType.SHORT_PUT_QUOTE,
-//     strike[0],
-//     strike[1],
-//     spotPrice,
-//     amount,
-//   );
-//
-//   // short puts
-//   await hre.f.c.optionMarket.openPosition({
-//     strikeId: strikeId,
-//     positionId: 0,
-//     iterations: 1,
-//     optionType: OptionType.SHORT_PUT_QUOTE,
-//     amount: toBN('100'),
-//     setCollateralTo: minCollat,
-//     minTotalCost: toBN('1'),
-//     maxTotalCost: toBN('1000000'), // TODO: should just set to max unit probs
-//   } as TradeInputParametersStruct);
-// }
-//
-// async function poolShort() {
-//   //get strike
-//   // iterations is 1
-//   // option type is short put
-//   // number of contracts, large amount, 20?
-//   // setCollat to what ever the min collat is
-//   // min total cost 0
-//   // max total cost is a max unit
-//   const spotPrice = await getSpotPrice();
-//   const amount = toBN('100');
-//   const boards = await hre.f.c.optionMarket.getLiveBoards();
-//   const strikeId = (await hre.f.c.optionMarket.getBoardStrikes(boards[0]))[0];
-//   const strike = await hre.f.c.optionMarket.getStrikeAndExpiry(strikeId);
-//   const minCollat = await hre.f.c.optionGreekCache.getMinCollateral(
-//     OptionType.SHORT_CALL_QUOTE,
-//     strike[0],
-//     strike[1],
-//     spotPrice,
-//     amount,
-//   );
-//
-//   // short puts
-//   await hre.f.c.optionMarket.openPosition({
-//     strikeId: strikeId,
-//     positionId: 0,
-//     iterations: 1,
-//     optionType: OptionType.SHORT_CALL_QUOTE,
-//     amount: toBN('100'),
-//     setCollateralTo: minCollat,
-//     minTotalCost: toBN('1'),
-//     maxTotalCost: toBN('1000000'), // TODO: should just set to max unit probs
-//   } as TradeInputParametersStruct);
-// }
-//
-// describe('Hedging Delta(views)', async () => {
-//   beforeEach(seedFixture);
-//
-//   it('checking delta is zero without trading', async () => {
-//     const curValue = await hre.f.c.poolHedger.getCappedExpectedHedge();
-//     await expect(curValue).eq(0);
-//   });
-//
-//   it('checking futures contract will hedge long when pool gets long', async () => {
-//     await poolLong();
-//     const curValue = await hre.f.c.poolHedger.getCappedExpectedHedge();
-//     expect(curValue).gt(0); // TODO: should figure out the exact value of this.
-//   });
-//
-//   it('checking futures contract will hedge short', async () => {
-//     await poolShort();
-//     const curValue = await hre.f.c.poolHedger.getCappedExpectedHedge();
-//     expect(curValue).lt(toBN('1')); // TODO: should figure out the exact value of this.
-//   });
-//
-//   // TODO:  finish this test
-//   it('checking no delta has been hedged', async () => {
-//     await poolShort();
-//     const curValue = await hre.f.c.poolHedger.getCappedExpectedHedge();
-//     expect(curValue).lt(toBN('0')); // TODO: should figure out the exact value of this.
-//
-//     // await expect(
-//     //   hre.f.c.poolHedger.getCappedExpectedHedge()
-//     // ).to.be.equal(toBN('0')); // TODO: should figure out the exact value of this.
-//   });
-// });
+import { beforeEach } from 'mocha';
+import { OptionType, toBN, toBytes32 } from '../../../scripts/util/web3utils';
+import { openPosition } from '../../utils/contractHelpers';
+import { deployFixturePerpsAdapter } from '../../utils/fixture';
+import { expect, hre } from '../../utils/testSetup';
+import { seedTestSystem } from '../../utils/seedTestSystem';
+import { BigNumberish } from 'ethers';
+import { MarketViewStruct } from '../../../typechain-types/OptionMarketViewer';
+import { DEFAULT_SNX_FUTURES_HEDGER_PARAMS } from '../../utils/defaultParams';
+
+describe('Hedging Delta(views)', async () => {
+  let market: MarketViewStruct;
+  let strikeId: BigNumberish;
+  beforeEach(async () => {
+    await deployFixturePerpsAdapter();
+    await seedTestSystem(hre.f.deployer, hre.f.c, { noHedger: true });
+
+    market = await hre.f.c.optionMarketViewer.getMarket(hre.f.c.optionMarket.address);
+    strikeId = market.liveBoards[0].strikes[2].strikeId;
+  });
+
+  it('checking delta is zero without trading', async () => {
+    const curValue = await hre.f.pc.perpHedger.getCappedExpectedHedge();
+    await expect(curValue).eq(0);
+  });
+
+  it('checking futures contract will hedge long when pool gets long', async () => {
+    await openPosition({
+      strikeId: strikeId,
+      setCollateralTo: toBN('100000'),
+      optionType: OptionType.SHORT_PUT_QUOTE,
+      amount: toBN('20'),
+    });
+    const curValue = await hre.f.pc.perpHedger.getCappedExpectedHedge();
+    expect(curValue).gt(0); // TODO: should figure out the exact value of this.
+  });
+
+  it('checking futures contract will hedge short', async () => {
+    await openPosition({
+      strikeId: strikeId,
+      setCollateralTo: toBN('100000'),
+      optionType: OptionType.SHORT_CALL_QUOTE,
+      amount: toBN('20'),
+    });
+    const curValue = await hre.f.pc.perpHedger.getCappedExpectedHedge();
+    expect(curValue).lt(toBN('1')); // TODO: should figure out the exact value of this.
+  });
+
+  // TODO:  finish this test
+  it('checking no delta has been hedged', async () => {
+    await openPosition({
+      strikeId: strikeId,
+      setCollateralTo: toBN('100000'),
+      optionType: OptionType.SHORT_CALL_QUOTE,
+      amount: toBN('20'),
+    });
+    const curValue = await hre.f.pc.perpHedger.getCappedExpectedHedge();
+    expect(curValue).lt(0); // TODO: should figure out the exact value of this.
+
+    expect(await hre.f.pc.perpHedger.getCurrentHedgedNetDelta()).to.be.equal(0); // TODO: should figure out the exact value of this.
+  });
+
+  it('check that orders are being broken up', async () => {
+    await hre.f.pc.perpHedger.setFuturesPoolHedgerParams({
+      targetLeverage: toBN('1.1'),
+      maximumFundingRate: toBN('0.1'),
+      deltaThreshold: 0,
+      marketDepthBuffer: toBN('1.1'),
+      priceDeltaBuffer: toBN('1.1'),
+      worstStableRate: toBN('1.1'),
+      maxOrderCap: toBN('10')
+    })
+
+    await openPosition(
+      {
+        strikeId: strikeId,
+        setCollateralTo: 0,
+        optionType: OptionType.LONG_CALL,
+        amount: toBN('100'),
+      }
+    );
+
+    const curValue = await hre.f.pc.perpHedger.getCappedExpectedHedge();
+    await hre.f.pc.perpHedger.hedgeDelta();
+    await hre.f.pc.perpMarket.executeOffchainDelayedOrder(hre.f.pc.perpHedger.address, [toBytes32('0x0')]);
+
+    const postValue = await hre.f.pc.perpHedger.getCurrentHedgedNetDelta();
+    expect(postValue).to.be.equal(toBN('10'));
+
+  });
+
+  it('Check can Hedge is capped on either side', async () => {
+    // set poolHedger params to have a hedge cap of 10 big number
+
+    await hre.f.pc.perpHedger.setPoolHedgerParams({
+      interactionDelay: 0,
+      hedgeCap: toBN('10'),
+    });
+
+    await openPosition({
+      strikeId: strikeId,
+      setCollateralTo: 0,
+      optionType: OptionType.LONG_CALL,
+      amount: toBN('100'),
+    });
+
+    const cappedHedge = await hre.f.pc.perpHedger.getCappedExpectedHedge();
+    expect(cappedHedge).to.be.equal(toBN('10'));
+
+    await openPosition(
+      {
+        strikeId: strikeId,
+        setCollateralTo: 0,
+        optionType: OptionType.LONG_PUT,
+        amount: toBN('100'),
+      }
+    )
+
+    const cappedHedge2 = await hre.f.pc.perpHedger.getCappedExpectedHedge();
+    expect(cappedHedge2).to.be.equal(toBN('-10'));
+
+  })
+
+  it('Check canhedge view returns false when market is suspended', async () => {
+    await hre.f.pc.perpHedger.setPoolHedgerParams({
+      interactionDelay: 0,
+      hedgeCap: toBN('10'),
+    });
+
+    await openPosition({
+      strikeId: strikeId,
+      setCollateralTo: 0,
+      optionType: OptionType.LONG_CALL,
+      amount: toBN('100'),
+    });
+
+    await hre.f.pc.systemStatus.setFuturesMarketSuspended(true);
+
+    const canHedge = await hre.f.pc.perpHedger.canHedge(100, true, 1);
+    expect(canHedge).to.be.equal(false);
+  })
+
+  it('delta increase and hedge is positive', async () => {
+    await openPosition({
+      strikeId: strikeId,
+      setCollateralTo: 0,
+      optionType: OptionType.LONG_CALL,
+      amount: toBN('100'),
+    });
+
+    expect(await hre.f.pc.perpHedger.canHedge(100, true, 1)).to.be.equal(true);
+  });
+  
+  it('delta decrease and hedge is negative', async () => {
+    await openPosition({
+      strikeId: strikeId,
+      setCollateralTo: 0,
+      optionType: OptionType.LONG_PUT,
+      amount: toBN('100'),
+    });
+  
+    expect(await hre.f.pc.perpHedger.canHedge(100, false, 1)).to.be.equal(true);
+  });
+
+  
+});

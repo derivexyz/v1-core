@@ -22,11 +22,15 @@ export async function createBoards(
     // TODO: move to params file
     let baseIv;
     switch (market) {
-      case 'sBTC':
+      case 'BTC':
+        baseIv = '0.60';
+        break;
       case 'wBTC':
         baseIv = '0.60';
         break;
-      case 'sETH':
+      case 'ETH':
+        baseIv = '0.65';
+        break;
       case 'wETH':
         baseIv = '0.65';
         break;
@@ -95,7 +99,7 @@ export async function generateBoards(currentRate: string) {
   ];
 }
 
-function generateBoardParamsFor(currentRate: number, now: number, numberListings: number, expiry: number) {
+export function generateBoardParamsFor(currentRate: number, now: number, numberListings: number, expiry: number) {
   if (expiry < WEEK_SEC || expiry > MONTH_SEC * 5) {
     throw 'Invalid expiry, must be between 1 week and 5 months';
   }
