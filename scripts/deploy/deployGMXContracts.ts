@@ -213,7 +213,6 @@ export async function addGMXMarket(
 
   if (isRealGmx(deploymentParams.deploymentType)) {
     // const baseAsset = getExternalContract(deploymentParams, baseTicker);
-    // TODO: do some verification?
   } else {
     if (baseTicker == 'wETH') {
       await deployMockExternalContract(deploymentParams, baseTicker, 'TestWETH', baseTicker, baseTicker, baseDecimals);
@@ -241,7 +240,6 @@ export async function addGMXMarket(
     ]);
   }
 
-  // TODO: handle when adapter owner is different
   await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setChainlinkFeed', [
     getExternalContract(deploymentParams, baseTicker).address,
     getExternalContract(deploymentParams, `${baseTicker}_PriceFeed`, undefined, useRealFeed).address, // TODO: use isReal flag here

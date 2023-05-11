@@ -424,7 +424,6 @@ export async function deployMarketTestContracts(
     .connect(deployer)
     .deploy()) as GWAVOracle;
 
-  // TODO: consider moving to global state in the future.
   const keeperHelper = (await ((await ethers.getContractFactory('KeeperHelper')) as ContractFactory)
     .connect(deployer)
     .deploy()) as KeeperHelper;
@@ -674,7 +673,6 @@ export async function initMarketTestSystem(
     .connect(deployer)
     .init(overrides.liquidityPool || marketTestSystem.liquidityPool.address);
 
-  // TODO: cant handle perps adapter
   await marketTestSystem.poolHedger
     .connect(deployer)
     .init(

@@ -33,7 +33,7 @@ export async function deployUniswap(deployer: SignerWithAddress): Promise<{
     .connect(deployer)
     .deploy(factory.address, weth.address)) as ISwapRouter;
 
-  // // tokenDescriptor is set to address(0)
+  // tokenDescriptor is set to address(0)
   const positionManager = await (await ethers.getContractFactory(POSITION_MANAGER_ABI, POSITION_MANAGER_BYTECODE))
     .connect(deployer)
     .deploy(factory.address, weth.address, ZERO_ADDRESS);

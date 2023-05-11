@@ -149,7 +149,6 @@ export async function deployProxyContract(
     try {
       implementation = (await ethers.getContractFactory(contractName, { libraries: libs })).connect(deployer);
       
-      console.log('gets teh contract successfully');
       // proxy deployment: deployProxy automatically runs initialize()
       contract = await upgrades.deployProxy(implementation, ...args);
       await contract.deployed();

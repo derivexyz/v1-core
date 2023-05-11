@@ -23,16 +23,9 @@ export async function deploySNXContracts(deploymentParams: DeploymentParams, par
   await clearLyraContracts(deploymentParams);
 
   const quoteName = params.get('QuoteAsset');
-  if (deploymentParams.deploymentType == DeploymentType.MockSnxMockPricing) {
-    // TODO: might have to just remove this deploy type cause too much work
-    // need to connect mock contracts to real price feeds
-  }
-
-  console.log('deployment params', deploymentParams);
 
   let USDC;
   if (isRealSnx(deploymentParams.deploymentType)) {
-    // TODO: move these to external.json
     USDC = getExternalContract(deploymentParams, 'USDC');
   } else {
     USDC = await deployMockExternalContract(deploymentParams, quoteName, 'TestERC20SetDecimals', 'USDC', 'USDC', 6);
@@ -170,26 +163,7 @@ export async function addMarket(deploymentParams: DeploymentParams, params: Para
   );
   await deployLyraContract(deploymentParams, 'ShortCollateral', ticker);
   
-  // TODO: make sure get works properly
-  console.log('deploy hedger param', params.get('Markets', ticker, 'deployHedger'));
-  if (params.get('Markets', ticker, 'deployHedger') != false) {
-    await deployLyraContract(deploymentParams, 'SNXPerpsV2PoolHedger', ticker);
-  } else {
-    console.log('not deploying hedger');
-    // addEmptyContract(
-    //   deploymentParams,
-    //   'SNXPerpsV2PoolHedger',
-    //   'SNXPerpsV2PoolHedger',
-    //   {
-    //     "contractName": "SNXPerpsV2PoolHedger",
-    //     "source": "SNXPerpsV2PoolHedger",
-    //     "address": "0x0000000000000000000000000000000000000000",
-    //     "txn": "",
-    //     "blockNumber": 0
-    //   },
-    //   ticker
-    // )
-  }
+  await deployLyraContract(deploymentParams, 'SNXPerpsV2PoolHedger', ticker);
 
   await deployLyraContract(deploymentParams, 'KeeperHelper', ticker);
 

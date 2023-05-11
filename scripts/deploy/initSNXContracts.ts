@@ -191,7 +191,6 @@ export async function initSNXContracts(
 
   // Parameter setting
 
-  // TODO: These should be parameters in the params file (including uni pool address)
   await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setMarketAdapterConfiguration', [
     // address _optionMarket,
     getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
@@ -204,16 +203,6 @@ export async function initSNXContracts(
     // uint24 _uniswapFeeTier,
     3000, // must be > 0
   ]);
-  // getExternalContract(deploymentParams, 'AddressResolver').address,
-  //       getLyraContract(deploymentParams, 'ExchangeAdapter').address,
-  //       getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-  //       getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-  //       getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-  //
-  //       getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
-  //       getExternalContract(deploymentParams, 'ProxyERC20sUSD').address,
-  //       ZERO_ADDRESS,
-  //       toBytes32(baseTicker.slice(1) + 'PERP'),
 
   await executeLyraFunction(
     deploymentParams,
@@ -337,19 +326,6 @@ export async function initSNXContracts(
       quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
     },
   ]);
-
-  //
-  // await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addMarket', [
-  //   getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-  //   id,
-  //   {
-  //     quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
-  //     baseAsset: getExternalContract(deploymentParams, baseTicker).address,
-  //     optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-  //     liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-  //     liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
-  //   },
-  // ]);
 
   await executeLyraFunction(deploymentParams, 'LyraRegistry', 'addMarket', [
     {
