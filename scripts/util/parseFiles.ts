@@ -119,72 +119,33 @@ export async function getContractsWithBlockNumber(c: Contract, name: string, sou
   return details;
 }
 
+
+export function getContractArtifactRecursive(network: AllowedNetworks, contractName: string, artifactPath: string): string | null {
+  const files = fs.readdirSync(artifactPath);
+  for (const file of files) {
+    const joinedPath = path.join(artifactPath, file);
+    if (fs.statSync(joinedPath).isDirectory()) {
+      if (file === contractName + '.sol') {
+        return require(path.resolve(joinedPath, contractName + '.json'));
+      } else {
+        const res: string | null = getContractArtifactRecursive(network, contractName, joinedPath)
+        if (res) {
+          return res;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+
 export function getContractArtifact(network: AllowedNetworks, contractName: string, artifactPath?: string) {
-  // basePath = '../../artifacts/contracts';
-
-  artifactPath = artifactPath || path.join(__dirname, '../../artifacts/contracts');
-
-  try {
-    return require(path.join(artifactPath, contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'periphery', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'periphery', 'Wrapper', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'synthetix', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'test-helpers', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'test-helpers', 'snx', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'test-helpers', 'gmx', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'libraries', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join(
-      artifactPath,
-      '..',
-      'lib',
-      'listing-manager',
-      'src',
-      contractName + '.sol',
-      contractName + '.json',
-    ));
-  } catch (e) {}
-  try {
-    return require(path.join(
-      artifactPath,
-      'governance-wrapper',
-      'modules',
-      contractName + '.sol',
-      contractName + '.json',
-    ));
-  } catch (e) {}
-  try {
-    return require(path.join(
-      artifactPath,
-      'governance-wrapper',
-      'modules',
-      'gmx',
-      contractName + '.sol',
-      contractName + '.json',
-    ));
-  } catch (e) {}
-  try {
-    return require(path.join(artifactPath, 'governance-wrapper', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  try {
-    return require(path.join('../../artifacts', 'synthetix/contracts', contractName + '.sol', contractName + '.json'));
-  } catch (e) {}
-  throw new Error('Contract ' + contractName + ' not found');
+  artifactPath = artifactPath || './artifacts';
+  const res = getContractArtifactRecursive(network, contractName, artifactPath);
+  if (!res) {
+    throw new Error(`Could not find artifact for ${contractName}`);
+  }
+  return res;
 }
 
 export function addMockedExternalContract(

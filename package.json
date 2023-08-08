@@ -16,9 +16,7 @@
     "dist/artifacts/contracts/**/**/*.json",
     "dist/test/utils",
     "dist/deployments",
-    "dist/scripts/util/web3utils*",
-    "dist/scripts/util/parseFiles*",
-    "dist/scripts/util/wrapperPacking*",
+    "dist/scripts/util",
     "dist/typechain-types",
     "contracts"
   ],
@@ -67,10 +65,10 @@
     "size": "yarn build && hardhat size-contracts",
     "gas-report": "REPORT_GAS=true npm run test",
     "hardhat:node": "hardhat node",
+    "surya": "surya",
     "prepare": "yarn build && yarn prepare:clean && yarn tsc",
     "prepare:clean": "rimraf ./dist",
-    "prepare:artifacts": "yarn ts-node ./test/utils/package/prepare-artifacts.ts",
-    "surya": "surya"
+    "prepare:artifacts": "yarn ts-node ./test/utils/package/prepare-artifacts.ts"
   },
   "devDependencies": {
     "@ethereum-waffle/mock-contract": "^3.3.0",

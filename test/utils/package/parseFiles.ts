@@ -11,7 +11,7 @@ import {
   loadLyraContractData,
 } from '../../../scripts/util/parseFiles';
 import { GlobalTestSystemContracts, MarketTestSystemContracts } from '../deployTestSystem';
-import { artifacts } from './index-artifacts';
+import { getArtifacts } from './index-artifacts';
 
 export type LyraGlobal = {
   TestFaucet: LyraArtifact;
@@ -74,6 +74,8 @@ export type lyraDeployment = {
 
 // loads all of the lyra contracts into a test system dir? ah but not very compatible with ethers vs
 export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
+  const artifacts = getArtifacts();
+
   const deploymentParams: DeploymentParams = {
     network: network,
     deploymentType:
@@ -102,6 +104,8 @@ export function getGlobalDeploys(network: AllowedNetworks): LyraGlobal {
 }
 
 export function getMarketDeploys(network: AllowedNetworks, market: string): LyraMarket {
+  const artifacts = getArtifacts();
+
   const deploymentParams: DeploymentParams = {
     network: network,
     deploymentType:

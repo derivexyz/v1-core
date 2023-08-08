@@ -3,16 +3,7 @@ import path from 'path';
 import { copySynthetixDeploy } from '../../../scripts/util/parseFiles';
 import { currentTime, toBN, toBytes32, UNIT } from '../../../scripts/util/web3utils';
 import { TestSystemContractsType } from '../deployTestSystem';
-// import * as snxIntegration from 'synthetix/test/integration/utils/deploy';
-
-// skip synthetix import in protocol SDK
-let snxIntegration = {} as any;
-try {
-  snxIntegration = require('synthetix/test/integration/utils/deploy');
-} catch (e) {
-  console.log({ e });
-  snxIntegration = {} as any;
-}
+import * as snxIntegration from 'synthetix/test/integration/utils/deploy';
 
 export async function compileAndDeployRealSynthetix(compileSNX: boolean) {
   const synthsToAdd = [{ asset: 'USD' }];
