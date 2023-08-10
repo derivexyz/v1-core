@@ -153,7 +153,15 @@ async function main() {
     iterations: 3;
     minTotalCost: toBN("0");
     maxTotalCost?: toBN("250");
-  };)
+  });
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 ```
 
 ```bash
