@@ -12,9 +12,7 @@ export const lyraContractPaths = [
   '@lyrafinance/protocol/contracts/OptionGreekCache.sol',
   '@lyrafinance/protocol/contracts/OptionMarket.sol',
   '@lyrafinance/protocol/contracts/OptionToken.sol',
-  '@lyrafinance/protocol/contracts/ShortPoolHedger.sol',
   '@lyrafinance/protocol/contracts/ShortCollateral.sol',
-  '@lyrafinance/protocol/contracts/SynthetixAdapter.sol',
 
   // interfaces
   '@lyrafinance/protocol/contracts/interfaces/ILiquidityPool.sol',
@@ -53,20 +51,11 @@ export const lyraContractPaths = [
   '@lyrafinance/protocol/contracts/test-helpers/MathTest.sol',
   '@lyrafinance/protocol/contracts/test-helpers/MockAggregatorV2V3.sol',
   '@lyrafinance/protocol/contracts/test-helpers/Path.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestAddressResolver.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestCollateralShort.sol',
   '@lyrafinance/protocol/contracts/test-helpers/TestCurve.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestDelegateApprovals.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestDelegateApprovals.sol',
   '@lyrafinance/protocol/contracts/test-helpers/TestERC20.sol',
   '@lyrafinance/protocol/contracts/test-helpers/TestERC20Fail.sol',
   '@lyrafinance/protocol/contracts/test-helpers/TestERC20SetDecimals.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestExchanger.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestExchangeRates.sol',
   '@lyrafinance/protocol/contracts/test-helpers/TestFaucet.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestSwapRouter.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestSynthetix.sol',
-  '@lyrafinance/protocol/contracts/test-helpers/TestSynthetixReturnZero.sol',
 
   // @openzeppelin
   'openzeppelin-contracts-upgradeable-4.5.1/access/OwnableUpgradeable.sol',
