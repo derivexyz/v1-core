@@ -1,7 +1,6 @@
 import hre from 'hardhat';
 
 export const etherscanVerification = (contractAddress: string, args: (string | string[])[]) => {
-  return;
   if (hre.network.name === 'local') {
     return;
   }
@@ -14,7 +13,7 @@ export const etherscanVerification = (contractAddress: string, args: (string | s
       constructorArguments: args,
     },
     4,
-    10000,
+    5000,
   );
 };
 

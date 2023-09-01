@@ -168,6 +168,11 @@ describe('LiquidityPoolGovernanceWrapper', () => {
   });
 
   it('should NOT able to recover LP funds if blocked', async () => {
+    await govWrap.liquidityPoolGov.setLiquidityPoolBounds({
+      ...DEFAULT_GOV_LIQUIDITY_POOL_BOUNDS,
+      recoverFundsBlocked: true,
+    });
+
     // Mint some ERC20
     const LYRA = await (
       await ethers.getContractFactory('TestERC20SetDecimalsFail', hre.f.deployer)

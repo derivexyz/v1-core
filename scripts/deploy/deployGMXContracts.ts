@@ -21,9 +21,10 @@ export async function deployGMXContracts(deploymentParams: DeploymentParams, par
 
   // await clearLyraContracts(deploymentParams);
 
-  const quoteName = params.get('QuoteTicker');
+  const quoteName = params.get('QuoteAsset');
   const quoteDecimals = params.get('QuoteDecimals');
   const otherStables: any[] = params.get('OtherStables') || [];
+  const useRealFeed = deploymentParams.deploymentType != DeploymentType.MockGmxMockPricing;
 
   if (isMockGmx(deploymentParams.deploymentType)) {
     await deployMockExternalContract(
@@ -52,7 +53,7 @@ export async function deployGMXContracts(deploymentParams: DeploymentParams, par
 
     await executeExternalFunction(deploymentParams, 'GMX_Vault', 'setFeed', [
       getExternalContract(deploymentParams, quoteName).address,
-      getExternalContract(deploymentParams, `${quoteName}_PriceFeed`).address,
+      getExternalContract(deploymentParams, `${quoteName}_PriceFeed`, undefined, useRealFeed).address,
     ]);
 
     await deployMockExternalContract(deploymentParams, 'CurvePool', 'TestCurve');
@@ -99,7 +100,7 @@ export async function deployGMXContracts(deploymentParams: DeploymentParams, par
   await deployLyraContract(deploymentParams, 'LyraRegistry');
   await deployProxyWithLibraries(deploymentParams, 'GMXAdapter', 'ExchangeAdapter', undefined, []);
   await deployLyraContract(deploymentParams, 'OptionMarketViewer');
-  await deployLyraContract(deploymentParams, 'OptionMarketWrapper');
+  // await deployLyraContract(deploymentParams, 'OptionMarketWrapper');
   await deployLyraContract(deploymentParams, 'GWAV');
   await deployLyraContract(deploymentParams, 'BlackScholes');
 
@@ -107,14 +108,14 @@ export async function deployGMXContracts(deploymentParams: DeploymentParams, par
     [
       toBytes32('GMX_ADAPTER'),
       toBytes32('MARKET_VIEWER'),
-      toBytes32('MARKET_WRAPPER'),
+      // toBytes32('MARKET_WRAPPER'),
       toBytes32('GWAV'),
       toBytes32('BLACK_SCHOLES'),
     ],
     [
       getLyraContract(deploymentParams, 'ExchangeAdapter').address,
       getLyraContract(deploymentParams, 'OptionMarketViewer').address,
-      getLyraContract(deploymentParams, 'OptionMarketWrapper').address,
+      // getLyraContract(deploymentParams, 'OptionMarketWrapper').address,
       getLyraContract(deploymentParams, 'GWAV').address,
       getLyraContract(deploymentParams, 'BlackScholes').address,
     ],
@@ -127,19 +128,19 @@ export async function deployGMXContracts(deploymentParams: DeploymentParams, par
   await executeLyraFunction(deploymentParams, 'OptionMarketViewer', 'init', [
     getExternalContract(deploymentParams, 'ExchangeAdapter').address,
   ]);
-  await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'updateContractParams', [
-    ZERO_ADDRESS,
-    getExternalContract(deploymentParams, 'CurvePool').address,
-    ZERO_ADDRESS,
-    toBN('0.05'),
-  ]);
+  // await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'updateContractParams', [
+  //   ZERO_ADDRESS,
+  //   getExternalContract(deploymentParams, 'CurvePool').address,
+  //   ZERO_ADDRESS,
+  //   toBN('0.05'),
+  // ]);
+  //
+  // await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addCurveStable', [
+  //   getExternalContract(deploymentParams, quoteName).address,
+  //   0,
+  // ]);
 
-  await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addCurveStable', [
-    getExternalContract(deploymentParams, quoteName).address,
-    0,
-  ]);
-
-  let counter = 1;
+  // let counter = 1;
   for (const i of otherStables) {
     if (isMockGmx(deploymentParams.deploymentType)) {
       await deployMockExternalContract(
@@ -151,11 +152,11 @@ export async function deployGMXContracts(deploymentParams: DeploymentParams, par
         i.Decimals,
       );
     }
-    await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addCurveStable', [
-      getExternalContract(deploymentParams, i.Ticker).address,
-      counter,
-    ]);
-    counter += 1;
+    // await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addCurveStable', [
+    //   getExternalContract(deploymentParams, i.Ticker).address,
+    //   counter,
+    // ]);
+    // counter += 1;
   }
 
   if (isMockGmx(deploymentParams.deploymentType)) {
@@ -205,21 +206,26 @@ export async function addGMXMarket(
   if (!market) {
     throw new Error(`No parameters for market ${ticker}`);
   }
-  const baseTicker = params.get('Markets', ticker, 'BaseTicker');
+  const baseTicker = params.get('Markets', ticker, 'BaseAsset');
   const baseDecimals = params.get('Markets', ticker, 'BaseDecimals');
   const baseMockRate = params.get('Markets', ticker, 'MockPrice');
+  const useRealFeed = deploymentParams.deploymentType != DeploymentType.MockGmxMockPricing;
+
   if (isRealGmx(deploymentParams.deploymentType)) {
     // const baseAsset = getExternalContract(deploymentParams, baseTicker);
-    // TODO: do some verification?
   } else {
-    await deployMockExternalContract(
-      deploymentParams,
-      baseTicker,
-      'TestERC20SetDecimals',
-      baseTicker,
-      baseTicker,
-      baseDecimals,
-    );
+    if (baseTicker == 'wETH') {
+      await deployMockExternalContract(deploymentParams, baseTicker, 'TestWETH', baseTicker, baseTicker, baseDecimals);
+    } else {
+      await deployMockExternalContract(
+        deploymentParams,
+        baseTicker,
+        'TestERC20SetDecimals',
+        baseTicker,
+        baseTicker,
+        baseDecimals,
+      );
+    }
     if (deploymentParams.deploymentType == DeploymentType.MockGmxMockPricing) {
       await deployMockExternalContract(deploymentParams, `${baseTicker}_PriceFeed`, 'MockAggregatorV2V3');
       await executeExternalFunction(deploymentParams, `${baseTicker}_PriceFeed`, 'setDecimals', [6]);
@@ -230,13 +236,13 @@ export async function addGMXMarket(
     }
     await executeExternalFunction(deploymentParams, 'GMX_Vault', 'setFeed', [
       getExternalContract(deploymentParams, baseTicker).address,
-      getExternalContract(deploymentParams, `${baseTicker}_PriceFeed`).address,
+      getExternalContract(deploymentParams, `${baseTicker}_PriceFeed`, undefined, useRealFeed).address,
     ]);
   }
 
   await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setChainlinkFeed', [
     getExternalContract(deploymentParams, baseTicker).address,
-    getExternalContract(deploymentParams, `${baseTicker}_PriceFeed`).address, // TODO: use isReal flag here
+    getExternalContract(deploymentParams, `${baseTicker}_PriceFeed`, undefined, useRealFeed).address, // TODO: use isReal flag here
   ]);
   await deployLyraContract(deploymentParams, 'OptionMarket', baseTicker);
   await deployLyraContract(deploymentParams, 'OptionMarketPricer', baseTicker);
@@ -269,7 +275,7 @@ export async function addGMXMarket(
   );
   await deployLyraContract(deploymentParams, 'ShortCollateral', baseTicker);
 
-  await deployLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker);
+  // await deployLyraContract(deploymentParams, 'GMXFuturesPoolHedger', baseTicker);
 
   await deployLyraContract(deploymentParams, 'KeeperHelper', baseTicker);
 

@@ -125,6 +125,8 @@ export type DeployOverrides = {
   feeRateForQuote?: BigNumber;
   basePrice?: BigNumber;
   marketId?: string;
+  baseLimit?: BigNumber;
+
 
   // override contract addresses for mock purposes
   exchangeAdapter?: string;
@@ -456,6 +458,10 @@ export async function initMarketTestSystemGMX(
 
   await marketTestSystem.optionMarket.setOptionMarketParams(
     overrides.optionMarketParams || defaultParams.DEFAULT_OPTION_MARKET_PARAMS,
+  );
+
+  await marketTestSystem.optionMarket.setBaseLimit(
+    overrides.baseLimit || defaultParams.DEFAULT_OPTION_MARKET_BASE_LIMIT,
   );
 
   await marketTestSystem.optionMarketPricer

@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: ISC
 pragma solidity 0.8.16;
 
-import "../ShortPoolHedger.sol";
+import "./ShortPoolHedger.sol";
 
 contract TestShortPoolHedger is ShortPoolHedger {
   bool public canPoolHedge = true;

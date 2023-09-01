@@ -1,6 +1,6 @@
 import {
   DEFAULT_GMX_POOL_HEDGER_PARAMS,
-  DEFAULT_GOV_FUTURES_HEDGER_BOUNDS,
+  DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS,
   DEFAULT_POOL_HEDGER_PARAMS,
 } from '../../utils/defaultParams';
 import { MAX_UINT, toBN, toBytes32, ZERO_ADDRESS } from '../../../scripts/util/web3utils';
@@ -19,7 +19,7 @@ describe('GMXHedgerGovernanceWrapper', () => {
     govWrap = await deployGovernanceWrappers(hre.f.gc, hre.f.deployer);
     RC = hre.f.alice;
     await govWrap.gmxHedgerGov.setRiskCouncil(RC.address);
-    await govWrap.gmxHedgerGov.setHedgerBounds(DEFAULT_GOV_FUTURES_HEDGER_BOUNDS);
+    await govWrap.gmxHedgerGov.setHedgerBounds(DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS);
   });
 
   ///////////
@@ -76,7 +76,7 @@ describe('GMXHedgerGovernanceWrapper', () => {
   });
 
   it('should be able to get hedger bounds', async () => {
-    compareStruct(await govWrap.gmxHedgerGov.getHedgerBounds(), DEFAULT_GOV_FUTURES_HEDGER_BOUNDS);
+    compareStruct(await govWrap.gmxHedgerGov.getHedgerBounds(), DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS);
   });
 
   it('should NOT be able to set liquidity pool', async () => {
@@ -103,23 +103,23 @@ describe('GMXHedgerGovernanceWrapper', () => {
     // can set to min and max
     await govWrap.gmxHedgerGov
       .connect(RC)
-      .setFuturesPoolHedgerParams(DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.minFuturesPoolHedgerParams);
+      .setFuturesPoolHedgerParams(DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.minFuturesPoolHedgerParams);
     await govWrap.gmxHedgerGov
       .connect(RC)
-      .setFuturesPoolHedgerParams(DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams);
+      .setFuturesPoolHedgerParams(DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams);
     await expect(
       govWrap.gmxHedgerGov.connect(hre.f.signers[3]).setFuturesPoolHedgerParams(DEFAULT_GMX_POOL_HEDGER_PARAMS),
     ).revertedWith('BGW_OnlyOwnerOrRiskCouncil');
 
     compareStruct(
       await hre.f.gc.futuresPoolHedger.futuresPoolHedgerParams(),
-      DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
+      DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
     );
 
     // reverts if lower than min
     await expect(
       govWrap.gmxHedgerGov.connect(RC).setFuturesPoolHedgerParams({
-        ...DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
+        ...DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
         deltaThreshold: toBN('0.01'),
       }),
     ).revertedWith('GMXHGW_FuturesPoolHedgerParamsOutOfBounds');
@@ -127,38 +127,42 @@ describe('GMXHedgerGovernanceWrapper', () => {
     // reverts if higher than max
     await expect(
       govWrap.gmxHedgerGov.connect(RC).setFuturesPoolHedgerParams({
-        ...DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
+        ...DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
         deltaThreshold: toBN('1000000'),
       }),
     ).revertedWith('GMXHGW_FuturesPoolHedgerParamsOutOfBounds');
 
     // owner can bypass
     await govWrap.gmxHedgerGov.setFuturesPoolHedgerParams({
-      ...DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
+      ...DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
       deltaThreshold: toBN('0.01'),
     });
   });
 
   it('can set pool Hedger params', async () => {
     await govWrap.gmxHedgerGov.setPoolHedgerParams(DEFAULT_POOL_HEDGER_PARAMS);
-    await govWrap.gmxHedgerGov.connect(RC).setPoolHedgerParams(DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams);
-    await govWrap.gmxHedgerGov.connect(RC).setPoolHedgerParams(DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxPoolHedgerParams);
+    await govWrap.gmxHedgerGov
+      .connect(RC)
+      .setPoolHedgerParams(DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams);
+    await govWrap.gmxHedgerGov
+      .connect(RC)
+      .setPoolHedgerParams(DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxPoolHedgerParams);
 
     await expect(
       govWrap.gmxHedgerGov
         .connect(hre.f.signers[3])
-        .setPoolHedgerParams(DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams),
+        .setPoolHedgerParams(DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams),
     ).revertedWith('BGW_OnlyOwnerOrRiskCouncil');
 
     compareStruct(
       await hre.f.gc.futuresPoolHedger.getPoolHedgerParams(),
-      DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
+      DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxFuturesPoolHedgerParams,
     );
 
     // reverts if lower than min
     await expect(
       govWrap.gmxHedgerGov.connect(RC).setPoolHedgerParams({
-        ...DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams,
+        ...DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams,
         interactionDelay: 0,
       }),
     ).revertedWith('GMXHGW_PoolHedgerParamsOutOfBounds');
@@ -166,14 +170,14 @@ describe('GMXHedgerGovernanceWrapper', () => {
     // reverts if higher than max
     await expect(
       govWrap.gmxHedgerGov.connect(RC).setPoolHedgerParams({
-        ...DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.maxPoolHedgerParams,
+        ...DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.maxPoolHedgerParams,
         interactionDelay: MAX_UINT,
       }),
     ).revertedWith('GMXHGW_PoolHedgerParamsOutOfBounds');
 
     // owner can bypass bounds
     await govWrap.gmxHedgerGov.setPoolHedgerParams({
-      ...DEFAULT_GOV_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams,
+      ...DEFAULT_GOV_GMX_FUTURES_HEDGER_BOUNDS.minPoolHedgerParams,
       interactionDelay: 0,
     });
   });

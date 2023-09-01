@@ -1,20 +1,20 @@
 import { DeploymentParams } from '../util';
 import { executeExternalFunction } from '../util/transactions';
 import { ParamHandler } from '../util/parseFiles';
-import { BigNumber } from 'ethers';
+import { toBN } from '../util/web3utils';
 
 export async function seedMint(deploymentParams: DeploymentParams, params: ParamHandler, market: string) {
-  const quoteTicker = params.get('QuoteTicker');
   const quoteDecimals = params.get('QuoteDecimals');
-  const baseTicker = params.get('Markets', market, 'BaseTicker');
   const baseDecimals = params.get('Markets', market, 'BaseDecimals');
   const mintParams = params.getObj('Seed', 'mintFunds');
 
-  console.log({
-    quoteTicker,
-    baseTicker,
-    mintParams,
-  });
+  console.log('market', market);
+  console.log('params.get("Markets", market, "BaseAsset")', params.get('Markets', market, 'BaseAsset'));
+  console.log('just get markets', params.get('Markets'));
+
+  const quoteTicker = params.get('QuoteAsset');
+  const baseTicker = params.get('Markets', market, 'BaseAsset');
+
   ////
   // Setup balances and approvals for opening positions
   ////
@@ -23,16 +23,20 @@ export async function seedMint(deploymentParams: DeploymentParams, params: Param
   const quoteAmount = mintParams.markets[market].quoteAmount;
   const baseAmount = mintParams.markets[market].baseAmount;
   // Mint tokens
-  console.log(`Minting ${quoteAmount} ${quoteTicker}`);
   await executeExternalFunction(deploymentParams, quoteTicker, 'mint', [
     deploymentParams.deployer.address,
-    BigNumber.from('10').pow(quoteDecimals).mul(quoteAmount),
+    toBN(quoteAmount, quoteDecimals),
   ]);
 
   console.log(`Minting ${baseAmount} ${market}`);
+  // await executeExternalFunction(deploymentParams, baseTicker, 'mint', [
+  //   deploymentParams.deployer.address,
+  //   BigNumber.from('10').pow(baseDecimals).mul(baseAmount),
+  // ]);
+  console.log('Base ticker', baseTicker);
   await executeExternalFunction(deploymentParams, baseTicker, 'mint', [
     deploymentParams.deployer.address,
-    BigNumber.from('10').pow(baseDecimals).mul(baseAmount),
+    toBN(baseAmount, baseDecimals),
   ]);
 
   console.log('= Seeding balances done');

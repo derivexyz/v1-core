@@ -1,11 +1,12 @@
 import { DEFAULT_GOV_OPTION_MARKET_BOUNDS } from '../../utils/defaultParams';
-import { currentTime, MONTH_SEC, toBN, toBN18 } from '../../../scripts/util/web3utils';
+import { currentTime, MAX_UINT, MONTH_SEC, toBN, toBN18 } from '../../../scripts/util/web3utils';
 import { allCurrenciesFixtureGMX } from '../../utils/fixture';
 import { compareStruct, deployGovernanceWrappers, GovernanceWrappersTypeGMX } from './utils';
 import { expect, hre } from '../../utils/testSetup';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
+import { OptionMarketParametersStruct } from '../../../typechain-types/OptionMarketGovernanceWrapper';
 
 describe('OptionMarketGovernanceWrapper', () => {
   let govWrap: GovernanceWrappersTypeGMX;
@@ -77,6 +78,11 @@ describe('OptionMarketGovernanceWrapper', () => {
   });
 
   it('should be able to recover funds', async () => {
+    await govWrap.optionMarketGov.setOptionMarketBounds({
+      ...DEFAULT_GOV_OPTION_MARKET_BOUNDS,
+      recoverFundsBlocked: true,
+    });
+
     // Mint some ERC20 to OM
     const LYRA = await (
       await ethers.getContractFactory('TestERC20SetDecimalsFail', hre.f.deployer)
@@ -94,6 +100,7 @@ describe('OptionMarketGovernanceWrapper', () => {
       ...DEFAULT_GOV_OPTION_MARKET_BOUNDS,
       recoverFundsBlocked: false,
     });
+
     await govWrap.optionMarketGov.recoverOMFunds(LYRA.address, hre.f.alice.address);
 
     // Expect funds to be recovered
@@ -105,6 +112,11 @@ describe('OptionMarketGovernanceWrapper', () => {
   ////////////
 
   it('can set board frozen', async () => {
+    await govWrap.optionMarketGov.setOptionMarketBounds({
+      ...DEFAULT_GOV_OPTION_MARKET_BOUNDS,
+      boardFreezingBlocked: true,
+    });
+
     await govWrap.optionMarketGov.setBoardFrozen(boards[0], true);
 
     // reverts when risk council tries to set forzen but its blocked
@@ -114,6 +126,13 @@ describe('OptionMarketGovernanceWrapper', () => {
   });
 
   it('can set board base iv', async () => {
+    await govWrap.optionMarketGov.setOptionMarketBounds({
+      ...DEFAULT_GOV_OPTION_MARKET_BOUNDS,
+      boardFreezingBlocked: true,
+      minBaseIv: toBN('0.01'),
+      maxBaseIv: toBN('10'),
+    });
+
     await govWrap.optionMarketGov.setBoardFrozen(boards[0], true);
 
     await govWrap.optionMarketGov.setBoardBaseIv(boards[0], 100);
@@ -130,6 +149,13 @@ describe('OptionMarketGovernanceWrapper', () => {
   });
 
   it('can set strike skew, reverts when rc out of bounds', async () => {
+    await govWrap.optionMarketGov.setOptionMarketBounds({
+      ...DEFAULT_GOV_OPTION_MARKET_BOUNDS,
+      boardFreezingBlocked: true,
+      minSkew: toBN('0.01'),
+      maxSkew: toBN('10'),
+    });
+
     // freeze board
     await govWrap.optionMarketGov.setBoardFrozen(boards[0], true);
 
@@ -172,11 +198,44 @@ describe('OptionMarketGovernanceWrapper', () => {
       feePortionReserved: toBN('1'),
       maxBoardExpiry: MONTH_SEC * 12,
       staticBaseSettlementFee: toBN('0.1'),
-    };
+      baseLimit: MAX_UINT,
+    } as OptionMarketParametersStruct;
+
     await govWrap.optionMarketGov.setOptionMarketParams(params);
     compareStruct(await hre.f.gc.optionMarket.getOptionMarketParams(), params);
   });
 
+  it('can set option market base limit', async () => {
+    await govWrap.optionMarketGov.setOptionMarketBaseLimit(toBN('100'));
+    expect(await hre.f.gc.optionMarket.baseLimit()).eq(toBN('100'));
+  });
+
+  it('risk council cannot set option market base limit', async () => {
+    await expect(govWrap.optionMarketGov.connect(RC).setOptionMarketBaseLimit(toBN('100'))).to.be.revertedWith(
+      'OMGW_BaseLimitInvalid',
+    );
+  });
+  
+  it('risk council can only set base limit to zero', async() => {
+    await expect(govWrap.optionMarketGov.connect(RC).setOptionMarketBaseLimit(toBN('100'))).to.be.revertedWith(
+      'OMGW_BaseLimitInvalid',
+    );
+    
+    await expect(govWrap.optionMarketGov.connect(RC).setOptionMarketBaseLimit(toBN('0'))).to.not.be.reverted;
+  });
+
+  it('Should revert with option market bound is not set to true', async () => {
+    await govWrap.optionMarketGov.setOptionMarketBounds(
+      {
+        ...DEFAULT_GOV_OPTION_MARKET_BOUNDS,
+        canZeroBaseLimit: false
+      }
+    );
+
+    await expect(govWrap.optionMarketGov.connect(RC).setOptionMarketBaseLimit(toBN('0'))).to.be.revertedWith(
+      'OMGW_BaseLimitInvalid',
+    );
+  });
   it('should be able to get option market bounds', async () => {
     compareStruct(await govWrap.optionMarketGov.getOptionMarketBounds(), DEFAULT_GOV_OPTION_MARKET_BOUNDS);
   });

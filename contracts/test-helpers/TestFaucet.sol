@@ -2,7 +2,6 @@
 pragma solidity 0.8.16;
 
 import "./TestERC20.sol";
-import "hardhat/console.sol";
 
 contract TestFaucet {
   mapping(uint => uint) dripAmounts;
@@ -41,7 +40,6 @@ contract TestFaucet {
     require(!received[msg.sender], "already received");
 
     for (uint i = 0; i < addresses.length; ++i) {
-      console.log(address(addresses[i]));
       addresses[i].mint(msg.sender, dripAmounts[i]);
       emit Dripped(addresses[i], dripAmounts[i]);
     }

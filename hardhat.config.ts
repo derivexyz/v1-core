@@ -3,6 +3,7 @@ import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-waffle';
 import '@openzeppelin/hardhat-upgrades';
 import '@typechain/hardhat';
+import 'synthetix';
 import { config as dotenvConfig } from 'dotenv';
 import 'hardhat-contract-sizer';
 import 'hardhat-gas-reporter';
@@ -29,7 +30,16 @@ const config: HardhatUserConfig = {
           },
           optimizer: {
             enabled: true,
-            runs: 1000,
+            runs: 20,
+          },
+        },
+      },
+      {
+        version: '0.7.6',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 10000,
           },
         },
       },
@@ -38,7 +48,16 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 1,
+            runs: 1000,
+          },
+        },
+      },
+      {
+        version: '0.5.16',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
           },
         },
       },
@@ -50,11 +69,10 @@ const config: HardhatUserConfig = {
     },
     local: {
       url: 'http://127.0.0.1:8545',
-      accounts: {
-        mnemonic: 'test test test test test test test test test test test junk',
-        // mnemonic:
-        //   'test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers test-helpers junk',
-      },
+    },
+    'goerli-ovm': {
+      url: loadEnv('goerli-ovm').RPC_URL,
+      accounts: [loadEnv('goerli-ovm').PRIVATE_KEY],
     },
     'goerli-arbi': {
       url: loadEnv('goerli-arbi').RPC_URL,
@@ -63,6 +81,9 @@ const config: HardhatUserConfig = {
     'mainnet-arbi': {
       url: loadEnv('mainnet-arbi').RPC_URL,
       accounts: [loadEnv('mainnet-arbi').PRIVATE_KEY],
+    },
+    'mainnet-ovm': {
+      url: loadEnv('mainnet-ovm').RPC_URL,
     },
   },
   mocha: {
@@ -79,7 +100,7 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      mainnet: etherscanApiKey,
+      optimisticEthereum: etherscanApiKey,
       arbitrumOne: loadEnv('mainnet-arbi').ETHERSCAN_KEY,
       arbitrumGoerli: loadEnv('goerli-arbi').ETHERSCAN_KEY,
     },

@@ -14,6 +14,7 @@ contract OptionMarketGovernanceWrapper is BaseGovernanceWrapper {
     uint minSkew;
     uint maxSkew;
     bool recoverFundsBlocked;
+    bool canZeroBaseLimit;
   }
 
   OptionMarket public optionMarket;
@@ -71,6 +72,15 @@ contract OptionMarketGovernanceWrapper is BaseGovernanceWrapper {
   ///////////////////////////
   // Risk Council or Owner //
   ///////////////////////////
+  function setOptionMarketBaseLimit(uint baseLimit) external onlyRiskCouncilOrOwner {
+    if(msg.sender == riskCouncil) {
+      if(baseLimit != 0 || !optionMarketBounds.canZeroBaseLimit) {
+        revert OMGW_BaseLimitInvalid(baseLimit, msg.sender);
+      }
+    }
+    optionMarket.setBaseLimit(baseLimit);
+    emit OMGW_OptionMarketBaseLimit(baseLimit);
+  }
 
   function setBoardFrozen(uint boardId, bool frozen) external onlyRiskCouncilOrOwner {
     if (optionMarketBounds.boardFreezingBlocked && msg.sender == riskCouncil) {
@@ -163,6 +173,8 @@ contract OptionMarketGovernanceWrapper is BaseGovernanceWrapper {
 
   event OMGW_OptionMarketFundsRecovered(address indexed caller, IERC20Decimals token, address recipient);
 
+  event OMGW_OptionMarketBaseLimit(uint baseLimit);
+
   ////////////
   // Errors //
   ////////////
@@ -179,4 +191,6 @@ contract OptionMarketGovernanceWrapper is BaseGovernanceWrapper {
   error OMGW_BoardForceSettlingIsBlocked(uint boardId, address caller);
 
   error OMGW_RecoverFundsBlocked(address caller);
+
+  error OMGW_BaseLimitInvalid(uint baseLimit, address caller);
 }

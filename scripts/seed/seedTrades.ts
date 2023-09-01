@@ -8,13 +8,16 @@ import { ParamHandler } from '../util/parseFiles';
 import { PricingType } from '../../test/utils/defaultParams';
 
 export async function seedTrades(deploymentParams: DeploymentParams, params: ParamHandler, market: string) {
+  const quoteTicker = params.get('QuoteAsset');
+  const baseTicker = params.get('Markets', market, 'BaseAsset');
+
   const tradeSeedParams = params.get('Seed', 'seedTrades', 'populationParameters');
-  await executeExternalFunction(deploymentParams, params.get('QuoteTicker'), 'approve', [
+  await executeExternalFunction(deploymentParams, quoteTicker, 'approve', [
     getLyraContract(deploymentParams, 'OptionMarket', market).address,
     MAX_UINT,
   ]);
 
-  await executeExternalFunction(deploymentParams, params.get('Markets', market, 'BaseTicker'), 'approve', [
+  await executeExternalFunction(deploymentParams, baseTicker, 'approve', [
     getLyraContract(deploymentParams, 'OptionMarket', market).address,
     MAX_UINT,
   ]);
@@ -44,7 +47,7 @@ export async function seedTrades(deploymentParams: DeploymentParams, params: Par
       }
 
       const optionType = Math.floor(Math.random() * 5);
-      const amount = Math.floor(Math.random() * 1000) / 1000000 + 0.0001;
+      const amount = Math.floor(Math.random() * 1000) / 100000 + 0.002;
 
       let setCollateralTo = BigNumber.from(0);
       switch (optionType) {

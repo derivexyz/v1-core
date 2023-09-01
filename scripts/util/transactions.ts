@@ -41,19 +41,29 @@ export function getLyraContract(deploymentParams: DeploymentParams, contractName
   return contract;
 }
 
-export function getExternalContract(deploymentParams: DeploymentParams, contractName: string): Contract {
-  if (contracts[contractName]) {
+export function getExternalContract(
+  deploymentParams: DeploymentParams,
+  contractName: string,
+  contractAbiOverride?: string,
+  useReal = false,
+): Contract {
+  if (contracts[contractName] && !contractAbiOverride) {
     return contracts[contractName];
   }
+  useReal =
+    useReal ||
+    (deploymentParams.deploymentType == DeploymentType.MockSnxRealPricing &&
+      ['Exchanger', 'ExchangeRates'].includes(contractName));
 
-  const useReal =
-    deploymentParams.deploymentType == DeploymentType.MockSnxRealPricing &&
-    ['Exchanger', 'ExchangeRates'].includes(contractName);
   console.log({ useReal, contractName });
 
   const data = loadExternalContractData(deploymentParams, contractName, useReal ? false : undefined);
-
-  const contract = new Contract(data.target.address, data.source.abi, deploymentParams.deployer);
+  let abi = data.source.abi;
+  if (contractAbiOverride) {
+    const overrideData = loadExternalContractData(deploymentParams, contractAbiOverride, useReal ? false : undefined);
+    abi = overrideData.source.abi;
+  }
+  const contract = new Contract(data.target.address, abi, deploymentParams.deployer);
   contracts[contractName] = contract;
   return contract;
 }
@@ -103,6 +113,18 @@ export async function deployMockExternalContract(
   ...args: any
 ): Promise<Contract> {
   const contract = await deployContract(contractName, deploymentParams.deployer, undefined, ...args);
+  addMockedExternalContract(deploymentParams, name, contractName, contract);
+  return contract;
+}
+
+export async function deployMockExternalContractWithLibraries(
+  deploymentParams: DeploymentParams,
+  name: string,
+  contractName: string,
+  libs?: any,
+  ...args: any
+): Promise<Contract> {
+  const contract = await deployContract(contractName, deploymentParams.deployer, libs, ...args);
   console.log(name, contractName);
   addMockedExternalContract(deploymentParams, name, contractName, contract);
   return contract;
@@ -121,11 +143,12 @@ export async function deployProxyContract(
   let implementation: ContractFactory;
   let implementationAddress: string;
   let count = 2;
-
+  console.log('deployer', deployer);
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       implementation = (await ethers.getContractFactory(contractName, { libraries: libs })).connect(deployer);
+      
       // proxy deployment: deployProxy automatically runs initialize()
       contract = await upgrades.deployProxy(implementation, ...args);
       await contract.deployed();
@@ -182,7 +205,7 @@ export async function deployContract(
   console.log(`= With args: ${args}`);
   let contract: Contract;
   let count = 0;
-
+  console.log('args', args);
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
@@ -192,7 +215,10 @@ export async function deployContract(
         })
       )
         .connect(deployer)
-        .deploy(...args);
+        .deploy(...args, {
+          gasLimit: 15000000,
+          gasPrice: 1000000000,
+        });
 
       console.log('= Address:', chalk.green(contract.address));
 

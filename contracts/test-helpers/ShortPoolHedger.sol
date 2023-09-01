@@ -12,23 +12,23 @@
 pragma solidity 0.8.16;
 
 // Libraries
-import "./synthetix/DecimalMath.sol";
+import "../synthetix/DecimalMath.sol";
 import "openzeppelin-contracts-4.4.1/utils/math/SafeCast.sol";
-import "./libraries/ConvertDecimals.sol";
+import "../libraries/ConvertDecimals.sol";
 
 // Inherited
-import "./synthetix/Owned.sol";
-import "./libraries/SimpleInitializable.sol";
-import "./libraries/PoolHedger.sol";
+import "../synthetix/Owned.sol";
+import "../libraries/SimpleInitializable.sol";
+import "../libraries/PoolHedger.sol";
 import "openzeppelin-contracts-4.4.1/security/ReentrancyGuard.sol";
 
 // Interfaces
-import "./LiquidityPool.sol";
-import "./interfaces/ISynthetix.sol";
-import "./interfaces/ICollateralShort.sol";
+import "../LiquidityPool.sol";
+import "../interfaces/ISynthetix.sol";
+import "../interfaces/ICollateralShort.sol";
 import "./SynthetixAdapter.sol";
-import "./OptionMarket.sol";
-import "./OptionGreekCache.sol";
+import "../OptionMarket.sol";
+import "../OptionGreekCache.sol";
 
 /**
  * @title PoolHedger

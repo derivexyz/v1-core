@@ -20,6 +20,7 @@ import {
   OptionToken,
   ShortCollateral,
   ShortPoolHedger,
+  SNXPerpV2Adapter,
   SynthetixAdapter,
   TestAddressResolver,
   TestCollateralShort,
@@ -52,6 +53,7 @@ export type TestSystemContractsType = GlobalTestSystemContracts & MarketTestSyst
 
 export type GlobalTestSystemContracts = {
   synthetixAdapter: SynthetixAdapter;
+  synthetixPerpV2Adapter: SNXPerpV2Adapter;
   lyraRegistry: LyraRegistry;
   blackScholes: BlackScholes;
   gwav: GWAV;
@@ -114,6 +116,7 @@ export type DeployOverrides = {
   feeRateForQuote?: BigNumber;
   basePrice?: BigNumber;
   marketId?: string;
+  baseLimit?: BigNumber;
 
   // override contract addresses for mock purposes
   synthetixAdapter?: string;
@@ -149,6 +152,7 @@ export type DeployOverrides = {
   // only works when deployed to localhost (not hardhat tests)
   mockSNX?: boolean; // true by default
   compileSNX?: boolean; // only need to compile once
+  usePerpsAdapter?: boolean;
 };
 
 export async function deployTestSystem(
@@ -220,6 +224,7 @@ export async function deployGlobalTestContracts(
   const filename = __filename.split('.');
   const runEnv = filename[filename.length - 1];
   let synthetixAdapter: SynthetixAdapter;
+  let synthetixPerpV2Adapter: SNXPerpV2Adapter;
   if (runEnv == 'ts') {
     // Deploy via proxy if testing within repo
     // deployProxy automatically runs initialize()
@@ -228,12 +233,22 @@ export async function deployGlobalTestContracts(
       (await ethers.getContractFactory('SynthetixAdapter')) as ContractFactory
     ).connect(deployer);
 
+    const synthetixV2PerpAdapterImplementation = (
+      (await ethers.getContractFactory('SNXPerpV2Adapter')) as ContractFactory
+    ).connect(deployer);
+
     try {
       synthetixAdapter = (await upgrades.deployProxy(synthetixAdapterImplementation, [], {
         timeout: 60000,
         pollingInterval: 5000,
       })) as SynthetixAdapter;
       await synthetixAdapter.deployed();
+
+      synthetixPerpV2Adapter = (await upgrades.deployProxy(synthetixV2PerpAdapterImplementation, [], {
+        timeout: 60000,
+        pollingInterval: 5000,
+      })) as SNXPerpV2Adapter;
+      await synthetixPerpV2Adapter.deployed();
     } catch (e) {
       if (e instanceof Error) {
         // OZ upgrade package uses hre.network when confirming corret deployment
@@ -250,6 +265,11 @@ export async function deployGlobalTestContracts(
 
     // manually initialize()
     await synthetixAdapter.connect(deployer).initialize();
+
+    synthetixPerpV2Adapter = (await ((await ethers.getContractFactory('SNXPerpV2Adapter')) as ContractFactory)
+      .connect(deployer)
+      .deploy()) as SNXPerpV2Adapter;
+    await synthetixPerpV2Adapter.connect(deployer).initialize();
   }
 
   //////////////////
@@ -278,6 +298,7 @@ export async function deployGlobalTestContracts(
 
   const testSystem = {
     synthetixAdapter,
+    synthetixPerpV2Adapter,
     lyraRegistry,
     blackScholes,
     gwav,
@@ -403,7 +424,6 @@ export async function deployMarketTestContracts(
     .connect(deployer)
     .deploy()) as GWAVOracle;
 
-  // TODO: consider moving to global state in the future.
   const keeperHelper = (await ((await ethers.getContractFactory('KeeperHelper')) as ContractFactory)
     .connect(deployer)
     .deploy()) as KeeperHelper;
@@ -473,7 +493,8 @@ export async function initGlobalTestSystem(
     await testSystem.snx.synthetix
       .connect(deployer)
       .init(
-        overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
+        overrides.synthetixAdapter ||
+          (overrides.usePerpsAdapter ? testSystem.synthetixPerpV2Adapter.address : testSystem.synthetixAdapter.address),
         overrides.quoteAsset || testSystem.snx.quoteAsset.address,
         overrides.addressResolver || testSystem.snx.addressResolver.address,
       );
@@ -481,7 +502,8 @@ export async function initGlobalTestSystem(
     await testSystem.snx.collateralShort
       .connect(deployer)
       .init(
-        overrides.synthetixAdapter || testSystem.synthetixAdapter.address,
+        overrides.synthetixAdapter ||
+          (overrides.usePerpsAdapter ? testSystem.synthetixPerpV2Adapter.address : testSystem.synthetixAdapter.address),
         overrides.quoteAsset || testSystem.snx.quoteAsset.address,
       );
 
@@ -516,7 +538,10 @@ export async function initGlobalTestSystem(
 
   await testSystem.optionMarketViewer
     .connect(deployer)
-    .init(overrides.synthetixAdapter || testSystem.synthetixAdapter.address);
+    .init(
+      overrides.synthetixAdapter ||
+        (overrides.usePerpsAdapter ? testSystem.synthetixPerpV2Adapter.address : testSystem.synthetixAdapter.address),
+    );
 
   await testSystem.optionMarketWrapper.connect(deployer).updateContractParams(
     testSystem.snx.quoteAsset.address, // irrelevant for snx (should be WETH for wrapping)
@@ -534,7 +559,8 @@ export async function initGlobalTestSystem(
       toBytes32('BLACK_SCHOLES'),
     ],
     [
-      testSystem.synthetixAdapter.address,
+      overrides.synthetixAdapter ||
+        (overrides.usePerpsAdapter ? testSystem.synthetixPerpV2Adapter.address : testSystem.synthetixAdapter.address),
       testSystem.optionMarketViewer.address,
       testSystem.optionMarketWrapper.address,
       testSystem.gwav.address,
@@ -588,7 +614,10 @@ export async function initMarketTestSystem(
   await marketTestSystem.optionMarket
     .connect(deployer)
     .init(
-      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.synthetixAdapter ||
+        (overrides.usePerpsAdapter
+          ? existingTestSystem.synthetixPerpV2Adapter.address
+          : existingTestSystem.synthetixAdapter.address),
       overrides.liquidityPool || marketTestSystem.liquidityPool.address,
       overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
       overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
@@ -602,6 +631,10 @@ export async function initMarketTestSystem(
     overrides.optionMarketParams || defaultParams.DEFAULT_OPTION_MARKET_PARAMS,
   );
 
+  await marketTestSystem.optionMarket.setBaseLimit(
+    overrides.baseLimit || defaultParams.DEFAULT_OPTION_MARKET_BASE_LIMIT,
+  );
+
   await marketTestSystem.optionMarketPricer
     .connect(deployer)
     .init(
@@ -612,7 +645,10 @@ export async function initMarketTestSystem(
   await marketTestSystem.optionGreekCache
     .connect(deployer)
     .init(
-      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.synthetixAdapter ||
+        (overrides.usePerpsAdapter
+          ? existingTestSystem.synthetixPerpV2Adapter.address
+          : existingTestSystem.synthetixAdapter.address),
       overrides.optionMarket || marketTestSystem.optionMarket.address,
       overrides.optionMarketPricer || marketTestSystem.optionMarketPricer.address,
     );
@@ -620,7 +656,10 @@ export async function initMarketTestSystem(
   await marketTestSystem.liquidityPool
     .connect(deployer)
     .init(
-      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.synthetixAdapter ||
+        (overrides.usePerpsAdapter
+          ? existingTestSystem.synthetixPerpV2Adapter.address
+          : existingTestSystem.synthetixAdapter.address),
       overrides.optionMarket || marketTestSystem.optionMarket.address,
       overrides.liquidityToken || marketTestSystem.liquidityToken.address,
       overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
@@ -651,7 +690,10 @@ export async function initMarketTestSystem(
       overrides.optionMarket || marketTestSystem.optionMarket.address,
       overrides.liquidityPool || marketTestSystem.liquidityPool.address,
       overrides.optionToken || marketTestSystem.optionToken.address,
-      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.synthetixAdapter ||
+        (overrides.usePerpsAdapter
+          ? existingTestSystem.synthetixPerpV2Adapter.address
+          : existingTestSystem.synthetixAdapter.address),
       overrides.quoteAsset || existingTestSystem.snx.quoteAsset.address,
       overrides.baseAsset || marketTestSystem.snx.baseAsset.address,
     );
@@ -662,7 +704,10 @@ export async function initMarketTestSystem(
       overrides.optionMarket || marketTestSystem.optionMarket.address,
       overrides.optionGreekCache || marketTestSystem.optionGreekCache.address,
       overrides.shortCollateral || marketTestSystem.shortCollateral.address,
-      overrides.synthetixAdapter || existingTestSystem.synthetixAdapter.address,
+      overrides.synthetixAdapter ||
+        (overrides.usePerpsAdapter
+          ? existingTestSystem.synthetixPerpV2Adapter.address
+          : existingTestSystem.synthetixAdapter.address),
     );
 
   await existingTestSystem.synthetixAdapter

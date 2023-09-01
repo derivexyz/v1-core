@@ -8,7 +8,7 @@ import {
   getExternalContract,
   getLyraContract,
 } from '../util/transactions';
-import { fromBN, toBN, toBytes32, UNIT } from '../util/web3utils';
+import { fromBN, HOUR_SEC, toBN, toBytes32, UNIT, ZERO_ADDRESS } from '../util/web3utils';
 
 enum PriceType {
   MIN_PRICE,
@@ -32,52 +32,21 @@ function convertParams(params: any) {
 export async function initSNXContracts(
   deploymentParams: DeploymentParams,
   systemParams: ParamHandler,
-  baseTicker: string,
-  id: number,
+  marketTicker: string,
+  _id: number,
 ) {
+  const baseAsset = systemParams.get('Markets', marketTicker, 'BaseAsset');
   if (isMockSnx(deploymentParams.deploymentType)) {
     if (deploymentParams.deploymentType == DeploymentType.MockSnxMockPricing) {
       // Set global contract parameters
-      if (!systemParams.get('Markets', baseTicker, 'MockPrice')) {
-        throw new Error(`No MockPrice provided for market ${baseTicker}`);
+      if (!systemParams.get('Markets', marketTicker, 'MockPrice')) {
+        throw new Error(`No MockPrice provided for market ${marketTicker}`);
       }
-      await executeExternalFunction(deploymentParams, 'Exchanger', 'setFeeRateForExchange', [
-        toBytes32(baseTicker),
-        toBytes32(systemParams.get('QuoteTicker')),
-        toBN('0.0075'),
-      ]);
-      await executeExternalFunction(deploymentParams, 'Exchanger', 'setFeeRateForExchange', [
-        toBytes32(systemParams.get('QuoteTicker')),
-        toBytes32(baseTicker),
-        toBN('0.005'),
-      ]);
-      await executeExternalFunction(deploymentParams, 'ExchangeRates', 'setRateAndInvalid', [
-        toBytes32(baseTicker),
-        toBN(systemParams.get('Markets', baseTicker, 'MockPrice')),
-        false,
-      ]);
-      console.log(`Set price for ${baseTicker} to ${systemParams.get('Markets', baseTicker, 'MockPrice')}`);
+
+      console.log(`Set price for ${marketTicker} to ${systemParams.get('Markets', marketTicker, 'MockPrice')}`);
     }
 
-    await executeExternalFunction(deploymentParams, 'ProxySynthetix', 'addBaseAsset', [
-      toBytes32(baseTicker),
-      getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    ]);
-    await executeExternalFunction(deploymentParams, 'CollateralShort', 'addBaseAsset', [
-      toBytes32(baseTicker),
-      getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    ]);
-    await executeExternalFunction(deploymentParams, 'Proxy' + baseTicker, 'permitMint', [
-      getExternalContract(deploymentParams, 'ProxySynthetix').address,
-      true,
-    ]);
-    await executeExternalFunction(deploymentParams, 'Proxy' + baseTicker, 'permitMint', [
-      getExternalContract(deploymentParams, 'CollateralShort').address,
-      true,
-    ]);
-    await executeExternalFunction(deploymentParams, 'Proxy' + baseTicker, 'permitMint', [
+    await executeExternalFunction(deploymentParams, baseAsset, 'permitMint', [
       getLyraContract(deploymentParams, 'TestFaucet').address,
       true,
     ]);
@@ -88,16 +57,16 @@ export async function initSNXContracts(
     'OptionMarket',
     'init',
     [
-      getLyraContract(deploymentParams, 'SynthetixAdapter').address,
-      getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionMarketPricer', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      getExternalContract(deploymentParams, 'ProxyERC20' + systemParams.get('QuoteTicker')).address,
-      getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
+      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
+      getLyraContract(deploymentParams, 'LiquidityPool', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionMarketPricer', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
+      getLyraContract(deploymentParams, 'ShortCollateral', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionToken', marketTicker).address,
+      getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
+      getExternalContract(deploymentParams, baseAsset).address,
     ],
-    baseTicker,
+    marketTicker,
   );
 
   await executeLyraFunction(
@@ -105,10 +74,10 @@ export async function initSNXContracts(
     'OptionMarketPricer',
     'init',
     [
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
     ],
-    baseTicker,
+    marketTicker,
   );
 
   await executeLyraFunction(
@@ -116,80 +85,71 @@ export async function initSNXContracts(
     'OptionGreekCache',
     'init',
     [
-      getLyraContract(deploymentParams, 'SynthetixAdapter').address,
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionMarketPricer', baseTicker).address,
+      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionMarketPricer', marketTicker).address,
     ],
-    baseTicker,
+    marketTicker,
   );
   await executeLyraFunction(
     deploymentParams,
     'LiquidityPool',
     'init',
     [
-      getLyraContract(deploymentParams, 'SynthetixAdapter').address,
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      getLyraContract(deploymentParams, 'ShortPoolHedger', baseTicker).address,
-      getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
-      getExternalContract(deploymentParams, 'ProxyERC20' + systemParams.get('QuoteTicker')).address,
-      getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
+      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'LiquidityToken', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
+      getLyraContract(deploymentParams, 'SNXPerpsV2PoolHedger', marketTicker).address,
+      getLyraContract(deploymentParams, 'ShortCollateral', marketTicker).address,
+      getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
+      getExternalContract(deploymentParams, baseAsset).address,
     ],
-    baseTicker,
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'LiquidityToken',
     'init',
-    [getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address],
-    baseTicker,
+    [getLyraContract(deploymentParams, 'LiquidityPool', marketTicker).address],
+    marketTicker,
   );
-  //
-  // await executeLyraFunction(
-  //   deploymentParams,
-  //   'BasicLiquidityCounter',
-  //   'setLiquidityToken',
-  //   [(getLyraContract(deploymentParams, 'LiquidityToken', baseTicker)).address],
-  //   baseTicker,
-  // );
-  //
-  // await executeLyraFunction(
-  //   deploymentParams,
-  //   'LiquidityToken',
-  //   'setLiquidityTracker',
-  //   [(getLyraContract(deploymentParams, 'BasicLiquidityCounter', baseTicker)).address],
-  //   baseTicker,
-  // );
+  
   await executeLyraFunction(
     deploymentParams,
-    'ShortPoolHedger',
+    'SNXPerpsV2PoolHedger',
     'init',
     [
-      getLyraContract(deploymentParams, 'SynthetixAdapter').address,
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      getExternalContract(deploymentParams, 'ProxyERC20' + systemParams.get('QuoteTicker')).address,
-      getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
+      getExternalContract(deploymentParams, 'AddressResolver').address,
+      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
+      getLyraContract(deploymentParams, 'LiquidityPool', marketTicker).address,
+      getExternalContract(deploymentParams, `PerpsV2Proxy${marketTicker}PERP`).address,
+      getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
+      getExternalContract(deploymentParams, 'ProxyERC20sUSD').address,
+      getExternalContract(deploymentParams, 'CurveRegistry').address,
+      toBytes32(`s${marketTicker}PERP`),
     ],
-    baseTicker,
+    marketTicker,
   );
+  
+  
 
   await executeLyraFunction(
     deploymentParams,
     'ShortCollateral',
     'init',
     [
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      getExternalContract(deploymentParams, 'SynthetixAdapter').address,
-      getExternalContract(deploymentParams, 'ProxyERC20' + systemParams.get('QuoteTicker')).address,
-      getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'LiquidityPool', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionToken', marketTicker).address,
+      getExternalContract(deploymentParams, 'ExchangeAdapter').address,
+      getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
+      getExternalContract(deploymentParams, baseAsset).address,
     ],
-    baseTicker,
+    marketTicker,
   );
 
   await executeLyraFunction(
@@ -197,12 +157,12 @@ export async function initSNXContracts(
     'OptionToken',
     'init',
     [
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
-      getLyraContract(deploymentParams, 'SynthetixAdapter').address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
+      getLyraContract(deploymentParams, 'ShortCollateral', marketTicker).address,
+      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
     ],
-    baseTicker,
+    marketTicker,
   );
 
   await executeLyraFunction(
@@ -210,11 +170,11 @@ export async function initSNXContracts(
     'KeeperHelper',
     'init',
     [
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'ShortCollateral', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
     ],
-    baseTicker,
+    marketTicker,
   );
 
   await executeLyraFunction(
@@ -222,229 +182,176 @@ export async function initSNXContracts(
     'GWAVOracle',
     'init',
     [
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      getLyraContract(deploymentParams, 'SynthetixAdapter').address,
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
+      getLyraContract(deploymentParams, 'ExchangeAdapter').address,
     ],
-    baseTicker,
+    marketTicker,
   );
 
   // Parameter setting
 
-  await executeLyraFunction(deploymentParams, 'SynthetixAdapter', 'setGlobalsForContract', [
-    getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    toBytes32(systemParams.get('QuoteTicker')),
-    toBytes32(baseTicker),
-    DEFAULT_SECURITY_MODULE, // TODO: parameters
-    toBytes32('LYRA'),
+  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setMarketAdapterConfiguration', [
+    // address _optionMarket,
+    getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+    // uint _staticEstimationDiscount,
+    toBN('0.05'),
+    // address _snxPerpV2MarketAddress,
+    getExternalContract(deploymentParams, `PerpsV2Proxy${marketTicker}PERP`).address,
+    // address _uniswapPool,
+    ZERO_ADDRESS,
+    // uint24 _uniswapFeeTier,
+    3000, // must be > 0
   ]);
 
   await executeLyraFunction(
     deploymentParams,
     'LiquidityPool',
     'setLiquidityPoolParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'LiquidityPoolParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'LiquidityPoolParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'LiquidityPoolParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'LiquidityPool',
     'setCircuitBreakerParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'CircuitBreakerParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'CircuitBreakerParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'CircuitBreakerParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'OptionGreekCache',
     'setGreekCacheParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'GreekCacheParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'GreekCacheParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'GreekCacheParams'))],
+    marketTicker,
   );
   await executeLyraFunction(
     deploymentParams,
     'OptionGreekCache',
     'setMinCollateralParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'MinCollateralParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'MinCollateralParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'MinCollateralParams'))],
+    marketTicker,
   );
   await executeLyraFunction(
     deploymentParams,
     'OptionGreekCache',
     'setForceCloseParameters',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'ForceCloseParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'ForceCloseParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'ForceCloseParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'OptionMarketPricer',
     'setPricingParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'PricingParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'PricingParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'PricingParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'OptionMarketPricer',
     'setTradeLimitParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'TradeLimitParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'TradeLimitParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'TradeLimitParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'OptionMarketPricer',
     'setVarianceFeeParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'VarianceFeeParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'VarianceFeeParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'VarianceFeeParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'OptionToken',
     'setPartialCollateralParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'PartialCollatParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'PartialCollatParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'PartialCollatParams'))],
+    marketTicker,
   );
-
+  
   await executeLyraFunction(
     deploymentParams,
-    'ShortPoolHedger',
+    'SNXPerpsV2PoolHedger',
     'setPoolHedgerParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'PoolHedgerParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'PoolHedgerParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'PoolHedgerParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
-    'ShortPoolHedger',
-    'setShortBuffer',
-    [
-      toBN(
-        systemParams.get('Markets', baseTicker, 'ParameterOverrides', 'PoolHedgerParams', 'shortBuffer') ||
-          systemParams.get('Parameters', 'PoolHedgerParams', 'shortBuffer'),
-      ),
-    ],
-    baseTicker,
+    'SNXPerpsV2PoolHedger',
+    'setFuturesPoolHedgerParams',
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'FuturesPoolHedgerParams'))],
+    marketTicker,
   );
 
   await executeLyraFunction(
     deploymentParams,
     'OptionMarket',
     'setOptionMarketParams',
-    [
-      convertParams({
-        ...systemParams.getObj('Parameters', 'OptionMarketParams'),
-        ...systemParams.getObj('Markets', baseTicker, 'ParameterOverrides', 'OptionMarketParams'),
-      }),
-    ],
-    baseTicker,
+    [convertParams(systemParams.getObj('Markets', marketTicker, 'Parameters', 'OptionMarketParams'))],
+    marketTicker,
   );
+
+  await executeLyraFunction(
+    deploymentParams,
+    'OptionMarket',
+    'setBaseLimit',
+    [toBN('1000000000000')],
+    marketTicker
+  )
+
+  // await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setUniswapRouter', [
+  //   getExternalContract(deploymentParams, 'UniSwapRouter').address,
+  // ]);
+
+  await executeLyraFunction(deploymentParams, 'ExchangeAdapter', 'setUniSwapDeviation', [toBN('0.97')]);
 
   await executeLyraFunction(deploymentParams, 'OptionMarketViewer', 'addMarket', [
     {
-      liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
-      greekCache: getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      optionMarket: getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      optionMarketPricer: getLyraContract(deploymentParams, 'OptionMarketPricer', baseTicker).address,
-      optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      poolHedger: getLyraContract(deploymentParams, 'ShortPoolHedger', baseTicker).address,
-      shortCollateral: getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
-      baseAsset: getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
-      quoteAsset: getExternalContract(deploymentParams, 'ProxyERC20' + systemParams.get('QuoteTicker')).address,
-    },
-  ]);
-
-  await executeLyraFunction(deploymentParams, 'OptionMarketWrapper', 'addMarket', [
-    getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-    id,
-    {
-      quoteAsset: getExternalContract(deploymentParams, 'ProxyERC20' + systemParams.get('QuoteTicker')).address,
-      baseAsset: getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
-      optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
+      liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', marketTicker).address,
+      liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', marketTicker).address,
+      greekCache: getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
+      optionMarket: getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      optionMarketPricer: getLyraContract(deploymentParams, 'OptionMarketPricer', marketTicker).address,
+      optionToken: getLyraContract(deploymentParams, 'OptionToken', marketTicker).address,
+      poolHedger: getLyraContract(deploymentParams, 'SNXPerpsV2PoolHedger', marketTicker).address,
+      shortCollateral: getLyraContract(deploymentParams, 'ShortCollateral', marketTicker).address,
+      baseAsset: getExternalContract(deploymentParams, baseAsset).address,
+      quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
     },
   ]);
 
   await executeLyraFunction(deploymentParams, 'LyraRegistry', 'addMarket', [
     {
-      liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', baseTicker).address,
-      liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', baseTicker).address,
-      greekCache: getLyraContract(deploymentParams, 'OptionGreekCache', baseTicker).address,
-      optionMarket: getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
-      optionMarketPricer: getLyraContract(deploymentParams, 'OptionMarketPricer', baseTicker).address,
-      optionToken: getLyraContract(deploymentParams, 'OptionToken', baseTicker).address,
-      poolHedger: getLyraContract(deploymentParams, 'ShortPoolHedger', baseTicker).address,
-      shortCollateral: getLyraContract(deploymentParams, 'ShortCollateral', baseTicker).address,
-      gwavOracle: getLyraContract(deploymentParams, 'GWAVOracle', baseTicker).address,
-      baseAsset: getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
-      quoteAsset: getExternalContract(deploymentParams, 'ProxyERC20' + systemParams.get('QuoteTicker')).address,
+      liquidityPool: getLyraContract(deploymentParams, 'LiquidityPool', marketTicker).address,
+      liquidityToken: getLyraContract(deploymentParams, 'LiquidityToken', marketTicker).address,
+      greekCache: getLyraContract(deploymentParams, 'OptionGreekCache', marketTicker).address,
+      optionMarket: getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
+      optionMarketPricer: getLyraContract(deploymentParams, 'OptionMarketPricer', marketTicker).address,
+      optionToken: getLyraContract(deploymentParams, 'OptionToken', marketTicker).address,
+      poolHedger: getLyraContract(deploymentParams, 'SNXPerpsV2PoolHedger', marketTicker).address,
+      shortCollateral: getLyraContract(deploymentParams, 'ShortCollateral', marketTicker).address,
+      gwavOracle: getLyraContract(deploymentParams, 'GWAVOracle', marketTicker).address,
+      baseAsset: getExternalContract(deploymentParams, baseAsset).address,
+      quoteAsset: getExternalContract(deploymentParams, systemParams.get('QuoteAsset')).address,
     },
   ]);
 
   if (isMockSnx(deploymentParams.deploymentType)) {
-    const price = await callLyraFunction(deploymentParams, 'SynthetixAdapter', 'getSpotPriceForMarket', [
-      getLyraContract(deploymentParams, 'OptionMarket', baseTicker).address,
+    const price = await callLyraFunction(deploymentParams, 'ExchangeAdapter', 'getSpotPriceForMarket', [
+      getLyraContract(deploymentParams, 'OptionMarket', marketTicker).address,
       PriceType.REFERENCE,
     ]);
     const faucetAmount = toBN('10000').mul(UNIT).div(price);
     console.log('Setting faucet amount:', fromBN(faucetAmount));
     await executeLyraFunction(deploymentParams, 'TestFaucet', 'setDripAmount', [
-      getExternalContract(deploymentParams, 'Proxy' + baseTicker).address,
+      getExternalContract(deploymentParams, baseAsset).address,
       faucetAmount,
     ]);
   }

@@ -9,7 +9,7 @@ export async function updateMarketOwners(deploymentParams: DeploymentParams, mar
   await executeLyraFunction(deploymentParams, 'OptionMarket', 'nominateNewOwner', [newOwner], market);
   await executeLyraFunction(deploymentParams, 'OptionMarketPricer', 'nominateNewOwner', [newOwner], market);
   await executeLyraFunction(deploymentParams, 'OptionToken', 'nominateNewOwner', [newOwner], market);
-  await executeLyraFunction(deploymentParams, 'ShortPoolHedger', 'nominateNewOwner', [newOwner], market);
+  await executeLyraFunction(deploymentParams, 'GMXFuturesPoolHedger', 'nominateNewOwner', [newOwner], market);
   await executeLyraFunction(deploymentParams, 'ShortCollateral', 'nominateNewOwner', [newOwner], market);
 }
 

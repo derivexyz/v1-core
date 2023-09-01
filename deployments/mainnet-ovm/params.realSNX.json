@@ -1,0 +1,2421 @@
+{
+  "QuoteAsset" : "USDC",
+  "QuoteDecimals" : 6,
+  "Markets": {
+    "ETH": {
+      "BaseAsset": "wETH",
+      "BaseDecimals": 8,
+      "BaseLimit" : "100000000000000",
+      "deployHedger" : true,
+      "deployWithUniswap" : true,
+      "mockPrice" : "2000",
+      "uniDeviation" : "0.95",
+      "Parameters": {
+        "OptionMarketParams": {
+          "maxBoardExpiry": 7344000,
+          "securityModule": "0x0000000000000000000000000000000000000000",
+          "feePortionReserved": "0.1",
+          "staticBaseSettlementFee": "0.0025"
+        },
+        "GreekCacheParams": {
+          "maxStrikesPerBoard": 30,
+          "acceptableSpotPricePercentMove": "0.005",
+          "staleUpdateDuration": 1800,
+          "varianceIvGWAVPeriod": 21600,
+          "varianceSkewGWAVPeriod": 21600,
+          "optionValueIvGWAVPeriod": 129600,
+          "optionValueSkewGWAVPeriod": 129600,
+          "gwavSkewFloor": "0.5",
+          "gwavSkewCap": "2",
+          "rateAndCarry": "0.05"
+        },
+        "MinCollateralParams": {
+          "minStaticBaseCollateral": "0.0001",
+          "minStaticQuoteCollateral": "1",
+          "shockVolA": "3.0",
+          "shockVolPointA": 2419200,
+          "shockVolB": "1.8",
+          "shockVolPointB": 4838400,
+          "callSpotPriceShock": "1.15",
+          "putSpotPriceShock": "0.85"
+        },
+        "ForceCloseParams": {
+          "ivGWAVPeriod": 43200,
+          "skewGWAVPeriod": 86400,
+          "shortVolShock": "1.2",
+          "shortPostCutoffVolShock": "1.4",
+          "longVolShock": "0.8",
+          "longPostCutoffVolShock": "0.5",
+          "liquidateVolShock": "1.3",
+          "liquidatePostCutoffVolShock": "1.6",
+          "shortSpotMin": "0.01",
+          "liquidateSpotMin": "0.02"
+        },
+        "PricingParams": {
+          "optionPriceFeeCoefficient": "0.01",
+          "optionPriceFee1xPoint": 3628800,
+          "optionPriceFee2xPoint": 7257600,
+          "spotPriceFeeCoefficient": "0.001",
+          "spotPriceFee1xPoint": 3628800,
+          "spotPriceFee2xPoint": 7257600,
+          "vegaFeeCoefficient": "35000",
+          "standardSize": "30",
+          "skewAdjustmentFactor": "1.25"
+        },
+        "TradeLimitParams": {
+          "maxBaseIV": "2",
+          "maxSkew": "1.5",
+          "minBaseIV": "0.35",
+          "minSkew": "0.5",
+          "minDelta": "0.1",
+          "minForceCloseDelta": "0.2",
+          "minVol": "0.25",
+          "maxVol": "3",
+          "tradingCutoff": 43200,
+          "absMaxSkew": "5",
+          "absMinSkew": "0.15",
+          "capSkewsToAbs": false
+        },
+        "PartialCollatParams": {
+          "penaltyRatio": "0.2",
+          "liquidatorFeeRatio": "0.4",
+          "smFeeRatio": "0.3",
+          "minLiquidationFee": "15",
+          "securityModule": "0x5ec0000000000000000000000000000000000000"
+        },
+        "CircuitBreakerParams": {
+          "liquidityCBThreshold": "0.01",
+          "liquidityCBTimeout": 172800,
+          "ivVarianceCBThreshold": "0.15",
+          "skewVarianceCBThreshold": "0.15",
+          "ivVarianceCBTimeout": 43200,
+          "skewVarianceCBTimeout": 43200,
+          "boardSettlementCBTimeout": 21600,
+          "contractAdjustmentCBTimeout": 86400
+        },
+        "VarianceFeeParams": {
+          "defaultVarianceFeeCoefficient": "0.65",
+          "forceCloseVarianceFeeCoefficient": "0.0",
+          "skewAdjustmentCoefficient": "1",
+          "referenceSkew": "0",
+          "minimumStaticSkewAdjustment": "0",
+          "vegaCoefficient": "1",
+          "minimumStaticVega": "0",
+          "ivVarianceCoefficient": "1",
+          "minimumStaticIvVariance": "0"
+        },
+        "LiquidityPoolParams": {
+          "minDepositWithdraw": "1",
+          "depositDelay": 0,
+          "withdrawalDelay": 0,
+          "withdrawalFee": "0.003",
+          "guardianMultisig": "0x0000000000000000000000000000000000000000",
+          "guardianDelay": 0,
+          "adjustmentNetScalingFactor": "0.9",
+          "callCollatScalingFactor": "0.8",
+          "putCollatScalingFactor": "0.8"
+        },
+        "PoolHedgerParams": {
+          "shortBuffer": "2",
+          "interactionDelay": 0,
+          "hedgeCap": "100"
+        },
+        "FuturesPoolHedgerParams" : {
+          "targetLeverage": "1.1",
+          "maximumFundingRate": "0.1",
+          "deltaThreshold": "1000",
+          "marketDepthBuffer": "1.1",
+          "priceDeltaBuffer": "1.1",
+          "worstStableRate": "1.2",
+          "maxOrderCap": "10000000"
+        }
+      },
+      "GovWrapperBounds": {
+        "SNXAdapterBounds": {
+          "minMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x111BAbcdd66b1B60A20152a2D3D06d36F8B5703c",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 0
+            }
+          },
+          "maxMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x111BAbcdd66b1B60A20152a2D3D06d36F8B5703c",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 100000
+            }
+          },
+          "minRiskFreeRate": "-0.1",
+          "maxRiskFreeRate": "0.35"
+        },
+        "SNXHedgerBounds": {
+          "minPoolHedgerParams": {
+            "interactionDelay": 1,
+            "hedgeCap": "0"
+          },
+          "maxPoolHedgerParams": {
+            "interactionDelay": 172800,
+            "hedgeCap": "10000000"
+          },
+          "minFuturesPoolHedgerParams": {
+            "targetLeverage" : "0",
+            "maximumFundingRate" : "0",
+            "deltaThreshold" : "0",
+            "marketDepthBuffer" : "0",
+            "priceDeltaBuffer" : "0",
+            "worstStableRate" : "0",
+            "maxOrderCap" : "0"
+          },
+          "maxFuturesPoolHedgerParams": {
+            "targetLeverage" : "10",
+            "maximumFundingRate" : "10",
+            "deltaThreshold" : "1000000",
+            "marketDepthBuffer" : "100000",
+            "priceDeltaBuffer" : "1000000",
+            "worstStableRate" : "1000",
+            "maxOrderCap" : "10000000"
+          }
+        },
+        "OptionMarketBounds": {
+          "boardFreezingBlocked": false,
+          "boardForceSettlingBlocked": true,
+          "minBaseIv": "0.1",
+          "maxBaseIv": "5",
+          "minSkew": "0.1",
+          "maxSkew": "5",
+          "recoverFundsBlocked": false
+        },
+        "LiquidityPoolBounds": {
+          "minLiquidityPoolParams": {
+            "minDepositWithdraw": "1",
+            "depositDelay": 259200,
+            "withdrawalDelay": 259200,
+            "withdrawalFee": 0,
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 21600,
+            "adjustmentNetScalingFactor": "0.01",
+            "callCollatScalingFactor": "0.01",
+            "putCollatScalingFactor": "0.01"
+          },
+          "maxLiquidityPoolParams": {
+            "minDepositWithdraw": "10000",
+            "depositDelay": 1209600,
+            "withdrawalDelay": 1209600,
+            "withdrawalFee": "5",
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 1209600,
+            "adjustmentNetScalingFactor": "0.9",
+            "callCollatScalingFactor": "0.8",
+            "putCollatScalingFactor": "0.8"
+          },
+          "minCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 0,
+            "ivVarianceCBThreshold": "0.01",
+            "skewVarianceCBThreshold": "0.01",
+            "ivVarianceCBTimeout": 0,
+            "skewVarianceCBTimeout": 0,
+            "boardSettlementCBTimeout": 3600,
+            "contractAdjustmentCBTimeout": 86400
+          },
+          "maxCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 172800,
+            "ivVarianceCBThreshold": "0.9",
+            "skewVarianceCBThreshold": "0.9",
+            "ivVarianceCBTimeout": 43200,
+            "skewVarianceCBTimeout": 43200,
+            "boardSettlementCBTimeout": 43200,
+            "contractAdjustmentCBTimeout": 604800
+          },
+          "recoverFundsBlocked": false,
+          "updateHedgerBlocked": false,
+          "defaultGuardianMultisig": "0x0000000000000000000000000000000000000000"
+        },
+        "OptionMarketPricerBounds": {
+          "minPricingParams": {
+            "optionPriceFeeCoefficient": "0.0005",
+            "optionPriceFee1xPoint": 1209600,
+            "optionPriceFee2xPoint": 2419200,
+            "spotPriceFeeCoefficient": "0.00005",
+            "spotPriceFee1xPoint": 1209600,
+            "spotPriceFee2xPoint": 2419200,
+            "vegaFeeCoefficient": "1000",
+            "standardSize": "0.001",
+            "skewAdjustmentFactor": "1"
+          },
+          "maxPricingParams": {
+            "optionPriceFeeCoefficient": "0.9",
+            "optionPriceFee1xPoint": 3628800,
+            "optionPriceFee2xPoint": 9676800,
+            "spotPriceFeeCoefficient": "0.2",
+            "spotPriceFee1xPoint": 3628800,
+            "spotPriceFee2xPoint": 9676800,
+            "vegaFeeCoefficient": "10000000",
+            "standardSize": "1000",
+            "skewAdjustmentFactor": "3"
+          },
+          "minTradeLimitParams": {
+            "minDelta": "0.085",
+            "minForceCloseDelta": "0.001",
+            "tradingCutoff": 0,
+            "minBaseIV": "0.2",
+            "maxBaseIV": "1",
+            "minSkew": "0.25",
+            "maxSkew": "1",
+            "minVol": "0.25",
+            "maxVol": "0.8",
+            "absMinSkew": "0.25",
+            "absMaxSkew": "1.25",
+            "capSkewsToAbs": false
+          },
+          "maxTradeLimitParams": {
+            "minDelta": "0.6",
+            "minForceCloseDelta": "1",
+            "tradingCutoff": 86200,
+            "minBaseIV": "1",
+            "maxBaseIV": "4",
+            "minSkew": "1",
+            "maxSkew": "2",
+            "minVol": "0.5",
+            "maxVol": "6",
+            "absMinSkew": "1",
+            "absMaxSkew": "8",
+            "capSkewsToAbs": false
+          },
+          "minVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "0.2",
+            "forceCloseVarianceFeeCoefficient": "0",
+            "skewAdjustmentCoefficient": "0",
+            "referenceSkew": "0",
+            "minimumStaticSkewAdjustment": "0",
+            "vegaCoefficient": "0",
+            "minimumStaticVega": "0",
+            "ivVarianceCoefficient": "0",
+            "minimumStaticIvVariance": "0"
+          },
+          "maxVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "10",
+            "forceCloseVarianceFeeCoefficient": "10",
+            "skewAdjustmentCoefficient": "10",
+            "referenceSkew": "1",
+            "minimumStaticSkewAdjustment": "2",
+            "vegaCoefficient": "10",
+            "minimumStaticVega": "1",
+            "ivVarianceCoefficient": "3",
+            "minimumStaticIvVariance": "1"
+          }
+        },
+        "GreekCacheBounds": {
+          "minGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 1800,
+            "varianceIvGWAVPeriod": 100,
+            "varianceSkewGWAVPeriod": 100,
+            "optionValueIvGWAVPeriod": 500,
+            "optionValueSkewGWAVPeriod": 500,
+            "gwavSkewFloor": "0.25",
+            "gwavSkewCap": "0.1"
+          },
+          "maxGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 7200,
+            "varianceIvGWAVPeriod": 43200,
+            "varianceSkewGWAVPeriod": 43200,
+            "optionValueIvGWAVPeriod": 129600,
+            "optionValueSkewGWAVPeriod": 129600,
+            "gwavSkewFloor": "0.5",
+            "gwavSkewCap": "10"
+          },
+          "minForceCloseParams": {
+            "ivGWAVPeriod": 100,
+            "skewGWAVPeriod": 100,
+            "shortVolShock": "1.05",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.8",
+            "longPostCutoffVolShock": "0.01",
+            "liquidateVolShock": "1",
+            "liquidatePostCutoffVolShock": "1.01",
+            "shortSpotMin": "0.0015",
+            "liquidateSpotMin": "0.001"
+          },
+          "maxForceCloseParams": {
+            "ivGWAVPeriod": 86200,
+            "skewGWAVPeriod": 86200,
+            "shortVolShock": "1.2",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.95",
+            "longPostCutoffVolShock": "0.9",
+            "liquidateVolShock": "1.9",
+            "liquidatePostCutoffVolShock": "1.9",
+            "shortSpotMin": "0.01",
+            "liquidateSpotMin": "0.1"
+          },
+          "minMinCollateralParams": {
+            "minStaticBaseCollateral": "0.0001",
+            "minStaticQuoteCollateral": "0",
+            "shockVolA": "3",
+            "shockVolPointA": 2419200,
+            "shockVolB": "1.8",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.05",
+            "putSpotPriceShock": "0.5"
+          },
+          "maxMinCollateralParams": {
+            "minStaticBaseCollateral": "0.9",
+            "minStaticQuoteCollateral": "4000",
+            "shockVolA": "3",
+            "shockVolPointA": 2419200,
+            "shockVolB": "1.8",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.9",
+            "putSpotPriceShock": "0.99"
+          }
+        },
+        "OptionTokenBounds": {
+          "minPartialCollatParams": {
+            "penaltyRatio": "0",
+            "liquidatorFeeRatio": "0",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "5"
+          },
+          "maxPartialCollatParams": {
+            "penaltyRatio": "0.2",
+            "liquidatorFeeRatio": "0.2",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "20"
+          }
+        }
+      }
+    },
+    "BTC": {
+      "BaseAsset": "wBTC",
+      "BaseDecimals": 8,
+      "BaseLimit" : "0",
+      "deployHedger" : true,
+      "deployWithUniswap" : true,
+      "mockPrice" : 25000,
+      "uniDeviation" : "0.95",
+      "Parameters": {
+        "OptionMarketParams": {
+          "maxBoardExpiry": 7344000,
+          "securityModule": "0x0000000000000000000000000000000000000000",
+          "feePortionReserved": "0.1",
+          "staticBaseSettlementFee": "0.0025"
+        },
+        "GreekCacheParams": {
+          "maxStrikesPerBoard": 30,
+          "acceptableSpotPricePercentMove": "0.005",
+          "staleUpdateDuration": 1800,
+          "varianceIvGWAVPeriod": 21600,
+          "varianceSkewGWAVPeriod": 21600,
+          "optionValueIvGWAVPeriod": 129600,
+          "optionValueSkewGWAVPeriod": 129600,
+          "gwavSkewFloor": "0.5",
+          "gwavSkewCap": "2",
+          "rateAndCarry": "0.05"
+        },
+        "MinCollateralParams": {
+          "minStaticBaseCollateral": "0.0000000001",
+          "minStaticQuoteCollateral": "0.000000001",
+          "shockVolA": "3.0",
+          "shockVolPointA": 2419200,
+          "shockVolB": "1.8",
+          "shockVolPointB": 4838400,
+          "callSpotPriceShock": "1.15",
+          "putSpotPriceShock": "0.85"
+        },
+        "ForceCloseParams": {
+          "ivGWAVPeriod": 43200,
+          "skewGWAVPeriod": 86400,
+          "shortVolShock": "1.2",
+          "shortPostCutoffVolShock": "1.4",
+          "longVolShock": "0.8",
+          "longPostCutoffVolShock": "0.5",
+          "liquidateVolShock": "1.3",
+          "liquidatePostCutoffVolShock": "1.6",
+          "shortSpotMin": "0.01",
+          "liquidateSpotMin": "0.02"
+        },
+        "PricingParams": {
+          "optionPriceFeeCoefficient": "0.01",
+          "optionPriceFee1xPoint": 3628800,
+          "optionPriceFee2xPoint": 7257600,
+          "spotPriceFeeCoefficient": "0.001",
+          "spotPriceFee1xPoint": 3628800,
+          "spotPriceFee2xPoint": 7257600,
+          "vegaFeeCoefficient": "35000",
+          "standardSize": "30",
+          "skewAdjustmentFactor": "1.25"
+        },
+        "TradeLimitParams": {
+          "maxBaseIV": "2",
+          "maxSkew": "1.5",
+          "minBaseIV": "0.35",
+          "minSkew": "0.5",
+          "minDelta": "0.001",
+          "minForceCloseDelta": "0.2",
+          "minVol": "0.25",
+          "maxVol": "3",
+          "tradingCutoff": 43200,
+          "absMaxSkew": "5",
+          "absMinSkew": "0.15",
+          "capSkewsToAbs": false
+        },
+        "PartialCollatParams": {
+          "penaltyRatio": "0.2",
+          "liquidatorFeeRatio": "0.4",
+          "smFeeRatio": "0.3",
+          "minLiquidationFee": "15",
+          "securityModule": "0x5ec0000000000000000000000000000000000000"
+        },
+        "CircuitBreakerParams": {
+          "liquidityCBThreshold": "0.01",
+          "liquidityCBTimeout": 172800,
+          "ivVarianceCBThreshold": "0.15",
+          "skewVarianceCBThreshold": "0.15",
+          "ivVarianceCBTimeout": 43200,
+          "skewVarianceCBTimeout": 43200,
+          "boardSettlementCBTimeout": 21600,
+          "contractAdjustmentCBTimeout": 86400
+        },
+        "VarianceFeeParams": {
+          "defaultVarianceFeeCoefficient": "0.65",
+          "forceCloseVarianceFeeCoefficient": "0.0",
+          "skewAdjustmentCoefficient": "1",
+          "referenceSkew": "0",
+          "minimumStaticSkewAdjustment": "0",
+          "vegaCoefficient": "1",
+          "minimumStaticVega": "0",
+          "ivVarianceCoefficient": "1",
+          "minimumStaticIvVariance": "0"
+        },
+        "LiquidityPoolParams": {
+          "minDepositWithdraw": "1",
+          "depositDelay": 0,
+          "withdrawalDelay": 0,
+          "withdrawalFee": "0.003",
+          "guardianMultisig": "0x0000000000000000000000000000000000000000",
+          "guardianDelay": 0,
+          "adjustmentNetScalingFactor": "0.9",
+          "callCollatScalingFactor": "0.8",
+          "putCollatScalingFactor": "0.8"
+        },
+        "PoolHedgerParams": {
+          "shortBuffer": "2",
+          "interactionDelay": 86400,
+          "hedgeCap": "100"
+        },
+        "FuturesPoolHedgerParams" : {
+          "targetLeverage": "1.1",
+          "maximumFundingRate": "0.1",
+          "deltaThreshold": "100",
+          "marketDepthBuffer": "1.1",
+          "priceDeltaBuffer": "1.1",
+          "worstStableRate": "100000000000000000000",
+          "maxOrderCap": "100"
+        }
+      },
+      "GovWrapperBounds": {
+        "SNXAdapterBounds": {
+          "minMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x111BAbcdd66b1B60A20152a2D3D06d36F8B5703c",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 0
+            }
+          },
+          "maxMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x111BAbcdd66b1B60A20152a2D3D06d36F8B5703c",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 100000
+            }
+          },
+          "minRiskFreeRate": "-0.1",
+          "maxRiskFreeRate": "0.35"
+        },
+        "SNXHedgerBounds": {
+          "minPoolHedgerParams": {
+            "interactionDelay": 1,
+            "hedgeCap": "0"
+          },
+          "maxPoolHedgerParams": {
+            "interactionDelay": 172800,
+            "hedgeCap": "10000000"
+          },
+          "minFuturesPoolHedgerParams": {
+            "targetLeverage" : "0",
+            "maximumFundingRate" : "0",
+            "deltaThreshold" : "0",
+            "marketDepthBuffer" : "0",
+            "priceDeltaBuffer" : "0",
+            "worstStableRate" : "0",
+            "maxOrderCap" : "0"
+          },
+          "maxFuturesPoolHedgerParams": {
+            "targetLeverage" : "10",
+            "maximumFundingRate" : "10",
+            "deltaThreshold" : "1000000",
+            "marketDepthBuffer" : "100000",
+            "priceDeltaBuffer" : "1000000",
+            "worstStableRate" : "1000",
+            "maxOrderCap" : "10000000"
+          }
+        },
+        "OptionMarketBounds": {
+          "boardFreezingBlocked": false,
+          "boardForceSettlingBlocked": true,
+          "minBaseIv": "0.1",
+          "maxBaseIv": "5",
+          "minSkew": "0.1",
+          "maxSkew": "5",
+          "recoverFundsBlocked": false
+        },
+        "LiquidityPoolBounds": {
+          "minLiquidityPoolParams": {
+            "minDepositWithdraw": "1",
+            "depositDelay": 259200,
+            "withdrawalDelay": 259200,
+            "withdrawalFee": 0,
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 21600,
+            "adjustmentNetScalingFactor": "0.01",
+            "callCollatScalingFactor": "0.01",
+            "putCollatScalingFactor": "0.01"
+          },
+          "maxLiquidityPoolParams": {
+            "minDepositWithdraw": "10000",
+            "depositDelay": 1209600,
+            "withdrawalDelay": 1209600,
+            "withdrawalFee": "5",
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 1209600,
+            "adjustmentNetScalingFactor": "0.9",
+            "callCollatScalingFactor": "0.8",
+            "putCollatScalingFactor": "0.8"
+          },
+          "minCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 0,
+            "ivVarianceCBThreshold": "0.01",
+            "skewVarianceCBThreshold": "0.01",
+            "ivVarianceCBTimeout": 0,
+            "skewVarianceCBTimeout": 0,
+            "boardSettlementCBTimeout": 3600,
+            "contractAdjustmentCBTimeout": 86400
+          },
+          "maxCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 172800,
+            "ivVarianceCBThreshold": "0.9",
+            "skewVarianceCBThreshold": "0.9",
+            "ivVarianceCBTimeout": 43200,
+            "skewVarianceCBTimeout": 43200,
+            "boardSettlementCBTimeout": 43200,
+            "contractAdjustmentCBTimeout": 604800
+          },
+          "recoverFundsBlocked": false,
+          "updateHedgerBlocked": false,
+          "defaultGuardianMultisig": "0x0000000000000000000000000000000000000000"
+        },
+        "OptionMarketPricerBounds": {
+          "minPricingParams": {
+            "optionPriceFeeCoefficient": "0.0005",
+            "optionPriceFee1xPoint": 1209600,
+            "optionPriceFee2xPoint": 2419200,
+            "spotPriceFeeCoefficient": "0.00005",
+            "spotPriceFee1xPoint": 1209600,
+            "spotPriceFee2xPoint": 2419200,
+            "vegaFeeCoefficient": "1000",
+            "standardSize": "0.001",
+            "skewAdjustmentFactor": "1"
+          },
+          "maxPricingParams": {
+            "optionPriceFeeCoefficient": "0.9",
+            "optionPriceFee1xPoint": 3628800,
+            "optionPriceFee2xPoint": 9676800,
+            "spotPriceFeeCoefficient": "0.2",
+            "spotPriceFee1xPoint": 3628800,
+            "spotPriceFee2xPoint": 9676800,
+            "vegaFeeCoefficient": "10000000",
+            "standardSize": "1000",
+            "skewAdjustmentFactor": "3"
+          },
+          "minTradeLimitParams": {
+            "minDelta": "0.085",
+            "minForceCloseDelta": "0.001",
+            "tradingCutoff": 0,
+            "minBaseIV": "0.2",
+            "maxBaseIV": "1",
+            "minSkew": "0.25",
+            "maxSkew": "1",
+            "minVol": "0.25",
+            "maxVol": "0.8",
+            "absMinSkew": "0.25",
+            "absMaxSkew": "1.25",
+            "capSkewsToAbs": false
+          },
+          "maxTradeLimitParams": {
+            "minDelta": "0.6",
+            "minForceCloseDelta": "1",
+            "tradingCutoff": 86200,
+            "minBaseIV": "1",
+            "maxBaseIV": "4",
+            "minSkew": "1",
+            "maxSkew": "2",
+            "minVol": "0.5",
+            "maxVol": "6",
+            "absMinSkew": "1",
+            "absMaxSkew": "8",
+            "capSkewsToAbs": false
+          },
+          "minVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "0.2",
+            "forceCloseVarianceFeeCoefficient": "0",
+            "skewAdjustmentCoefficient": "0",
+            "referenceSkew": "0",
+            "minimumStaticSkewAdjustment": "0",
+            "vegaCoefficient": "0",
+            "minimumStaticVega": "0",
+            "ivVarianceCoefficient": "0",
+            "minimumStaticIvVariance": "0"
+          },
+          "maxVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "10",
+            "forceCloseVarianceFeeCoefficient": "10",
+            "skewAdjustmentCoefficient": "10",
+            "referenceSkew": "1",
+            "minimumStaticSkewAdjustment": "2",
+            "vegaCoefficient": "10",
+            "minimumStaticVega": "1",
+            "ivVarianceCoefficient": "3",
+            "minimumStaticIvVariance": "1"
+          }
+        },
+        "GreekCacheBounds": {
+          "minGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 1800,
+            "varianceIvGWAVPeriod": 100,
+            "varianceSkewGWAVPeriod": 100,
+            "optionValueIvGWAVPeriod": 500,
+            "optionValueSkewGWAVPeriod": 500,
+            "gwavSkewFloor": "0.25",
+            "gwavSkewCap": "0.1"
+          },
+          "maxGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 7200,
+            "varianceIvGWAVPeriod": 43200,
+            "varianceSkewGWAVPeriod": 43200,
+            "optionValueIvGWAVPeriod": 129600,
+            "optionValueSkewGWAVPeriod": 129600,
+            "gwavSkewFloor": "0.5",
+            "gwavSkewCap": "10"
+          },
+          "minForceCloseParams": {
+            "ivGWAVPeriod": 100,
+            "skewGWAVPeriod": 100,
+            "shortVolShock": "1.05",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.8",
+            "longPostCutoffVolShock": "0.01",
+            "liquidateVolShock": "1",
+            "liquidatePostCutoffVolShock": "1.01",
+            "shortSpotMin": "0.0015",
+            "liquidateSpotMin": "0.001"
+          },
+          "maxForceCloseParams": {
+            "ivGWAVPeriod": 86200,
+            "skewGWAVPeriod": 86200,
+            "shortVolShock": "1.2",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.95",
+            "longPostCutoffVolShock": "0.9",
+            "liquidateVolShock": "1.9",
+            "liquidatePostCutoffVolShock": "1.9",
+            "shortSpotMin": "0.01",
+            "liquidateSpotMin": "0.1"
+          },
+          "minMinCollateralParams": {
+            "minStaticBaseCollateral": "0.0001",
+            "minStaticQuoteCollateral": "0",
+            "shockVolA": "3",
+            "shockVolPointA": 2419200,
+            "shockVolB": "1.8",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.05",
+            "putSpotPriceShock": "0.5"
+          },
+          "maxMinCollateralParams": {
+            "minStaticBaseCollateral": "0.9",
+            "minStaticQuoteCollateral": "4000",
+            "shockVolA": "3",
+            "shockVolPointA": 2419200,
+            "shockVolB": "1.8",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.9",
+            "putSpotPriceShock": "0.99"
+          }
+        },
+        "OptionTokenBounds": {
+          "minPartialCollatParams": {
+            "penaltyRatio": "0",
+            "liquidatorFeeRatio": "0",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "5"
+          },
+          "maxPartialCollatParams": {
+            "penaltyRatio": "0.2",
+            "liquidatorFeeRatio": "0.2",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "20"
+          }
+        }
+      }
+    },
+    "OP": {
+      "BaseAsset": "OP",
+      "BaseDecimals": 18,
+      "MockPrice": "1.68",
+      "BaseLimit" : "0",
+      "deployHedger" : true,
+      "deployWithUniswap" : true,
+      "uniDeviation" : "0.95",
+      "Parameters": {
+        "OptionMarketParams": {
+          "maxBoardExpiry": 7344000,
+          "securityModule": "0x0000000000000000000000000000000000000000",
+          "feePortionReserved": "0.1",
+          "staticBaseSettlementFee": "0.0025"
+        },
+        "GreekCacheParams": {
+          "maxStrikesPerBoard": 30,
+          "acceptableSpotPricePercentMove": "0.005",
+          "staleUpdateDuration": 1800,
+          "varianceIvGWAVPeriod": 21600,
+          "varianceSkewGWAVPeriod": 21600,
+          "optionValueIvGWAVPeriod": 129600,
+          "optionValueSkewGWAVPeriod": 129600,
+          "gwavSkewFloor": "0.5",
+          "gwavSkewCap": "2",
+          "rateAndCarry": "0.05"
+        },
+        "MinCollateralParams": {
+          "minStaticBaseCollateral": "0.00000003",
+          "minStaticQuoteCollateral": "1",
+          "shockVolA": "3.0",
+          "shockVolPointA": 2419200,
+          "shockVolB": "1.8",
+          "shockVolPointB": 4838400,
+          "callSpotPriceShock": "1.15",
+          "putSpotPriceShock": "0.85"
+        },
+        "ForceCloseParams": {
+          "ivGWAVPeriod": 21600,
+          "skewGWAVPeriod": 21600,
+          "shortVolShock": "1.125",
+          "shortPostCutoffVolShock": "1.35",
+          "longVolShock": "0.875",
+          "longPostCutoffVolShock": "0.65",
+          "liquidateVolShock": "1.15",
+          "liquidatePostCutoffVolShock": "1.45",
+          "shortSpotMin": "0.0015",
+          "liquidateSpotMin": "0.01"
+        },
+        "PricingParams": {
+          "optionPriceFeeCoefficient": "0.01",
+          "optionPriceFee1xPoint": 3628800,
+          "optionPriceFee2xPoint": 7257600,
+          "spotPriceFeeCoefficient": "0.0007",
+          "spotPriceFee1xPoint": 3628800,
+          "spotPriceFee2xPoint": 7257600,
+          "vegaFeeCoefficient": "35000",
+          "standardSize": "5",
+          "skewAdjustmentFactor": "1.25"
+        },
+        "TradeLimitParams": {
+          "maxBaseIV": "2",
+          "maxSkew": "1.5",
+          "minBaseIV": "0.35",
+          "minSkew": "0.5",
+          "minDelta": "0.1",
+          "minForceCloseDelta": "0.2",
+          "minVol": "0.25",
+          "maxVol": "3",
+          "tradingCutoff": 43200,
+          "absMaxSkew": "5",
+          "absMinSkew": "0.15",
+          "capSkewsToAbs": false
+        },
+        "PartialCollatParams": {
+          "penaltyRatio": "0.2",
+          "liquidatorFeeRatio": "0.4",
+          "smFeeRatio": "0.3",
+          "minLiquidationFee": "15",
+          "securityModule": "0x5ec0000000000000000000000000000000000000"
+        },
+        "CircuitBreakerParams": {
+          "liquidityCBThreshold": "0.01",
+          "liquidityCBTimeout": 172800,
+          "ivVarianceCBThreshold": "0.15",
+          "skewVarianceCBThreshold": "0.15",
+          "ivVarianceCBTimeout": 43200,
+          "skewVarianceCBTimeout": 43200,
+          "boardSettlementCBTimeout": 21600,
+          "contractAdjustmentCBTimeout": 86400
+        },
+        "VarianceFeeParams": {
+          "defaultVarianceFeeCoefficient": "0.65",
+          "forceCloseVarianceFeeCoefficient": "0.0",
+          "skewAdjustmentCoefficient": "1",
+          "referenceSkew": "0",
+          "minimumStaticSkewAdjustment": "0",
+          "vegaCoefficient": "1",
+          "minimumStaticVega": "0",
+          "ivVarianceCoefficient": "1",
+          "minimumStaticIvVariance": "0"
+        },
+        "LiquidityPoolParams": {
+          "minDepositWithdraw": "1",
+          "depositDelay": 0,
+          "withdrawalDelay": 0,
+          "withdrawalFee": "0.003",
+          "guardianMultisig": "0x0000000000000000000000000000000000000000",
+          "guardianDelay": 0,
+          "adjustmentNetScalingFactor": "0.9",
+          "callCollatScalingFactor": "0.8",
+          "putCollatScalingFactor": "0.8"
+        },
+        "PoolHedgerParams": {
+          "shortBuffer": "2",
+          "interactionDelay": 0,
+          "hedgeCap": "100"
+        },
+        "FuturesPoolHedgerParams" : {
+          "targetLeverage": "1.1",
+          "maximumFundingRate": "0.1",
+          "deltaThreshold": "100",
+          "marketDepthBuffer": "1.1",
+          "priceDeltaBuffer": "1.1",
+          "worstStableRate": "100000000000000000000",
+          "maxOrderCap": "100"
+        }
+      },
+      "GovWrapperBounds": {
+        "SNXAdapterBounds": {
+          "minMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0xa649754A8Ad0Be3fa745A592aa435bD4F9908a1a",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 0
+            }
+          },
+          "maxMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0xa649754A8Ad0Be3fa745A592aa435bD4F9908a1a",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 100000
+            }
+          },
+          "minRiskFreeRate": "-0.1",
+          "maxRiskFreeRate": "0.35"
+        },
+        "SNXHedgerBounds": {
+          "minPoolHedgerParams": {
+            "interactionDelay": 1,
+            "hedgeCap": "0"
+          },
+          "maxPoolHedgerParams": {
+            "interactionDelay": 172800,
+            "hedgeCap": "10000000"
+          },
+          "minFuturesPoolHedgerParams": {
+            "targetLeverage" : "0",
+            "maximumFundingRate" : "0",
+            "deltaThreshold" : "0",
+            "marketDepthBuffer" : "0",
+            "priceDeltaBuffer" : "0",
+            "worstStableRate" : "0",
+            "maxOrderCap" : "0"
+          },
+          "maxFuturesPoolHedgerParams": {
+            "targetLeverage" : "10",
+            "maximumFundingRate" : "10",
+            "deltaThreshold" : "1000000",
+            "marketDepthBuffer" : "100000",
+            "priceDeltaBuffer" : "1000000",
+            "worstStableRate" : "1000",
+            "maxOrderCap" : "10000000"
+          }
+        },
+        "OptionMarketBounds": {
+          "boardFreezingBlocked": false,
+          "boardForceSettlingBlocked": true,
+          "minBaseIv": "0.1",
+          "maxBaseIv": "5",
+          "minSkew": "0.1",
+          "maxSkew": "5",
+          "recoverFundsBlocked": false
+        },
+        "LiquidityPoolBounds": {
+          "minLiquidityPoolParams": {
+            "minDepositWithdraw": "1",
+            "depositDelay": 259200,
+            "withdrawalDelay": 259200,
+            "withdrawalFee": 0,
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 21600,
+            "adjustmentNetScalingFactor": "0.01",
+            "callCollatScalingFactor": "0.01",
+            "putCollatScalingFactor": "0.01"
+          },
+          "maxLiquidityPoolParams": {
+            "minDepositWithdraw": "10000",
+            "depositDelay": 1209600,
+            "withdrawalDelay": 1209600,
+            "withdrawalFee": "5",
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 1209600,
+            "adjustmentNetScalingFactor": "0.9",
+            "callCollatScalingFactor": "0.8",
+            "putCollatScalingFactor": "0.8"
+          },
+          "minCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 0,
+            "ivVarianceCBThreshold": "0.01",
+            "skewVarianceCBThreshold": "0.01",
+            "ivVarianceCBTimeout": 0,
+            "skewVarianceCBTimeout": 0,
+            "boardSettlementCBTimeout": 3600,
+            "contractAdjustmentCBTimeout": 86400
+          },
+          "maxCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 172800,
+            "ivVarianceCBThreshold": "0.9",
+            "skewVarianceCBThreshold": "0.9",
+            "ivVarianceCBTimeout": 43200,
+            "skewVarianceCBTimeout": 43200,
+            "boardSettlementCBTimeout": 43200,
+            "contractAdjustmentCBTimeout": 604800
+          },
+          "recoverFundsBlocked": false,
+          "updateHedgerBlocked": false,
+          "defaultGuardianMultisig": "0x0000000000000000000000000000000000000000"
+        },
+        "OptionMarketPricerBounds": {
+          "minPricingParams": {
+            "optionPriceFeeCoefficient": "0.0005",
+            "optionPriceFee1xPoint": 1209600,
+            "optionPriceFee2xPoint": 2419200,
+            "spotPriceFeeCoefficient": "0.00005",
+            "spotPriceFee1xPoint": 1209600,
+            "spotPriceFee2xPoint": 2419200,
+            "vegaFeeCoefficient": "1",
+            "standardSize": "0.001",
+            "skewAdjustmentFactor": "1"
+          },
+          "maxPricingParams": {
+            "optionPriceFeeCoefficient": "0.9",
+            "optionPriceFee1xPoint": 3628800,
+            "optionPriceFee2xPoint": 9676800,
+            "spotPriceFeeCoefficient": "0.2",
+            "spotPriceFee1xPoint": 3628800,
+            "spotPriceFee2xPoint": 9676800,
+            "vegaFeeCoefficient": "10000000",
+            "standardSize": "1000000000",
+            "skewAdjustmentFactor": "3"
+          },
+          "minTradeLimitParams": {
+            "minDelta": "0.085",
+            "minForceCloseDelta": "0.001",
+            "tradingCutoff": 0,
+            "minBaseIV": "0.2",
+            "maxBaseIV": "1",
+            "minSkew": "0.25",
+            "maxSkew": "1",
+            "minVol": "0.25",
+            "maxVol": "0.8",
+            "absMinSkew": "0.25",
+            "absMaxSkew": "1.25",
+            "capSkewsToAbs": false
+          },
+          "maxTradeLimitParams": {
+            "minDelta": "0.6",
+            "minForceCloseDelta": "1",
+            "tradingCutoff": 86200,
+            "minBaseIV": "1",
+            "maxBaseIV": "4",
+            "minSkew": "1",
+            "maxSkew": "2",
+            "minVol": "0.5",
+            "maxVol": "6",
+            "absMinSkew": "1",
+            "absMaxSkew": "8",
+            "capSkewsToAbs": false
+          },
+          "minVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "0.2",
+            "forceCloseVarianceFeeCoefficient": "0",
+            "skewAdjustmentCoefficient": "0",
+            "referenceSkew": "0",
+            "minimumStaticSkewAdjustment": "0",
+            "vegaCoefficient": "0",
+            "minimumStaticVega": "0",
+            "ivVarianceCoefficient": "0",
+            "minimumStaticIvVariance": "0"
+          },
+          "maxVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "10",
+            "forceCloseVarianceFeeCoefficient": "10",
+            "skewAdjustmentCoefficient": "10",
+            "referenceSkew": "1",
+            "minimumStaticSkewAdjustment": "2",
+            "vegaCoefficient": "10",
+            "minimumStaticVega": "1",
+            "ivVarianceCoefficient": "3",
+            "minimumStaticIvVariance": "1"
+          }
+        },
+        "GreekCacheBounds": {
+          "minGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 1800,
+            "varianceIvGWAVPeriod": 100,
+            "varianceSkewGWAVPeriod": 100,
+            "optionValueIvGWAVPeriod": 500,
+            "optionValueSkewGWAVPeriod": 500,
+            "gwavSkewFloor": "0.25",
+            "gwavSkewCap": "0.1"
+          },
+          "maxGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 7200,
+            "varianceIvGWAVPeriod": 43200,
+            "varianceSkewGWAVPeriod": 43200,
+            "optionValueIvGWAVPeriod": 129600,
+            "optionValueSkewGWAVPeriod": 129600,
+            "gwavSkewFloor": "0.5",
+            "gwavSkewCap": "10"
+          },
+          "minForceCloseParams": {
+            "ivGWAVPeriod": 100,
+            "skewGWAVPeriod": 100,
+            "shortVolShock": "1.05",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.8",
+            "longPostCutoffVolShock": "0.01",
+            "liquidateVolShock": "1",
+            "liquidatePostCutoffVolShock": "1.01",
+            "shortSpotMin": "0.0015",
+            "liquidateSpotMin": "0.001"
+          },
+          "maxForceCloseParams": {
+            "ivGWAVPeriod": 86200,
+            "skewGWAVPeriod": 86200,
+            "shortVolShock": "1.2",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.95",
+            "longPostCutoffVolShock": "0.9",
+            "liquidateVolShock": "1.9",
+            "liquidatePostCutoffVolShock": "1.9",
+            "shortSpotMin": "0.01",
+            "liquidateSpotMin": "0.1"
+          },
+          "minMinCollateralParams": {
+            "minStaticBaseCollateral": "0.0001",
+            "minStaticQuoteCollateral": "0",
+            "shockVolA": "3",
+            "shockVolPointA": 2419200,
+            "shockVolB": "1.8",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.05",
+            "putSpotPriceShock": "0.5"
+          },
+          "maxMinCollateralParams": {
+            "minStaticBaseCollateral": "1000000000000",
+            "minStaticQuoteCollateral": "4000",
+            "shockVolA": "10",
+            "shockVolPointA": 2419200,
+            "shockVolB": "5",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.9",
+            "putSpotPriceShock": "0.99"
+          }
+        },
+        "OptionTokenBounds": {
+          "minPartialCollatParams": {
+            "penaltyRatio": "0",
+            "liquidatorFeeRatio": "0",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "5"
+          },
+          "maxPartialCollatParams": {
+            "penaltyRatio": "0.2",
+            "liquidatorFeeRatio": "0.2",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "20"
+          }
+        }
+      }
+    },
+    "ARB": {
+      "BaseAsset": "ARB",
+      "BaseDecimals": 18,
+      "MockPrice": "1.16",
+      "BaseLimit" : "0",
+      "deployHedger" : true,
+      "deployWithUniswap" : true,
+      "uniDeviation" : "0.95",
+      "Parameters": {
+        "OptionMarketParams": {
+          "maxBoardExpiry": 7344000,
+          "securityModule": "0x0000000000000000000000000000000000000000",
+          "feePortionReserved": "0",
+          "staticBaseSettlementFee": "0.0025"
+        },
+        "GreekCacheParams": {
+          "maxStrikesPerBoard": 30,
+          "acceptableSpotPricePercentMove": "0.005",
+          "staleUpdateDuration": 1800,
+          "varianceIvGWAVPeriod": 21600,
+          "varianceSkewGWAVPeriod": 21600,
+          "optionValueIvGWAVPeriod": 129600,
+          "optionValueSkewGWAVPeriod": 129600,
+          "gwavSkewFloor": "0.5",
+          "gwavSkewCap": "2",
+          "rateAndCarry": "0.05"
+        },
+        "MinCollateralParams": {
+          "minStaticBaseCollateral": "1000000000",
+          "minStaticQuoteCollateral": "1",
+          "shockVolA": "3.0",
+          "shockVolPointA": 2419200,
+          "shockVolB": "1.8",
+          "shockVolPointB": 4838400,
+          "callSpotPriceShock": "1.15",
+          "putSpotPriceShock": "0.85"
+        },
+        "ForceCloseParams": {
+          "ivGWAVPeriod": 43200,
+          "skewGWAVPeriod": 86400,
+          "shortVolShock": "1.2",
+          "shortPostCutoffVolShock": "1.4",
+          "longVolShock": "0.8",
+          "longPostCutoffVolShock": "0.5",
+          "liquidateVolShock": "1.3",
+          "liquidatePostCutoffVolShock": "1.6",
+          "shortSpotMin": "0.01",
+          "liquidateSpotMin": "0.02"
+        },
+        "PricingParams": {
+          "optionPriceFeeCoefficient": "0.01",
+          "optionPriceFee1xPoint": 3628800,
+          "optionPriceFee2xPoint": 7257600,
+          "spotPriceFeeCoefficient": "0.001",
+          "spotPriceFee1xPoint": 3628800,
+          "spotPriceFee2xPoint": 7257600,
+          "vegaFeeCoefficient": "35000",
+          "standardSize": "30",
+          "skewAdjustmentFactor": "1.25"
+        },
+        "TradeLimitParams": {
+          "maxBaseIV": "2",
+          "maxSkew": "1.5",
+          "minBaseIV": "0.35",
+          "minSkew": "0.5",
+          "minDelta": "0.01",
+          "minForceCloseDelta": "0.2",
+          "minVol": "0.25",
+          "maxVol": "3",
+          "tradingCutoff": 43200,
+          "absMaxSkew": "5",
+          "absMinSkew": "0.15",
+          "capSkewsToAbs": false
+        },
+        "PartialCollatParams": {
+          "penaltyRatio": "0.2",
+          "liquidatorFeeRatio": "0.4",
+          "smFeeRatio": "0.3",
+          "minLiquidationFee": "15",
+          "securityModule": "0x5ec0000000000000000000000000000000000000"
+        },
+        "CircuitBreakerParams": {
+          "liquidityCBThreshold": "0.01",
+          "liquidityCBTimeout": 172800,
+          "ivVarianceCBThreshold": "0.15",
+          "skewVarianceCBThreshold": "0.15",
+          "ivVarianceCBTimeout": 43200,
+          "skewVarianceCBTimeout": 43200,
+          "boardSettlementCBTimeout": 21600,
+          "contractAdjustmentCBTimeout": 86400
+        },
+        "VarianceFeeParams": {
+          "defaultVarianceFeeCoefficient": "0.65",
+          "forceCloseVarianceFeeCoefficient": "0.0",
+          "skewAdjustmentCoefficient": "1",
+          "referenceSkew": "0",
+          "minimumStaticSkewAdjustment": "0",
+          "vegaCoefficient": "1",
+          "minimumStaticVega": "0",
+          "ivVarianceCoefficient": "1",
+          "minimumStaticIvVariance": "0"
+        },
+        "LiquidityPoolParams": {
+          "minDepositWithdraw": "1",
+          "depositDelay": 0,
+          "withdrawalDelay": 0,
+          "withdrawalFee": "0.003",
+          "guardianMultisig": "0x0000000000000000000000000000000000000000",
+          "guardianDelay": 0,
+          "adjustmentNetScalingFactor": "0.9",
+          "callCollatScalingFactor": "0.8",
+          "putCollatScalingFactor": "0.8"
+        },
+        "PoolHedgerParams": {
+          "shortBuffer": "2",
+          "interactionDelay": 0,
+          "hedgeCap": "100"
+        },
+        "FuturesPoolHedgerParams" : {
+          "targetLeverage": "1.1",
+          "maximumFundingRate": "0.1",
+          "deltaThreshold": "100",
+          "marketDepthBuffer": "1.1",
+          "priceDeltaBuffer": "1.1",
+          "worstStableRate": "1.2",
+          "maxOrderCap": "100"
+        }
+      },
+      "GovWrapperBounds": {
+        "SNXAdapterBounds": {
+          "minMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x111BAbcdd66b1B60A20152a2D3D06d36F8B5703c",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 0
+            }
+          },
+          "maxMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x111BAbcdd66b1B60A20152a2D3D06d36F8B5703c",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 100000
+            }
+          },
+          "minRiskFreeRate": "-0.1",
+          "maxRiskFreeRate": "0.35"
+        },
+        "SNXHedgerBounds": {
+          "minPoolHedgerParams": {
+            "interactionDelay": 1,
+            "hedgeCap": "0"
+          },
+          "maxPoolHedgerParams": {
+            "interactionDelay": 172800,
+            "hedgeCap": "10000000"
+          },
+          "minFuturesPoolHedgerParams": {
+            "targetLeverage" : "0",
+            "maximumFundingRate" : "0",
+            "deltaThreshold" : "0",
+            "marketDepthBuffer" : "0",
+            "priceDeltaBuffer" : "0",
+            "worstStableRate" : "0",
+            "maxOrderCap" : "0"
+          },
+          "maxFuturesPoolHedgerParams": {
+            "targetLeverage" : "10",
+            "maximumFundingRate" : "10",
+            "deltaThreshold" : "1000000",
+            "marketDepthBuffer" : "100000",
+            "priceDeltaBuffer" : "1000000",
+            "worstStableRate" : "1000",
+            "maxOrderCap" : "10000000"
+          }
+        },
+        "OptionMarketBounds": {
+          "boardFreezingBlocked": false,
+          "boardForceSettlingBlocked": true,
+          "minBaseIv": "0.1",
+          "maxBaseIv": "5",
+          "minSkew": "0.1",
+          "maxSkew": "5",
+          "recoverFundsBlocked": false
+        },
+        "LiquidityPoolBounds": {
+          "minLiquidityPoolParams": {
+            "minDepositWithdraw": "1",
+            "depositDelay": 259200,
+            "withdrawalDelay": 259200,
+            "withdrawalFee": 0,
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 21600,
+            "adjustmentNetScalingFactor": "0.01",
+            "callCollatScalingFactor": "0.01",
+            "putCollatScalingFactor": "0.01"
+          },
+          "maxLiquidityPoolParams": {
+            "minDepositWithdraw": "10000",
+            "depositDelay": 1209600,
+            "withdrawalDelay": 1209600,
+            "withdrawalFee": "5",
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay": 1209600,
+            "adjustmentNetScalingFactor": "0.9",
+            "callCollatScalingFactor": "0.8",
+            "putCollatScalingFactor": "0.8"
+          },
+          "minCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 0,
+            "ivVarianceCBThreshold": "0.01",
+            "skewVarianceCBThreshold": "0.01",
+            "ivVarianceCBTimeout": 0,
+            "skewVarianceCBTimeout": 0,
+            "boardSettlementCBTimeout": 3600,
+            "contractAdjustmentCBTimeout": 86400
+          },
+          "maxCircuitBreakerParams": {
+            "liquidityCBThreshold": "0.01",
+            "liquidityCBTimeout": 172800,
+            "ivVarianceCBThreshold": "0.9",
+            "skewVarianceCBThreshold": "0.9",
+            "ivVarianceCBTimeout": 43200,
+            "skewVarianceCBTimeout": 43200,
+            "boardSettlementCBTimeout": 43200,
+            "contractAdjustmentCBTimeout": 604800
+          },
+          "recoverFundsBlocked": false,
+          "updateHedgerBlocked": false,
+          "defaultGuardianMultisig": "0x0000000000000000000000000000000000000000"
+        },
+        "OptionMarketPricerBounds": {
+          "minPricingParams": {
+            "optionPriceFeeCoefficient": "0.0005",
+            "optionPriceFee1xPoint": 1209600,
+            "optionPriceFee2xPoint": 2419200,
+            "spotPriceFeeCoefficient": "0.00005",
+            "spotPriceFee1xPoint": 1209600,
+            "spotPriceFee2xPoint": 2419200,
+            "vegaFeeCoefficient": "1",
+            "standardSize": "0.00000000001",
+            "skewAdjustmentFactor": "1"
+          },
+          "maxPricingParams": {
+            "optionPriceFeeCoefficient": "0.9",
+            "optionPriceFee1xPoint": 3628800,
+            "optionPriceFee2xPoint": 9676800,
+            "spotPriceFeeCoefficient": "0.2",
+            "spotPriceFee1xPoint": 3628800,
+            "spotPriceFee2xPoint": 9676800,
+            "vegaFeeCoefficient": "100000000000",
+            "standardSize": "100000",
+            "skewAdjustmentFactor": "3"
+          },
+          "minTradeLimitParams": {
+            "minDelta": "0.085",
+            "minForceCloseDelta": "0.001",
+            "tradingCutoff": 0,
+            "minBaseIV": "0.2",
+            "maxBaseIV": "1",
+            "minSkew": "0.25",
+            "maxSkew": "1",
+            "minVol": "0.25",
+            "maxVol": "0.8",
+            "absMinSkew": "0.25",
+            "absMaxSkew": "1.25",
+            "capSkewsToAbs": false
+          },
+          "maxTradeLimitParams": {
+            "minDelta": "0.6",
+            "minForceCloseDelta": "1",
+            "tradingCutoff": 86200,
+            "minBaseIV": "1",
+            "maxBaseIV": "4",
+            "minSkew": "1",
+            "maxSkew": "2",
+            "minVol": "0.5",
+            "maxVol": "6",
+            "absMinSkew": "1",
+            "absMaxSkew": "8",
+            "capSkewsToAbs": false
+          },
+          "minVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "0.2",
+            "forceCloseVarianceFeeCoefficient": "0",
+            "skewAdjustmentCoefficient": "0",
+            "referenceSkew": "0",
+            "minimumStaticSkewAdjustment": "0",
+            "vegaCoefficient": "0",
+            "minimumStaticVega": "0",
+            "ivVarianceCoefficient": "0",
+            "minimumStaticIvVariance": "0"
+          },
+          "maxVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient": "10",
+            "forceCloseVarianceFeeCoefficient": "10",
+            "skewAdjustmentCoefficient": "10",
+            "referenceSkew": "1",
+            "minimumStaticSkewAdjustment": "2",
+            "vegaCoefficient": "10",
+            "minimumStaticVega": "1",
+            "ivVarianceCoefficient": "3",
+            "minimumStaticIvVariance": "1"
+          }
+        },
+        "GreekCacheBounds": {
+          "minGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 1800,
+            "varianceIvGWAVPeriod": 100,
+            "varianceSkewGWAVPeriod": 100,
+            "optionValueIvGWAVPeriod": 500,
+            "optionValueSkewGWAVPeriod": 500,
+            "gwavSkewFloor": "0.25",
+            "gwavSkewCap": "0.1"
+          },
+          "maxGreekCacheParams": {
+            "maxStrikesPerBoard": 30,
+            "acceptableSpotPricePercentMove": "0.005",
+            "staleUpdateDuration": 7200,
+            "varianceIvGWAVPeriod": 43200,
+            "varianceSkewGWAVPeriod": 43200,
+            "optionValueIvGWAVPeriod": 129600,
+            "optionValueSkewGWAVPeriod": 129600,
+            "gwavSkewFloor": "0.5",
+            "gwavSkewCap": "10"
+          },
+          "minForceCloseParams": {
+            "ivGWAVPeriod": 100,
+            "skewGWAVPeriod": 100,
+            "shortVolShock": "1.05",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.8",
+            "longPostCutoffVolShock": "0.01",
+            "liquidateVolShock": "1",
+            "liquidatePostCutoffVolShock": "1.01",
+            "shortSpotMin": "0.0015",
+            "liquidateSpotMin": "0.001"
+          },
+          "maxForceCloseParams": {
+            "ivGWAVPeriod": 86200,
+            "skewGWAVPeriod": 86200,
+            "shortVolShock": "1.2",
+            "shortPostCutoffVolShock": "1.35",
+            "longVolShock": "0.95",
+            "longPostCutoffVolShock": "0.9",
+            "liquidateVolShock": "1.9",
+            "liquidatePostCutoffVolShock": "1.9",
+            "shortSpotMin": "0.01",
+            "liquidateSpotMin": "0.1"
+          },
+          "minMinCollateralParams": {
+            "minStaticBaseCollateral": "0.0001",
+            "minStaticQuoteCollateral": "0",
+            "shockVolA": "3",
+            "shockVolPointA": 2419200,
+            "shockVolB": "1.8",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.05",
+            "putSpotPriceShock": "0.5"
+          },
+          "maxMinCollateralParams": {
+            "minStaticBaseCollateral": "10000",
+            "minStaticQuoteCollateral": "4000",
+            "shockVolA": "10",
+            "shockVolPointA": 2419200,
+            "shockVolB": "10",
+            "shockVolPointB": 4838400,
+            "callSpotPriceShock": "1.9",
+            "putSpotPriceShock": "0.99"
+          }
+        },
+        "OptionTokenBounds": {
+          "minPartialCollatParams": {
+            "penaltyRatio": "0",
+            "liquidatorFeeRatio": "0",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "5"
+          },
+          "maxPartialCollatParams": {
+            "penaltyRatio": "0.2",
+            "liquidatorFeeRatio": "0.2",
+            "smFeeRatio": "0",
+            "minLiquidationFee": "20"
+          }
+        }
+      }
+    },
+    "XRP" :{
+      "BaseAsset": "XRP",
+      "BaseDecimals": 18,
+      "MockPrice": "0.63",
+      "BaseLimit" : "0",
+      "deployHedger" : true,
+      "deployWithUniswap" : false,
+      "uniDeviation" : "0.95",
+      "Parameters": {
+        "OptionMarketParams": {
+          "maxBoardExpiry": 7344000,
+          "securityModule": "0x0000000000000000000000000000000000000000",
+          "feePortionReserved": "0",
+          "staticBaseSettlementFee": "0.0025"
+        },
+        "LiquidityPoolParams" : {
+          "minDepositWithdraw":"1", 
+          "depositDelay":259200,
+          "withdrawalDelay":259200,
+          "withdrawalFee":"0.003",
+          "guardianDelay":43200,
+          "guardianMultisig" : "0x0000000000000000000000000000000000000000",
+          "adjustmentNetScalingFactor":"0.9",
+          "callCollatScalingFactor":"0.8",
+          "putCollatScalingFactor":"0.8"
+        },
+        "CircuitBreakerParams": {
+          "liquidityCBThreshold":"0.01",
+          "liquidityCBTimeout":172800,
+          "ivVarianceCBThreshold":"0.25",
+          "skewVarianceCBThreshold":"0.25",
+          "ivVarianceCBTimeout":43200,
+          "skewVarianceCBTimeout":43200,
+          "boardSettlementCBTimeout":21600,
+          "contractAdjustmentCBTimeout":86400
+        },
+        "GreekCacheParams": {
+          "maxStrikesPerBoard":30,
+          "acceptableSpotPricePercentMove":"0.005",
+          "staleUpdateDuration":1800,
+          "varianceIvGWAVPeriod":21600,
+          "varianceSkewGWAVPeriod":21600,
+          "optionValueIvGWAVPeriod":86400,
+          "optionValueSkewGWAVPeriod":86400,
+          "gwavSkewFloor":"0.5",
+          "gwavSkewCap":"2"
+        },
+        "ForceCloseParams": {
+          "ivGWAVPeriod":43200,
+          "skewGWAVPeriod":43200,
+          "shortVolShock":"1.2",
+          "shortPostCutoffVolShock":"1.35",
+          "longVolShock":"0.8",
+          "longPostCutoffVolShock":"0.65",
+          "liquidateVolShock":"1.15",
+          "liquidatePostCutoffVolShock":"1.45",
+          "shortSpotMin":"0.0015",
+          "liquidateSpotMin":"0.01"
+        },
+        "MinCollateralParams": {
+          "minStaticQuoteCollateral":"400",
+          "minStaticBaseCollateral":"800",
+          "shockVolA":"3.5",
+          "shockVolPointA":2419200,
+          "shockVolB":"2",
+          "shockVolPointB":4838400,
+          "callSpotPriceShock":"1.15",
+          "putSpotPriceShock":"0.85"
+        },
+        "PricingParams":{
+          "optionPriceFeeCoefficient":"0.013",
+          "optionPriceFee1xPoint":3628800,
+          "optionPriceFee2xPoint":7257600,
+          "spotPriceFeeCoefficient":"0.0012",
+          "spotPriceFee1xPoint":3628800,
+          "spotPriceFee2xPoint":7257600,
+          "vegaFeeCoefficient":"3",
+          "standardSize":"1000",
+          "skewAdjustmentFactor":"1.3"
+        },
+        "TradeLimitParams": {
+          "minDelta":"0.085",
+          "minForceCloseDelta":"0.1",
+          "tradingCutoff":43200,
+          "minBaseIV":"0.3",
+          "maxBaseIV":"3",
+          "minSkew":"0.8",
+          "maxSkew":"1.6",
+          "minVol":"0.3",
+          "maxVol":"4",
+          "absMinSkew":"0.4",
+          "absMaxSkew":"3"
+        },
+        "VarianceFeeParams": {
+          "defaultVarianceFeeCoefficient":"1",
+          "forceCloseVarianceFeeCoefficient":"0",
+          "skewAdjustmentCoefficient":"1",
+          "referenceSkew":"0",
+          "minimumStaticSkewAdjustment":"0",
+          "vegaCoefficient":"1",
+          "minimumStaticVega":"0",
+          "ivVarianceCoefficient":"1",
+          "minimumStaticIvVariance":"0"
+        },
+        "PartialCollatParams":{
+          "penaltyRatio":"0.05",
+          "liquidatorFeeRatio":"0.1",
+          "smFeeRatio":"0",
+          "minLiquidationFee":"20"
+        },
+        "PoolHedgerParams": {
+          "interactionDelay": 21600,
+          "hedgeCap": "5000000"
+        },
+        "FuturesPoolHedgerParams" : {
+          "targetLeverage": "1.1",
+          "maximumFundingRate": "0.1",
+          "deltaThreshold": "20000",
+          "marketDepthBuffer": "1.1",
+          "priceDeltaBuffer": "1.1",
+          "worstStableRate": "1.03",
+          "maxOrderCap": "250000"
+        }
+      },
+      "GovWrapperBounds": {
+        "SNXAdapterBounds": {
+          "minMarketPricingParams": {
+            "staticSwapFeeEstimate": "0",
+            "snxPerpV2MarketAddress" : "0x6110DF298B411a46d6edce72f5CAca9Ad826C1De",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 0
+            }
+          },
+          "maxMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x6110DF298B411a46d6edce72f5CAca9Ad826C1De",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 100000
+            }
+          },
+          "minRiskFreeRate": "-0.1",
+          "maxRiskFreeRate": "0.35"
+        },
+        "SNXHedgerBounds": {
+          "minPoolHedgerParams": {
+            "interactionDelay": 1,
+            "hedgeCap": "0"
+          },
+          "maxPoolHedgerParams": {
+            "interactionDelay": 172800,
+            "hedgeCap": "1000000000"
+          },
+          "minFuturesPoolHedgerParams": {
+            "targetLeverage" : "0",
+            "maximumFundingRate" : "0",
+            "deltaThreshold" : "0",
+            "marketDepthBuffer" : "0",
+            "priceDeltaBuffer" : "0",
+            "worstStableRate" : "0",
+            "maxOrderCap" : "0"
+          },
+          "maxFuturesPoolHedgerParams": {
+            "targetLeverage" : "10",
+            "maximumFundingRate" : "10",
+            "deltaThreshold" : "100000000",
+            "marketDepthBuffer" : "100000",
+            "priceDeltaBuffer" : "1000000",
+            "worstStableRate" : "1000",
+            "maxOrderCap" : "10000000"
+          }
+        },
+        "OptionMarketBounds": {
+          "boardFreezingBlocked": false,
+          "boardForceSettlingBlocked": false,
+          "minBaseIv": "0.1",
+          "maxBaseIv": "5",
+          "minSkew": "0.1",
+          "maxSkew": "5",
+          "recoverFundsBlocked": false
+        },
+        "LiquidityPoolBounds":{
+          "minLiquidityPoolParams": { 
+            "minDepositWithdraw":"1",
+            "depositDelay":259200,
+            "withdrawalDelay":259200,
+            "withdrawalFee":"0",
+            "guardianMultisig": "0x0000000000000000000000000000000000000000",
+            "guardianDelay":21600,
+            "adjustmentNetScalingFactor":"0.01",
+            "callCollatScalingFactor":"0.01",
+            "putCollatScalingFactor":"0.01"
+            },
+            "maxLiquidityPoolParams": {
+              "minDepositWithdraw":"10000",
+              "depositDelay":1209600,
+              "withdrawalDelay":1209600,
+              "withdrawalFee":"5",
+              "guardianMultisig": "0x0000000000000000000000000000000000000000",
+              "guardianDelay":1209600,
+              "adjustmentNetScalingFactor":"0.9",
+              "callCollatScalingFactor":"0.8",
+              "putCollatScalingFactor":"0.8"
+            },
+            "minCircuitBreakerParams": {
+              "liquidityCBThreshold":"0.01",
+              "liquidityCBTimeout":0,
+              "ivVarianceCBThreshold":"0.01",
+              "skewVarianceCBThreshold":"0.01",
+              "ivVarianceCBTimeout":0,
+              "skewVarianceCBTimeout":0,
+              "boardSettlementCBTimeout":3600,
+              "contractAdjustmentCBTimeout":86400
+              },
+            "maxCircuitBreakerParams": {
+              "liquidityCBThreshold":"0.01",
+              "liquidityCBTimeout":172800,
+              "ivVarianceCBThreshold":"0.9",
+              "skewVarianceCBThreshold":"0.9",
+              "ivVarianceCBTimeout":43200,
+              "skewVarianceCBTimeout":43200,
+              "boardSettlementCBTimeout":43200,
+              "contractAdjustmentCBTimeout":604800
+            },
+            "recoverFundsBlocked": false,
+            "updateHedgerBlocked": false,
+            "defaultGuardianMultisig": "0x0000000000000000000000000000000000000000"
+          },
+        "GreekCacheBounds": {
+          "minGreekCacheParams": {
+            "maxStrikesPerBoard":30,
+            "acceptableSpotPricePercentMove":"0.005",
+            "staleUpdateDuration":1800,
+            "varianceIvGWAVPeriod":100,
+            "varianceSkewGWAVPeriod":100,
+            "optionValueIvGWAVPeriod":500,
+            "optionValueSkewGWAVPeriod":500,
+            "gwavSkewFloor":"0.25",
+            "gwavSkewCap":"0.1"
+          },
+          "maxGreekCacheParams": {
+            "maxStrikesPerBoard":30,
+            "acceptableSpotPricePercentMove":"0.005",
+            "staleUpdateDuration":7200,
+            "varianceIvGWAVPeriod":43200,
+            "varianceSkewGWAVPeriod":43200,
+            "optionValueIvGWAVPeriod":129600,
+            "optionValueSkewGWAVPeriod":129600,
+            "gwavSkewFloor":"0.5",
+            "gwavSkewCap":"10"
+          },
+          "minForceCloseParams":{
+            "ivGWAVPeriod":100,
+            "skewGWAVPeriod":100,
+            "shortVolShock":"1.05",
+            "shortPostCutoffVolShock":"1.35",
+            "longVolShock":"0.8",
+            "longPostCutoffVolShock":"0.01",
+            "liquidateVolShock":"1",
+            "liquidatePostCutoffVolShock":"1.01",
+            "shortSpotMin":"0.0015",
+            "liquidateSpotMin":"0.001"
+          },
+          "maxForceCloseParams": {
+            "ivGWAVPeriod":86200,
+            "skewGWAVPeriod":86200,
+            "shortVolShock":"1.2",
+            "shortPostCutoffVolShock":"1.35",
+            "longVolShock":"0.95",
+            "longPostCutoffVolShock":"0.9",
+            "liquidateVolShock":"1.9",
+            "liquidatePostCutoffVolShock":"1.9",
+            "shortSpotMin":"0.01",
+            "liquidateSpotMin":"0.1"},
+          "minMinCollateralParams": {
+            "minStaticQuoteCollateral":"0",
+            "minStaticBaseCollateral":"0.0001",
+            "shockVolA":"3",
+            "shockVolPointA":2419200,
+            "shockVolB":"1.8",
+            "shockVolPointB":4838400,
+            "callSpotPriceShock":"1.05",
+            "putSpotPriceShock":"0.5"
+          },
+          "maxMinCollateralParams": {
+            "minStaticQuoteCollateral":"4000",
+            "minStaticBaseCollateral":"10000",
+            "shockVolA":"10",
+            "shockVolPointA":2419200,
+            "shockVolB":"10",
+            "shockVolPointB":4838400,
+            "callSpotPriceShock":"1.9",
+            "putSpotPriceShock":"0.99"}
+        },
+        "OptionMarketPricerBounds": {
+          "minPricingParams": {
+            "optionPriceFeeCoefficient":"0.0005",
+            "optionPriceFee1xPoint":1209600,
+            "optionPriceFee2xPoint":2419200,
+            "spotPriceFeeCoefficient":"0.00005",
+            "spotPriceFee1xPoint":1209600,
+            "spotPriceFee2xPoint":2419200,
+            "vegaFeeCoefficient":"1",
+            "standardSize":"1",
+            "skewAdjustmentFactor":"1"
+          },
+          "maxPricingParams": {
+            "optionPriceFeeCoefficient":"0.9",
+            "optionPriceFee1xPoint":3628800,
+            "optionPriceFee2xPoint":9676800,
+            "spotPriceFeeCoefficient":"0.2",
+            "spotPriceFee1xPoint":3628800,
+            "spotPriceFee2xPoint":9676800,
+            "vegaFeeCoefficient":"100000000000",
+            "standardSize":"100000",
+            "skewAdjustmentFactor":"3"
+          },
+          "minTradeLimitParams": {
+            "minDelta":"0.085",
+            "minForceCloseDelta":"0.001",
+            "tradingCutoff":0,
+            "minBaseIV":"0.2",
+            "maxBaseIV":"1",
+            "minSkew":"0.25",
+            "maxSkew":"1",
+            "minVol":"0.25",
+            "maxVol":"0.8",
+            "absMinSkew":"0.25",
+            "absMaxSkew":"1.25"
+          },
+          "maxTradeLimitParams": {
+            "minDelta":"0.6",
+            "minForceCloseDelta":"1",
+            "tradingCutoff":86200,
+            "minBaseIV":"1",
+            "maxBaseIV":"4",
+            "minSkew":"1",
+            "maxSkew":"2",
+            "minVol":"0.5",
+            "maxVol":"6",
+            "absMinSkew":"1",
+            "absMaxSkew":"8"
+          },
+          "minVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient":"0.2",
+            "forceCloseVarianceFeeCoefficient":"0",
+            "skewAdjustmentCoefficient":"0",
+            "referenceSkew":"0",
+            "minimumStaticSkewAdjustment":"0",
+            "vegaCoefficient":"0",
+            "minimumStaticVega":"0",
+            "ivVarianceCoefficient":"0",
+            "minimumStaticIvVariance":"0"},
+          "maxVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient":"10",
+            "forceCloseVarianceFeeCoefficient":"10",
+            "skewAdjustmentCoefficient":"10",
+            "referenceSkew":"1",
+            "minimumStaticSkewAdjustment":"2",
+            "vegaCoefficient":"10",
+            "minimumStaticVega":"1",
+            "ivVarianceCoefficient":"3",
+            "minimumStaticIvVariance":"1"
+          }
+        },
+        "OptionTokenBounds": {
+          "minPartialCollatParams": {
+            "penaltyRatio":"0", 
+            "liquidatorFeeRatio":"0",
+            "smFeeRatio":"0",
+            "minLiquidationFee":"5"
+          },
+          "maxPartialCollatParams": {
+            "penaltyRatio":"0.2",
+            "liquidatorFeeRatio":"0.2",
+            "smFeeRatio":"0",
+            "minLiquidationFee":"20"
+          }
+        }
+      }
+    },
+    "LINK" : {
+      "BaseAsset": "LINK",
+      "BaseDecimals": 18,
+      "MockPrice": "7.43",
+      "BaseLimit" : "0",
+      "deployHedger" : true,
+      "deployWithUniswap" : false,
+      "uniDeviation" : "0.95",
+      "Parameters": {
+        "OptionMarketParams": {
+          "maxBoardExpiry": 7344000,
+          "securityModule": "0x0000000000000000000000000000000000000000",
+          "feePortionReserved": "0",
+          "staticBaseSettlementFee": "0.0025"
+        },
+        "LiquidityPoolParams": { 
+          "minDepositWithdraw":"1",
+          "depositDelay":259200,
+          "withdrawalDelay":259200,
+          "withdrawalFee":"0.003",
+          "guardianDelay":43200,
+          "guardianMultisig" : "0x0000000000000000000000000000000000000000",
+          "adjustmentNetScalingFactor":"0.9",
+          "callCollatScalingFactor":"0.8",
+          "putCollatScalingFactor":"0.8"
+        },
+        "CircuitBreakerParams": {
+          "liquidityCBThreshold":"0.01",
+          "liquidityCBTimeout":172800,
+          "ivVarianceCBThreshold":"0.25",
+          "skewVarianceCBThreshold":"0.25",
+          "ivVarianceCBTimeout":43200,
+          "skewVarianceCBTimeout":43200,
+          "boardSettlementCBTimeout":21600,
+          "contractAdjustmentCBTimeout":86400
+        },
+        "GreekCacheParams": {
+          "maxStrikesPerBoard":30,
+          "acceptableSpotPricePercentMove":"0.005",
+          "staleUpdateDuration":1800,
+          "varianceIvGWAVPeriod":21600,
+          "varianceSkewGWAVPeriod":21600,
+          "optionValueIvGWAVPeriod":86400,
+          "optionValueSkewGWAVPeriod":86400,
+          "gwavSkewFloor":"0.5",
+          "gwavSkewCap":"2"
+        },
+        "ForceCloseParams": {
+          "ivGWAVPeriod":43200,
+          "skewGWAVPeriod":43200,
+          "shortVolShock":"1.2",
+          "shortPostCutoffVolShock":"1.35",
+          "longVolShock":"0.8",
+          "longPostCutoffVolShock":"0.65",
+          "liquidateVolShock":"1.15",
+          "liquidatePostCutoffVolShock":"1.45",
+          "shortSpotMin":"0.0015",
+          "liquidateSpotMin":"0.01"
+        },
+        "MinCollateralParams": {
+          "minStaticQuoteCollateral":"400",
+          "minStaticBaseCollateral":"80",
+          "shockVolA":"3.5",
+          "shockVolPointA":2419200,
+          "shockVolB":"2",
+          "shockVolPointB":4838400,
+          "callSpotPriceShock":"1.15",
+          "putSpotPriceShock":"0.85"
+        },
+        "PricingParams": {
+          "optionPriceFeeCoefficient":"0.013",
+          "optionPriceFee1xPoint":3628800,
+          "optionPriceFee2xPoint":7257600,
+          "spotPriceFeeCoefficient":"0.0012",
+          "spotPriceFee1xPoint":3628800,
+          "spotPriceFee2xPoint":7257600,
+          "vegaFeeCoefficient":"30",
+          "standardSize":"100",
+          "skewAdjustmentFactor":"1.3"
+        }, 
+        "TradeLimitParams": {
+          "minDelta":"0.085",
+          "minForceCloseDelta":"0.1",
+          "tradingCutoff":43200,
+          "minBaseIV":"0.3",
+          "maxBaseIV":"3",
+          "minSkew":"0.8",
+          "maxSkew":"1.6",
+          "minVol":"0.3",
+          "maxVol":"4",
+          "absMinSkew":"0.4",
+          "absMaxSkew":"3"
+        },
+        "VarianceFeeParams": {
+          "defaultVarianceFeeCoefficient":"1",
+          "forceCloseVarianceFeeCoefficient":"0",
+          "skewAdjustmentCoefficient":"1",
+          "referenceSkew":"0",
+          "minimumStaticSkewAdjustment":"0",
+          "vegaCoefficient":"1",
+          "minimumStaticVega":"0",
+          "ivVarianceCoefficient":"1",
+          "minimumStaticIvVariance":"0"
+        },
+        "PartialCollatParams": {
+          "penaltyRatio":"0.05",
+          "liquidatorFeeRatio":"0.1",
+          "smFeeRatio":"0",
+          "minLiquidationFee":"20"
+        },
+        "PoolHedgerParams": {
+          "interactionDelay": 21600,
+          "hedgeCap": "5000000"
+        },
+        "FuturesPoolHedgerParams" : {
+          "targetLeverage": "1.1",
+          "maximumFundingRate": "0.1",
+          "deltaThreshold": "2000",
+          "marketDepthBuffer": "1.1",
+          "priceDeltaBuffer": "1.1",
+          "worstStableRate": "1.03",
+          "maxOrderCap": "250000"
+        }
+      },
+      "GovWrapperBounds": {
+        "OptionMarketBounds": {
+          "boardFreezingBlocked": false,
+          "boardForceSettlingBlocked": false,
+          "minBaseIv": "0.1",
+          "maxBaseIv": "5",
+          "minSkew": "0.1",
+          "maxSkew": "5",
+          "recoverFundsBlocked": false
+        },
+        "LiquidityPoolBounds": {
+          "minLiquidityPoolParams": {
+          "minDepositWithdraw":"1",
+          "depositDelay":259200,
+          "withdrawalDelay":259200,
+          "withdrawalFee":"0",
+          "guardianMultisig":"0x0000000000000000000000000000000000000000",
+          "guardianDelay":21600,
+          "adjustmentNetScalingFactor":"0.01",
+          "callCollatScalingFactor":"0.01",
+          "putCollatScalingFactor":"0.01"
+          },
+          "maxLiquidityPoolParams": {
+            "minDepositWithdraw":"10000",
+            "depositDelay":1209600,
+            "withdrawalDelay":1209600,
+            "withdrawalFee":"5",
+            "guardianMultisig":"0x0000000000000000000000000000000000000000",
+            "guardianDelay":1209600,
+            "adjustmentNetScalingFactor":"0.9",
+            "callCollatScalingFactor":"0.8",
+            "putCollatScalingFactor":"0.8"
+          },
+          "minCircuitBreakerParams": {
+            "liquidityCBThreshold":"0.01",
+            "liquidityCBTimeout":0,
+            "ivVarianceCBThreshold":"0.01",
+            "skewVarianceCBThreshold":"0.01",
+            "ivVarianceCBTimeout":0,
+            "skewVarianceCBTimeout":0,
+            "boardSettlementCBTimeout":3600,
+            "contractAdjustmentCBTimeout":86400
+            }, 
+            "maxCircuitBreakerParams": {
+              "liquidityCBThreshold":"0.01",
+              "liquidityCBTimeout":172800,
+              "ivVarianceCBThreshold":"0.9",
+              "skewVarianceCBThreshold":"0.9",
+              "ivVarianceCBTimeout":43200,
+              "skewVarianceCBTimeout":43200,
+              "boardSettlementCBTimeout":43200,
+              "contractAdjustmentCBTimeout":604800
+            },
+            "defaultGuardianMultisig": "0x0000000000000000000000000000000000000000",
+            "recoverFundsBlocked": false,
+            "updateHedgerBlocked": false
+        },
+        "GreekCacheBounds": {
+          "minGreekCacheParams": {
+            "maxStrikesPerBoard":30,
+            "acceptableSpotPricePercentMove":"0.005",
+            "staleUpdateDuration":1800,
+            "varianceIvGWAVPeriod":100,
+            "varianceSkewGWAVPeriod":100,
+            "optionValueIvGWAVPeriod":500,
+            "optionValueSkewGWAVPeriod":500,
+            "gwavSkewFloor":"0.25",
+            "gwavSkewCap":"0.1"
+          },
+          "maxGreekCacheParams":{ 
+            "maxStrikesPerBoard":30,
+            "acceptableSpotPricePercentMove":"0.005",
+            "staleUpdateDuration":7200,
+            "varianceIvGWAVPeriod":43200,
+            "varianceSkewGWAVPeriod":43200,
+            "optionValueIvGWAVPeriod":129600,
+            "optionValueSkewGWAVPeriod":129600,
+            "gwavSkewFloor":"0.5",
+            "gwavSkewCap":"10"
+          },"minForceCloseParams": {
+            "ivGWAVPeriod":100,
+            "skewGWAVPeriod":100,
+            "shortVolShock":"1.05",
+            "shortPostCutoffVolShock":"1.35",
+            "longVolShock":"0.8",
+            "longPostCutoffVolShock":"0.01",
+            "liquidateVolShock":"1",
+            "liquidatePostCutoffVolShock":"1.01",
+            "shortSpotMin":"0.0015",
+            "liquidateSpotMin":"0.001"
+          },
+          "maxForceCloseParams": {
+            "ivGWAVPeriod":86200,
+            "skewGWAVPeriod":86200,
+            "shortVolShock":"1.2",
+            "shortPostCutoffVolShock":"1.35",
+            "longVolShock":"0.95",
+            "longPostCutoffVolShock":"0.9",
+            "liquidateVolShock":"1.9",
+            "liquidatePostCutoffVolShock":"1.9",
+            "shortSpotMin":"0.01",
+            "liquidateSpotMin":"0.1"
+          },
+          "minMinCollateralParams": {
+            "minStaticQuoteCollateral":"0",
+            "minStaticBaseCollateral":"0.0001",
+            "shockVolA":"3",
+            "shockVolPointA":2419200,
+            "shockVolB":"1.8",
+            "shockVolPointB":4838400,
+            "callSpotPriceShock":"1.05",
+            "putSpotPriceShock":"0.5"
+          },
+          "maxMinCollateralParams": {
+            "minStaticQuoteCollateral":"4000",
+            "minStaticBaseCollateral":"10000",
+            "shockVolA":"10",
+            "shockVolPointA":2419200,
+            "shockVolB":"10",
+            "shockVolPointB":4838400,
+            "callSpotPriceShock":"1.9",
+            "putSpotPriceShock":"0.99"
+          }
+        },
+        "OptionMarketPricerBounds": { 
+          "minPricingParams": {
+            "optionPriceFeeCoefficient":"0.0005",
+            "optionPriceFee1xPoint":1209600,
+            "optionPriceFee2xPoint":2419200,
+            "spotPriceFeeCoefficient":"0.00005",
+            "spotPriceFee1xPoint":1209600,
+            "spotPriceFee2xPoint":2419200,
+            "vegaFeeCoefficient":"1",
+            "standardSize":"1",
+            "skewAdjustmentFactor":"1"
+          },
+          "maxPricingParams": {
+            "optionPriceFeeCoefficient":"0.9",
+            "optionPriceFee1xPoint":3628800,
+            "optionPriceFee2xPoint":9676800,
+            "spotPriceFeeCoefficient":"0.2",
+            "spotPriceFee1xPoint":3628800,
+            "spotPriceFee2xPoint":9676800,
+            "vegaFeeCoefficient":"100000000000",
+            "standardSize":"100000",
+            "skewAdjustmentFactor":"3"
+          },
+          "minTradeLimitParams": {
+            "minDelta":"0.085",
+            "minForceCloseDelta":"0.001",
+            "tradingCutoff":0,
+            "minBaseIV":"0.2",
+            "maxBaseIV":"1",
+            "minSkew":"0.25",
+            "maxSkew":"1",
+            "minVol":"0.25",
+            "maxVol":"0.8",
+            "absMinSkew":"0.25",
+            "absMaxSkew":"1.25"
+          },
+          "maxTradeLimitParams":{
+            "minDelta":"0.6",
+            "minForceCloseDelta":"1",
+            "tradingCutoff":86200,
+            "minBaseIV":"1",
+            "maxBaseIV":"4",
+            "minSkew":"1",
+            "maxSkew":"2",
+            "minVol":"0.5",
+            "maxVol":"6",
+            "absMinSkew":"1",
+            "absMaxSkew":"8"
+          },
+          "minVarianceFeeParams":{
+            "defaultVarianceFeeCoefficient":"0.2",
+            "forceCloseVarianceFeeCoefficient":"0",
+            "skewAdjustmentCoefficient":"0",
+            "referenceSkew":"0",
+            "minimumStaticSkewAdjustment":"0",
+            "vegaCoefficient":"0",
+            "minimumStaticVega":"0",
+            "ivVarianceCoefficient":"0",
+            "minimumStaticIvVariance":"0"
+          },
+          "maxVarianceFeeParams": {
+            "defaultVarianceFeeCoefficient":"10",
+            "forceCloseVarianceFeeCoefficient":"10",
+            "skewAdjustmentCoefficient":"10",
+            "referenceSkew":"1",
+            "minimumStaticSkewAdjustment":"2",
+            "vegaCoefficient":"10",
+            "minimumStaticVega":"1",
+            "ivVarianceCoefficient":"3",
+            "minimumStaticIvVariance":"1"
+          }
+        },
+        "OptionTokenBounds": {
+          "minPartialCollatParams": {
+            "penaltyRatio":"0",
+            "liquidatorFeeRatio":"0",
+            "smFeeRatio":"0",
+            "minLiquidationFee":"5"
+          },
+          "maxPartialCollatParams": {
+            "penaltyRatio":"0.2",
+            "liquidatorFeeRatio":"0.2",
+            "smFeeRatio":"0",
+            "minLiquidationFee":"20"
+          }
+        },
+        "SNXAdapterBounds": {
+          "minMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x31A1659Ca00F617E86Dc765B6494Afe70a5A9c1A",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 0
+            }
+          },
+          "maxMarketPricingParams": {
+            "staticSwapFeeEstimate": "1",
+            "snxPerpV2MarketAddress" : "0x31A1659Ca00F617E86Dc765B6494Afe70a5A9c1A",
+            "uniswapInfo" : {
+              "pool": "0x0000000000000000000000000",
+              "feeTier" : 100000
+            }
+          },
+          "minRiskFreeRate": "-0.1",
+          "maxRiskFreeRate": "0.35"
+        },
+        "SNXHedgerBounds": {
+          "minPoolHedgerParams": {
+            "interactionDelay": 1,
+            "hedgeCap": "0"
+          },
+          "maxPoolHedgerParams": {
+            "interactionDelay": 172800,
+            "hedgeCap": "10000000"
+          },
+          "minFuturesPoolHedgerParams": {
+            "targetLeverage" : "0",
+            "maximumFundingRate" : "0",
+            "deltaThreshold" : "0",
+            "marketDepthBuffer" : "0",
+            "priceDeltaBuffer" : "0",
+            "worstStableRate" : "0",
+            "maxOrderCap" : "0"
+          },
+          "maxFuturesPoolHedgerParams": {
+            "targetLeverage" : "10",
+            "maximumFundingRate" : "10",
+            "deltaThreshold" : "1000000",
+            "marketDepthBuffer" : "100000",
+            "priceDeltaBuffer" : "1000000",
+            "worstStableRate" : "1000",
+            "maxOrderCap" : "10000000"
+          }
+        }
+      }
+    }
+  },
+  "Seed": {
+    "mintFunds": {
+      "run": false,
+      "markets": {
+        "ETH": {
+          "quoteAmount": "100000000",
+          "baseAmount": "10000"
+        },
+        "BTC" : {
+          "quoteAmount": "100000000",
+          "baseAmount": "10000"
+        }
+      }
+    },
+    "deposit": {
+      "run": false,
+      "markets": {
+        "ETH": {
+          "quoteAmount": "50000000"
+        },
+        "BTC" : {
+          "quoteAmount": "50000000"
+        }
+      }
+    },
+    "addExercisableOptions": {
+      "markets" : {
+        "ETH": {
+          "run": false
+        },
+        "BTC" : {
+          "run": false
+        }
+      }
+    },
+    "seedLiquidations": {
+      "markets" : {
+        "ETH": false,
+        "BTC" : false
+      }
+    },
+    "addBoards": {
+      "run": false,
+      "markets": {
+        "ARB" : {
+          "generated": false
+        }
+      }
+    },
+    "updateCaches": {
+      "markets": {
+        "ETH": false,
+        "BTC": false,
+        "OP" : false,
+        "XRP": false,
+        "LINK": false
+      }
+    },
+    "hedgeDelta": {
+      "markets": {
+        "ETH": false,
+        "BTC": false,
+        "OP" : false,
+        "XRP": false,
+        "LINK": false
+      }
+    },
+    "seedTrades": {
+      "markets": {
+        "ETH": false,
+        "BTC": false,
+        "OP" : false,
+        "XRP": false,
+        "LINK": false
+      }
+    },
+    "changeOwner": {
+      "run": false,
+      "globalOwner": "0xd1E1B0cbeA0CFF6d8287d87C7bBA62067a81911C",
+      "markets": {
+        "ETH": "0xd1E1B0cbeA0CFF6d8287d87C7bBA62067a81911C",
+        "BTC": "0xd1E1B0cbeA0CFF6d8287d87C7bBA62067a81911C"
+      }
+    }
+  }
+}

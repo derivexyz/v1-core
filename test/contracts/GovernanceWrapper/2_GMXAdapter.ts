@@ -86,42 +86,34 @@ describe('GMXAdapterGovernanceWrapper', () => {
 
     // Should revert if risk council over bound
     await expect(
-      govWrap.gmxAdapterGov
-        .connect(RC)
-        .setMarketPricingParams(hre.f.gc.optionMarket.address, {
-          ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
-          staticSwapFeeEstimate: toBN('100'),
-        }),
+      govWrap.gmxAdapterGov.connect(RC).setMarketPricingParams(hre.f.gc.optionMarket.address, {
+        ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
+        staticSwapFeeEstimate: toBN('100'),
+      }),
     ).to.be.revertedWith('GMXAGW_MarketPricingParams');
 
     // should revert if risk council under bounds
     await expect(
-      govWrap.gmxAdapterGov
-        .connect(RC)
-        .setMarketPricingParams(hre.f.gc.optionMarket.address, {
-          ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
-          staticSwapFeeEstimate: toBN('0.00001'),
-        }),
+      govWrap.gmxAdapterGov.connect(RC).setMarketPricingParams(hre.f.gc.optionMarket.address, {
+        ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
+        staticSwapFeeEstimate: toBN('0.00001'),
+      }),
     ).to.be.revertedWith('GMXAGW_MarketPricingParams');
 
     // Should revert if risk council over bound for chainlink staleness check
     await expect(
-      govWrap.gmxAdapterGov
-        .connect(RC)
-        .setMarketPricingParams(hre.f.gc.optionMarket.address, {
-          ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
-          chainlinkStalenessCheck: toBN('7201'),
-        }),
+      govWrap.gmxAdapterGov.connect(RC).setMarketPricingParams(hre.f.gc.optionMarket.address, {
+        ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
+        chainlinkStalenessCheck: toBN('7201'),
+      }),
     ).to.be.revertedWith('GMXAGW_MarketPricingParams');
 
     // should revert if risk council under bounds for chainlink staleness check
     await expect(
-      govWrap.gmxAdapterGov
-        .connect(RC)
-        .setMarketPricingParams(hre.f.gc.optionMarket.address, {
-          ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
-          chainlinkStalenessCheck: toBN('300'),
-        }),
+      govWrap.gmxAdapterGov.connect(RC).setMarketPricingParams(hre.f.gc.optionMarket.address, {
+        ...DEFAULT_GOV_GMX_ADAPTER_BOUNDS.maxMarketPricingParams,
+        chainlinkStalenessCheck: toBN('300'),
+      }),
     ).to.be.revertedWith('GMXAGW_MarketPricingParams');
   });
 
