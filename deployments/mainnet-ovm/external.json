@@ -28,10 +28,31 @@
 			"txn": "",
 			"blockNumber": 0
 		},
+		"OP" : {
+			"contractName": "TestERC20SetDecimals",
+			"source": "TestERC20SetDecimals",
+			"address": "0x4200000000000000000000000000000000000042",
+			"txn": "",
+			"blockNumber": 0
+		},
+		"LINK" : {
+			"contractName": "TestERC20SetDecimals",
+			"source": "TestERC20SetDecimals",
+			"address": "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6",
+			"txn": "",
+			"blockNumber": 0
+		},
+		"XRP" : {
+			"contractName": "TestERC20SetDecimals",
+			"source": "TestERC20SetDecimals",
+			"address": "0x80a7D526BD06C6C948B9A41A57Ea0Df1763b1a66",
+			"txn": "",
+			"blockNumber": 0
+		},
 		"CurveRegistry" : {
 			"contractName": "CurveRegistry",
 			"source": "CurveRegistry",
-			"address" : "0x0000000022D53366457F9d5E68Ec105046FC4383",
+			"address" : "0x05d4E2Ed7216A204e5FB4e3F5187eCfaa5eF3Ef7",
 			"txn" :  "",
 			"blockNumber" : 0
 		},
@@ -87,6 +108,48 @@
 			"address" : "0xE592427A0AEce92De3Edee1F18E0157C05861564",
 			"source" : "UniSwapRouter",
 			"txn" : "",
+			"blockNumber" : 0
+		},
+		"PerpsV2ProxyBTCPERP" : {
+			"contractName": "PerpsV2ProxyBTCPERP",
+			"source": "ProxyPerpsV2",
+			"address": "0x59b007E9ea8F89b069c43F8f45834d30853e3699",
+			"txn": "",
+			"blockNumber": 0
+		},
+		"PerpsV2ProxyARBPERP" : {
+			"contractName": "PerpsV2ProxyARBPERP",
+			"source": "ProxyPerpsV2",
+			"address": "0x509072A5aE4a87AC89Fc8D64D94aDCb44Bd4b88e",
+			"txn": "",
+			"blockNumber": 0
+		},
+		"PerpsV2ProxyOPPERP" : {
+			"contractName": "PerpsV2ProxyOPPERP",
+			"source": "ProxyPerpsV2",
+			"address": "0x442b69937a0daf9D46439a71567fABE6Cb69FBaf",
+			"txn": "",
+			"blockNumber": 0
+		},
+		"PerpsV2ProxyXRPPERP" : {
+			"contractName": "PerpsV2ProxyXRPPERP",
+			"source": "ProxyPerpsV2",
+			"address": "0x6110DF298B411a46d6edce72f5CAca9Ad826C1De",
+			"txn": "",
+			"blockNumber": 0
+		},
+		"PerpsV2ProxyLINKPERP" : {
+			"contractName": "PerpsV2ProxyLINKPERP",
+			"source": "ProxyPerpsV2",
+			"address": "0x31A1659Ca00F617E86Dc765B6494Afe70a5A9c1A",
+			"txn": "",
+			"blockNumber": 0
+		},
+		"ARB" : {
+			"contractName": "TestERC20SetDecimals",
+			"source": "TestERC20SetDecimals",
+			"address": "0x920E88a9d206Df7EF4913092c05bf9b261Aee7De",
+			"txn": "0x920E88a9d206Df7EF4913092c05bf9b261Aee7De",
 			"blockNumber" : 0
 		}
 	},
